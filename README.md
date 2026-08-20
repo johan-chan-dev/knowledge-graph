@@ -34,7 +34,8 @@ Nothing owns a sentence.
 | manifests | scaffolded |
 | `bin/kg` toolbelt | **not built** |
 | skills, agents | **not written** — they are compositions of operations, and the operations do not exist yet |
-| schema reference | `kg/SCHEMA.md` |
+| schema reference | `kg/SCHEMA.md` — what it writes |
+| toolbelt design | `kg/TOOLBELT.md` — the surface that writes it |
 
 Extracted from a private repository where it has been in daily use. The
 extraction is the current work, and the origin repo is its first consumer —
