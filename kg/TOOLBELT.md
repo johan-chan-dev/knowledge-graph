@@ -131,18 +131,41 @@ by regex broke **157 links**, a second pass re-basing what the first had just
 created. Every path looked plausible and was one level too deep. `--dry-run`
 prints the rewrite table without touching anything.
 
-## Derived
+## Build — the derived layer
 
 ```
 kg build [--check]     # writes MAP, QUEUE, INDEX listings; --check fails instead
+```
+
+**Derived** means computed from the source of truth and holding nothing of its
+own. The test is exact: delete it, rebuild, get it back byte-identical.
+
+| Artifact | Derived |
+|---|---|
+| node file, task file | **no** — one holds a claim, the other holds work |
+| `meta/QUEUE.md` | **fully** |
+| `meta/MAP.md` listing and pressure | yes, between the generated markers |
+| `meta/MAP.md` commentary and `reconciled:` | **no** — authored, maintained by a settle pass |
+| `INDEX.md` listing | yes |
+| `INDEX.md` editorial | **no** — judgement about which nodes matter |
+
+Three consequences: never hand-edit a derived block, because the next build
+overwrites it silently; delete one freely, because nothing is lost; and it cannot
+drift, which is what makes the metadata layer safe to load into every session.
+
+## Check — the backstop
+
+```
 kg check               # read-only, never writes
 ```
 
-Split deliberately. Fused, a clean repository fails its own commit with
-*"regenerated — `git add`"*, which reads as an error and means work was done for
-you. `build --check` is the CI form; `check` is the backstop.
+Separate from `build`, and not a variant of it. `build` is the only command that
+produces derived output; `check` produces nothing at all. Fused — as they were in
+the origin repo — a clean repository fails its own commit with *"regenerated —
+`git add`"*, which reads as an error and means work was done for you.
+`build --check` is the CI form.
 
-### What `check` still catches
+### What `check` catches
 
 Four conditions, all on prose, none constructible:
 
