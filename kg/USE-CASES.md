@@ -25,8 +25,14 @@ kg new knowledge/practice/automation-bias.md \
     --link depends-on:practice/debiasing.md
 ```
 
-Frontmatter, index entry and relation in one act. The prose is still mine — the
-tool never writes an argument.
+Frontmatter, index entry and relation in one act — and then **the body is written
+separately**. `new` produces a skeleton, not a node; the tool never writes an
+argument.
+
+It also **refuses if the file exists**. The reverse case — prose that already
+exists becoming a node — is `kg adopt`, which adds the frontmatter and leaves the
+body alone. That is how an 853-line design document in the origin repository
+became 20 nodes.
 
 ---
 

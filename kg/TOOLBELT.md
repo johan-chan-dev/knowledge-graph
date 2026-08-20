@@ -35,6 +35,7 @@ surface.
 
 ```
 kg new <path> --type T --title "…" [--supersedes <path>] [facets…]
+kg adopt <path> --type T --title "…" [facets…]
 kg task new <slug> --cost C --due D [--due-when "…"]
 kg decide <path> --revisit-when "…" [--serves "…"]
 kg provisional <path> --revisit-when "…"
@@ -56,6 +57,24 @@ kg mv <old> <new> [--dry-run]
 | half-written supersession — `--supersedes` writes **both** sides |
 | a relation target that does not resolve |
 | broken inbound links after a rename |
+
+**`new` writes a skeleton, not a node.** Frontmatter, a title heading, and the
+index entry — then the body is written separately. Two steps, and the split is
+honest: the skeleton is deterministic and the argument is not. You choose the
+type, the frame and the title *before* writing the reasoning; that is what
+choosing them means.
+
+**`adopt` is the reverse case, and needs its own verb.** A file that already has
+content becomes a node: frontmatter added, index entry appended, **body
+untouched**. This repository's own history is the argument — an 853-line design
+document became 20 nodes — and it is the install story for any repository that
+already has documents.
+
+The two differ in one thing, whether a body exists, and get separate verbs
+because their failure modes are opposite: **`new` refuses on an existing file**,
+since silently overwriting a draft is unrecoverable in the moment; **`adopt`
+refuses on a missing one** and never writes prose. A single flag would collapse
+them and put the destructive path one keystroke from the safe one.
 
 **`--supersedes` is a flag on create, not a command**, taken from `adr-tools`:
 `adr new -s 9` writes the replacement *and* flips ADR 9's status. One act, both
