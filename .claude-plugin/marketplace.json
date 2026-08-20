@@ -1,0 +1,12 @@
+{
+  "name": "knowledge-graph",
+  "owner": { "name": "Johan Chan" },
+  "plugins": [
+    {
+      "name": "kg",
+      "source": "./kg",
+      "description": "Knowledge-graph management for a repository — atomic nodes, typed relations, a derived metadata layer, and a toolbelt that makes the rules unreachable rather than checked.",
+      "version": "0.0.1"
+    }
+  ]
+}
