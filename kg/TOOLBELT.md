@@ -1,78 +1,48 @@
 # Toolbelt
 
-**What `kg` does.** `SCHEMA.md` is what it writes; this is the surface that
-writes it.
+**What `kg` does.** `SCHEMA.md` is what it writes; this is what writes it.
 
 The test for whether an operation belongs: **which invariant does it make
-unreachable?** An operation that merely saves typing is a wrapper, and a wrapper
-is where the rules leak back out.
+unreachable?** An operation that only saves typing is a wrapper, and a wrapper is
+where the rules leak back out.
 
-## Cross-cutting decisions
+## It is not a CLI product
 
-**Python 3, standard library only.** A tool that needs an install step before it
-runs is a tool that does not run. The frontmatter parser accepts a documented
-subset of YAML — and since `kg` *writes* the frontmatter, the subset is
-self-consistent. `kg check` rejects anything outside it with the line number,
-rather than guessing.
+It is invoked as a command, because that is how an agent calls anything. It is
+**not** a command-line product, and the difference is what got cut:
 
-**Config is `.kg.json` at the repository root**, found by walking up from the
-working directory:
-
-```json
-{
-  "graphs": [
-    { "path": "knowledge",            "tier": "global" },
-    { "path": "products/*/knowledge", "tier": "local"  }
-  ],
-  "tasks":     ["tasks", "products/*/tasks"],
-  "meta":      "meta",
-  "cap":       4,
-  "mapBudget": 1400
-}
-```
-
-Everything else about the method is universal. Only *which directories are
-graphs* is local, which is why that is the whole of the configuration.
-
-**References are `[<graph>:]<domain>/<slug>`.** The graph prefix defaults to the
-global one, so `auth/supabase-sessions` and `etalade:stack/data` both resolve
-without a path. Tasks are referenced by their `id`, which is why ids exist.
-
-**Mutating commands rebuild the metadata layer** unless given `--no-build`. It is
-cheap, and it removes the class of failure where a correct edit leaves a stale
-map. `build` remains available on its own.
-
-**`kg` writes frontmatter and a title heading. It does not write prose.** The body
-is the agent's, which is exactly why the prose checks survive.
-
-**Output is terse text; `--json` where a caller needs to compose.** Every mutating
-command prints one line per file touched. Exit `0` ok, `1` refused or failed,
-`2` usage.
-
-## Read — replaces grepping
-
-| Command | Returns |
+| Cut | Why |
 |---|---|
-| `kg show <ref>` | frontmatter, state, outbound relations, **inbound** relations, inbound prose links |
-| `kg inbound <ref>` | everything citing it, typed and prose listed separately |
-| `kg ls [--graph] [--type] [--state] [--domain] [--stale]` | filtered listing, one line each |
-| `kg pending [--all]` | the queue — surfaced set by default, everything with `--all` |
-| `kg stale` | overdue `recheck`, plus every `provisional` decision with its `revisit-when` |
+| config discovery | the skill knows the repository it is in; paths are passed |
+| a reference grammar (`graph:domain/slug`) | invented to avoid paths. A path is shorter and unambiguous |
+| `--json` output | the caller reads text |
+| an output contract | there is one caller, and it is in the same repository |
 
-`kg stale` **lists rather than decides**. Whether a trigger has fired is an event
-in the world; the tool can only put the trigger in front of someone.
+What remains is a script with explicit arguments and a documented exit code.
 
-## Create
+## Two entry points, and the line between them is a git hook
+
+| | Called by | Why it exists |
+|---|---|---|
+| **construction** | a skill, which knows what the user chose | a hook has no judgement to apply |
+| **`build` / `check`** | `.githooks/pre-commit`, and CI | **a git hook cannot invoke a skill** |
+
+That is the whole reason there are two. Everything else — `new`, `link`, `mv`,
+`retire` — is only ever reached from a skill, so it needs arguments, not a
+surface.
+
+## Write
 
 ```
-kg new <ref> --type T --title "…" [--topics a,b]
-             [--jurisdiction fr,eu | universal] [--vendor …]
-             [--confidence verified|partial|attested] [--recheck DATE | --in 6mo]
-             # type=decision: --status --serves --revisit-when
-             # type=thesis:   --basis --would-falsify
-
-kg task new <slug> --cost high|medium|low --due now|deferred
-             [--due-when "…"] [--graph G]
+kg new <path> --type T --title "…" [--supersedes <path>] [facets…]
+kg task new <slug> --cost C --due D [--due-when "…"]
+kg decide <path> --revisit-when "…" [--serves "…"]
+kg provisional <path> --revisit-when "…"
+kg link <from> <to> --rel R [--aspect "…"]
+kg unlink <from> <to> [--rel R]
+kg task set <id> [--cost C] [--due D] [--due-when "…"]
+kg task retire <id> [--force]
+kg mv <old> <new> [--dry-run]
 ```
 
 | Made unreachable |
@@ -82,109 +52,77 @@ kg task new <slug> --cost high|medium|low --due now|deferred
 | a node absent from its `INDEX.md`, because creation writes both |
 | `confidence` on a decision — the template never emits the field |
 | duplicate or non-integer task `id` · `deferred` without `due-when` |
+| `decided` without `decided:` or `revisit-when:` |
+| half-written supersession — `--supersedes` writes **both** sides |
+| a relation target that does not resolve |
+| broken inbound links after a rename |
 
-`--in 6mo` exists because a `recheck` written by hand is a date someone chose
-under no constraint; a horizon is the thing actually meant.
+**`--supersedes` is a flag on create, not a command**, taken from `adr-tools`:
+`adr new -s 9` writes the replacement *and* flips ADR 9's status. One act, both
+files, at the only moment you actually know you are superseding. A separate
+`supersede` step leaves a window where the old node is stale.
 
-## Transition — not field-setting
+**`--aspect` is the one edge attribute that survived.** *Which* part of a target a
+node depends on is neither computable from the endpoints nor substantial enough
+to be its own node. Everything else proposed — frame overlap, provenance, dates —
+is computable, or lives in git, or needs a source and is therefore a node.
 
-```
-kg decide      <ref> --revisit-when "…" [--serves "…"]
-kg provisional <ref> --revisit-when "…"
-kg supersede   <old> --by <new>
-kg task set    <id> [--cost C] [--due D] [--due-when "…"]
-kg task retire <id> [--force]
-```
+**`mv` re-bases every inbound reference** — typed relations, prose links, index
+entries. It exists because doing that by regex broke 157 links in the origin
+repo: a second pass re-based what the first had just created, every path
+plausible and one level too deep.
 
-A setter needs validation afterwards; a transition demands what the target state
-requires and cannot leave a node half-formed. `supersede` writes **both** sides —
-`status: superseded` on the old node and a `supersedes` relation on the new — or
-neither.
+**`task retire` refuses while references remain**, unless forced. That refusal is
+where two stale blockers surfaced — text saying *X is blocked by Y* where Y had
+answered days earlier, invisible to every check.
 
-`task retire` prints every inbound reference and **refuses** unless there are
-none or `--force` is given. Deleting a drained task in the origin repo broke five
-references, and repointing them is where two stale blockers surfaced — the
-refusal is what creates that moment.
-
-## Edges
-
-```
-kg link   <from> <to> --rel supersedes|contradicts|depends-on|does-not-satisfy
-kg unlink <from> <to> [--rel R]
-```
-
-Only **typed relations** are ownable: they live in frontmatter, and the path is
-resolved rather than typed. An inline citation lives inside a sentence, and
-nothing owns a sentence.
-
-## Move
+## Read — only what grep does badly
 
 ```
-kg mv <old> <new> [--dry-run]
+kg inbound <path>     # what cites this, typed and prose, tier-aware
+kg stale              # overdue recheck, and every provisional with its trigger
 ```
 
-Moves the file and **re-bases every inbound reference** — typed relations, prose
-links, index entries — reporting each.
+Two, not five. `show` and `ls` were cut: the graph is markdown and the caller
+opens files natively. What survives are **computations** — `inbound` needs
+relative-link resolution across every node, `stale` needs date arithmetic — and
+both were hand-rolled repeatedly in the origin repo before being named.
 
-This operation exists because of a specific failure: relocating two index files
-by regex broke **157 links**, a second pass re-basing what the first had just
-created. Every path looked plausible and was one level too deep. `--dry-run`
-prints the rewrite table without touching anything.
+`inbound` is **tier-aware**: it must not surface a local citation under a global
+node, or the derived layer reintroduces downward visibility that the schema
+forbids.
 
-## Build — the derived layer
+`stale` **lists rather than decides**. Whether a `revisit-when` has fired is an
+event in the world; a tool can only put the trigger in front of someone.
+
+## Program — because a hook has no skills
 
 ```
 kg build [--check]     # writes MAP, QUEUE, INDEX listings; --check fails instead
-```
-
-**Derived** means computed from the source of truth and holding nothing of its
-own. The test is exact: delete it, rebuild, get it back byte-identical.
-
-| Artifact | Derived |
-|---|---|
-| node file, task file | **no** — one holds a claim, the other holds work |
-| `meta/QUEUE.md` | **fully** |
-| `meta/MAP.md` listing and pressure | yes, between the generated markers |
-| `meta/MAP.md` commentary and `reconciled:` | **no** — authored, maintained by a settle pass |
-| `INDEX.md` listing | yes |
-| `INDEX.md` editorial | **no** — judgement about which nodes matter |
-
-Three consequences: never hand-edit a derived block, because the next build
-overwrites it silently; delete one freely, because nothing is lost; and it cannot
-drift, which is what makes the metadata layer safe to load into every session.
-
-## Check — the backstop
-
-```
 kg check               # read-only, never writes
+kg init                # once per repository
 ```
 
-Separate from `build`, and not a variant of it. `build` is the only command that
-produces derived output; `check` produces nothing at all. Fused — as they were in
-the origin repo — a clean repository fails its own commit with *"regenerated —
-`git add`"*, which reads as an error and means work was done for you.
-`build --check` is the CI form.
+**Derived** means computed from the source and holding nothing of its own. The
+test is exact: delete it, rebuild, byte-identical.
 
-### What `check` catches
+`build` and `check` are separate because fused — as they were in the origin repo
+— a clean repository fails its own commit with *"regenerated — `git add`"*, which
+reads as an error and means work was done for you.
 
-Four conditions, all on prose, none constructible:
+`check` catches only what no constructor can own, all of it prose:
 
 - a link inside a node body does not resolve
 - a global node cites into a local graph
 - a claim at the global tier is written in the first person plural
 - a generated file is stale
 
-Down from twenty-four, and every one that went is gone because an operation makes
-it unreachable.
+Four, down from twenty-four. Every one that went is gone because an operation
+makes it unreachable — and the four that remain do so because **nothing owns a
+sentence**.
 
-## Init
-
-```
-kg init [--graphs knowledge] [--tasks tasks] [--meta meta]
-```
-
-Writes `.kg.json`, creates the `meta/` directories, scaffolds the doctrine stubs
-from `templates/`, and prints the one thing it cannot do for you:
+`init` writes the config, creates the `meta/` directories, scaffolds the doctrine
+stubs, and prints the one thing it cannot do:
 
 ```
 git config core.hooksPath .githooks
@@ -196,7 +134,16 @@ Hook paths are local config and do not travel with a clone.
 
 **There is no `kg node rm`.** The graph is monotonic: a node is superseded, never
 deleted. Encoding that as a missing operation is stronger than refusing it —
-there is nothing to refuse, and nothing to argue with.
+there is nothing to argue with.
 
 `kg task retire` exists because a task is a different entity: it drains, its
 content moves elsewhere, and its container is then removed.
+
+## Calibration
+
+`adr-tools` ships 8 subcommands and **no validation at all** — everything is
+constructed, so there is nothing to check. `@modelcontextprotocol/server-memory`
+ships 9. Twelve here, four of which are setup or hook-only.
+
+An earlier draft had sixteen plus a config schema and a reference grammar. That
+was a product surface for a caller that lives in the same repository.
