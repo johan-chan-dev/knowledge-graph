@@ -463,7 +463,18 @@ def op_supersede(root, cfg, args):
 
 
 def op_set(root, cfg, args):
-    path = pathlib.Path(args.ref).resolve()
+    """One operation, two entities. A numeric ref is a task, a path is a node —
+    they are the same act on the same key, so they are not two commands."""
+    if args.ref.isdigit():
+        hit = [(p, d) for p, d in tasks(root, cfg) if d["id"] == int(args.ref)]
+        if not hit:
+            raise Refused(f"no task with id {args.ref}")
+        path, _ = hit[0]
+        is_task = True
+    else:
+        path, is_task = pathlib.Path(args.ref).resolve(), False
+        if not path.exists():
+            raise Refused(f"{args.ref} does not exist")
     doc, body = read(path)
     if not doc:
         raise Refused(f"{args.ref} has no frontmatter — use `kg new` to make it a node")
@@ -475,7 +486,7 @@ def op_set(root, cfg, args):
             doc.setdefault("attributes", {}).pop(k, None)
         else:
             doc.setdefault("attributes", {})[k] = v
-    errs = validate(doc, args.ref)
+    errs = (validate_task if is_task else validate)(doc, args.ref)
     if errs:
         raise Refused("refused — the result would be invalid:\n" + "\n".join(errs))
     write(path, doc, body)

@@ -35,17 +35,23 @@ surface.
 
 ```
 kg new <path> --kind K --title "…" [--set '{…}']
+kg set <path|task-id> --set '{…}'
 kg supersede <path> --title "…" --set '{…}'
-kg adopt <path> --type T --title "…" [facets…]
 kg task new <slug> --cost C --due D [--due-when "…"]
-kg decide <path> --revisit-when "…" [--serves "…"]
-kg provisional <path> --revisit-when "…"
-kg link <from> <to> --rel R [--aspect "…"]
-kg unlink <from> <to> [--rel R]
-kg task set <id> [--cost C] [--due D] [--due-when "…"]
 kg task retire <id> [--force]
+kg link <from> <to> --rel R [--set '{…}']
+kg unlink <from> <to> [--rel R]
 kg mv <old> <new> [--dry-run]
 ```
+
+**`set` takes a path or a task id**, because they are the same act on the same
+key. It merges into `attributes`; `null` deletes.
+
+**`adopt`, `decide` and `provisional` were dropped.** `new` prepends frontmatter
+to a file that already has a body, so adoption is a case of creation rather than
+a second verb. And `set` validates the *merged result* before writing, so
+`{"status":"decided"}` without a `revisit-when` is refused — which is the whole
+guarantee a bespoke transition verb existed to provide.
 
 | Made unreachable |
 |---|
@@ -102,9 +108,17 @@ answered days earlier, invisible to every check.
 ## Read — only what grep does badly
 
 ```
-kg inbound <path>     # what cites this, typed and prose, tier-aware
-kg stale              # overdue recheck, and every provisional with its trigger
+kg inbound <path>                                # what cites this, typed and prose
+kg neighbors <path> [--hops N] [--frontmatter]   # an ego graph, as a list
+kg stale                                         # overdue recheck, every provisional trigger
 ```
+
+**`neighbors` returns a list, not the nodes.** Measured on one graph at two hops:
+the list is ~378 tokens, adding every neighbour's frontmatter is ~1,821, and
+reading the bodies is ~14,000. Frontmatter is 10% of that graph and carries
+`serves` and `revisit-when`, so the expensive read is usually avoidable rather
+than merely boundable — which is why there is no `--budget`. Searching is not
+reading.
 
 Two, not five. `show` and `ls` were cut: the graph is markdown and the caller
 opens files natively. What survives are **computations** — `inbound` needs
@@ -124,6 +138,7 @@ event in the world; a tool can only put the trigger in front of someone.
 kg build [--check]     # writes MAP, QUEUE, INDEX listings; --check fails instead
 kg check               # read-only, never writes
 kg init                # once per repository
+kg migrate [path] [--dry-run]   # flat frontmatter to kind/attributes/relations
 ```
 
 **`build` is provisional, pending viewer tools.** It materialises three queries
