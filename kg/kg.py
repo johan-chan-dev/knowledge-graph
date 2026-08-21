@@ -404,6 +404,7 @@ def op_new(root, cfg, args):
         body = f"\n# {attrs['title']}\n"
     if old_doc is not None:
         doc.setdefault("relations", [])
+        moved = len(old_doc.get("relations") or [])
         for rel in old_doc.get("relations") or []:
             doc["relations"].append(dict(rel))
         doc["relations"].append(
@@ -411,6 +412,12 @@ def op_new(root, cfg, args):
         errs = validate(doc, args.path)
         if errs:
             raise Refused("\n".join(errs))
+        # The old node leaves the live graph. Its relations move to the
+        # replacement rather than being duplicated: a superseded node that keeps
+        # `depends-on X` makes X look like it has a live dependent that is dead,
+        # and every impact query is then polluted by history. Git holds what it
+        # used to rest on; the chain is the `supersedes` edge on the new node.
+        old_doc.pop("relations", None)
         old_doc["attributes"]["status"] = "superseded"
         errs = validate(old_doc, args.supersedes)
         if errs:
@@ -426,7 +433,7 @@ def op_new(root, cfg, args):
         write(old_path, old_doc, old_body)
         print(f"superseded {old_path.relative_to(root)} — status: superseded")
         print(f"  inherited {len(inherited)} attribute(s), "
-              f"{len(old_doc.get('relations') or [])} relation(s)")
+              f"{moved} relation(s) — moved, not copied")
 
 
 def op_set(root, cfg, args):
