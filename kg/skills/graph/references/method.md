@@ -4,7 +4,7 @@ How a knowledge graph is organised and why. The *shape* of a node is
 `SCHEMA.md`; the *operations* are `TOOLBELT.md`; this is the reasoning that
 makes both make sense.
 
-Read it when placing a node, choosing a tier, deciding whether something is one
+Read it when placing a node, choosing a scope, deciding whether something is one
 node or two, or judging whether a relation earns being typed.
 
 ## Organisation
@@ -31,44 +31,44 @@ duplicating it in the path gives two sources of truth that drift.
 Add a folder when there is content for it, not in anticipation. Nest deeper only
 once a folder is too large to scan.
 
-## Two tiers: global and local
+## Two scopes: personal and shared
 
 The same graph exists at two scopes.
 
 ```
-knowledge/                    global — claims holding across products
-products/<name>/knowledge/    local  — scoped to one product, promotable
+knowledge/                    shared   — holds across products
+products/<name>/knowledge/    personal — scoped to one product, shareable
 ```
 
 Identical node schema, identical validation, one index each. What differs is a
 single directional rule:
 
-> **Local nodes may cite global ones. Global nodes may not cite local ones.**
+> **Personal knowledge may cite shared knowledge. Shared may not cite personal.**
 
 ### Why the direction is not arbitrary
 
-A root node asserts it holds across products. If it cited a product-local node,
+A root node asserts it holds across products. If it cited a product-personal node,
 its truth would rest on a product-specific claim — asserting globality while
 depending on a bounded frame.
 
 That is not an analogy to the frame rule below. It is the same rule as a graph
 constraint: **a claim's frame must contain the frames of everything it depends
-on.** Global contains local, so edges run up only.
+on.** Shared contains personal, so edges run up only.
 
 Two properties follow, and both are why the rule is worth enforcing rather than
 intending:
 
-- **Promotion is safe.** A local node that proves cross-product moves to root
-  without breaking anything, because nothing global was pointing down at it.
-  Only local links need updating.
-- **The graph stays acyclic**, and a reader at root never needs to know local
+- **Promotion is safe.** A personal node that proves cross-product moves to root
+  without breaking anything, because nothing shared was pointing down at it.
+  Only personal links need updating.
+- **The graph stays acyclic**, and a reader at root never needs to know personal
   nodes exist.
 
-The validator errors on a global node — or a global index — linking into
+The validator errors on a shared node — or a shared index — linking into
 `products/`. A convention nobody notices breaking is not a property.
 
-Which tier something starts in is settled by `STRUCTURE.md`: **root is a claim,
-not a default.** Start local, promote on evidence, never the reverse.
+Which scope something starts in is settled by `STRUCTURE.md`: **root is a claim,
+not a default.** Start personal, promote on evidence, never the reverse.
 
 ### What the hierarchy costs
 
@@ -203,13 +203,13 @@ graph, and untyped it reads like a footnote.
 ## Index
 
 `meta/INDEX.md` is the map of content — the entry point into a graph, grouped by
-domain. **One per graph**: `knowledge/meta/INDEX.md` for the global one, and
-`products/<name>/knowledge/meta/INDEX.md` for each local one.
+domain. **One per graph**: `knowledge/meta/INDEX.md` for the shared one, and
+`products/<name>/knowledge/meta/INDEX.md` for each personal one.
 
 Maintained by hand, but enforced: the validator fails the commit if a node is
 absent from its own index. Update it in the same commit that adds the node.
 
-A global index may not list a local node, for the same reason a global node may
+A shared index may not list a personal node, for the same reason a shared node may
 not cite one.
 
 ## Sources
@@ -251,7 +251,7 @@ is what `recheck` exists for.
                     │                              │
                     ▼                              │
  knowledge/  ←citable by─  products/<name>/knowledge/   │
-  global                    local · facts, decisions,   │
+  shared                  personal · facts, decisions,  │
   never cites down          theses                      │
                                     │                   │
                                     └──→ tasks/ ────────┤
@@ -262,7 +262,7 @@ is what `recheck` exists for.
 
 Three boundaries, three different kinds, three different rules:
 
-| Tier | Boundary is | Rule |
+| Scope | Boundary is | Rule |
 |------|-------------|------|
 | `knowledge/` | **semantic** — globality is a claim | may not reference down into `products/` |
 | `products/<n>/knowledge/` | **locality** — scoped, promotable | may reference up, freely |
@@ -275,7 +275,7 @@ Tasks leave by **one of two routes**:
 
 - **handoff** into a product repo — the work is executed elsewhere;
 - **verification** — the task was to check an assumption, and its output is a
-  verified node folded back into `knowledge/` at root, where it is global.
+  verified node folded back into `knowledge/` at root, where it is shared.
 
 The second route is what makes this a cycle rather than a pipeline. An
 unverified assumption, encountered anywhere, becomes a task — never a knowledge

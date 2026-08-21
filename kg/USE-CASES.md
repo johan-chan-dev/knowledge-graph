@@ -121,7 +121,7 @@ kg inbound products/etalade/knowledge/product/fulfilment-schedule.md
               ...
 ```
 
-Tier-aware: a citation from a local graph is never surfaced under a global node.
+Scope-aware: a citation from a personal graph is never surfaced under a shared node.
 
 ---
 

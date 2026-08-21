@@ -1,6 +1,6 @@
 ---
 name: graph
-description: Manage a repository's knowledge graph with the kg toolbelt — create and change nodes, relate them, supersede a decision, file or retire a task, trace what cites a node, and check the graph before committing. Use this whenever a repository contains a .kg.json, and whenever work involves atomic markdown notes with typed frontmatter, decision records, knowledge nodes, a two-tier global/local graph, or a queue of pending verification work — even when kg is never mentioned by name. Reach for it before hand-editing any node's frontmatter: every operation here writes it correctly by construction, and editing by hand puts the rules back to being checked afterwards, which is what the tool exists to remove.
+description: Manage a repository's knowledge graph with the kg toolbelt — create and change nodes, relate them, supersede a decision, file or retire a task, trace what cites a node, and check the graph before committing. Use this whenever a repository contains a .kg.json, and whenever work involves atomic markdown notes with typed frontmatter, decision records, knowledge nodes, a two-scope personal/shared graph, or a queue of pending verification work — even when kg is never mentioned by name. Reach for it before hand-editing any node's frontmatter: every operation here writes it correctly by construction, and editing by hand puts the rules back to being checked afterwards, which is what the tool exists to remove.
 ---
 
 # kg
@@ -58,7 +58,7 @@ attributes dict.
 ## Read the refusals
 
 They carry reasoning rather than a rule number. A refusal naming `revisit-when`,
-tier direction, or a dangling reference is telling you something about the graph
+scope direction, or a dangling reference is telling you something about the graph
 — read it before working around it, because working around it is usually the
 wrong repair.
 
@@ -69,6 +69,6 @@ Read these when the question is not "which command" but "what should this be":
 | File | Read it when |
 |---|---|
 | `${CLAUDE_PLUGIN_ROOT}/SCHEMA.md` | what a node *is* — kinds, attributes, frames, confidence, relations |
-| `references/method.md` | placing a node, choosing a tier, deciding one node or two, judging whether a relation earns being typed |
+| `references/method.md` | placing a node, choosing a scope, deciding one node or two, judging whether a relation earns being typed |
 | `references/settle.md` | resolving what the checker cannot decide — fired triggers, drained tasks, cleared blockers |
 | `${CLAUDE_PLUGIN_ROOT}/TOOLBELT.md` | why an operation exists and which invariant it makes unreachable |

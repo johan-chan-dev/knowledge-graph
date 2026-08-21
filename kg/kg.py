@@ -84,20 +84,20 @@ def load_config(root):
 
 
 def graphs(root, cfg):
-    """(dir, label, is_global) for every graph, globs expanded."""
+    """(dir, label, shared) for every graph, globs expanded."""
     out = []
     for g in cfg["graphs"]:
         for d in sorted(root.glob(g["path"])) if "*" in g["path"] else [root / g["path"]]:
             if d.is_dir():
-                out.append((d, str(d.relative_to(root)), g.get("tier") == "global"))
+                out.append((d, str(d.relative_to(root)), g.get("scope") == "shared"))
     return out
 
 
 def graph_of(root, cfg, path):
     path = path.resolve()
-    for d, label, is_global in graphs(root, cfg):
+    for d, label, shared in graphs(root, cfg):
         if d.resolve() in path.parents:
-            return d, label, is_global
+            return d, label, shared
     raise Refused(f"{path} is not inside any configured graph")
 
 
@@ -318,12 +318,12 @@ def walk(root, cfg):
 
 
 def inbound(root, cfg, target):
-    """What cites `target`. Reports everything, and labels the tier.
+    """What cites `target`. Reports everything, and labels the scope.
 
-    Deliberately not filtered. The tier rule governs which edges may be *stored*
+    Deliberately not filtered. The scope rule governs which edges may be *stored*
     and what a root reader is shown in a *rendered view* — not what an explicit
     impact query may answer. "What breaks if this changes?" is the question the
-    operation exists for, and for a global node the answer is mostly local."""
+    operation exists for, and for a shared node the answer is mostly personal."""
     target = target.resolve()
     hits = []
     for p in walk(root, cfg):
@@ -509,17 +509,17 @@ def op_link(root, cfg, args):
     doc, body = read(path)
     if not doc:
         raise Refused(f"{args.frm} has no frontmatter")
-    is_global = False if is_task else graph_of(root, cfg, path)[2]
+    shared = False if is_task else graph_of(root, cfg, path)[2]
     tgt = pathlib.Path(args.to)
     resolved = (root / tgt).resolve()
     if not resolved.exists():
         raise Refused(f"relation target does not resolve: {args.to} "
                       f"(a relation's `to` is relative to the repository root, so it "
                       f"can name a node in another graph without ../ escapes)")
-    if is_global:
-        _, tlabel, t_global = graph_of(root, cfg, resolved)
-        if not t_global:
-            raise Refused(f"refused — a global node may not cite into {tlabel}. "
+    if shared:
+        _, tlabel, t_shared = graph_of(root, cfg, resolved)
+        if not t_shared:
+            raise Refused(f"refused — a shared node may not cite into {tlabel}. "
                           f"A claim's frame must contain the frames it depends on.")
     rels = doc.setdefault("relations", [])
     entry = next((r for r in rels
@@ -582,8 +582,8 @@ def plan_mv(root, cfg, old, new):
 def space_of(root, cfg, path):
     """Which space a file belongs to — the graph directory, as identity.
 
-    A space is bounded, not merely tiered. Two sibling product spaces are both
-    "local" and are still different spaces, so a closure computed on tier alone
+    A space is bounded, not merely ordered. Two sibling product spaces are both
+    personal and are still different spaces, so a closure computed on scope alone
     would drag one product's nodes through another's."""
     try:
         return graph_of(root, cfg, path)[0].resolve()
@@ -591,34 +591,37 @@ def space_of(root, cfg, path):
         return None
 
 
-def tier_of(root, cfg, path):
-    """True for global, False for local, None for anything outside a graph."""
+def is_shared(root, cfg, path):
+    """True for shared, False for personal, None for anything outside a graph.
+
+    The tristate matters: None is *unknown*, not personal. A caller treating
+    it as falsy exempts every file living outside a declared graph."""
     try:
         return graph_of(root, cfg, path)[2]
     except Refused:
         return None
 
 
-def check_move_tier(root, cfg, old, new):
+def check_move_scope(root, cfg, old, new):
     """A move between spaces can break the citation rule in both directions.
 
     Promoting carries the node's own downward edges up with it; demoting leaves
     every citation from above pointing down. `check` finds both at commit time —
     this finds them at the moment of the act, which is where they can still be
     reconsidered rather than merely repaired."""
-    was, now = tier_of(root, cfg, old), tier_of(root, cfg, new)
+    was, now = is_shared(root, cfg, old), is_shared(root, cfg, new)
     if was == now or now is None:
         return []
     bad = []
     doc, _ = read(old)
-    if now:  # promoted: what this node cites must be global too
+    if now:  # sharing: what this node cites must be shared too
         for kind, raw, res in refs(root, cfg, old):
-            if res.exists() and tier_of(root, cfg, res) is False:
-                bad.append(f"  it cites {raw} — which stays local")
+            if res.exists() and is_shared(root, cfg, res) is False:
+                bad.append(f"  it cites {raw} — which stays personal")
     else:    # demoted: what cites it from above may no longer
         for p, kind, _ in inbound(root, cfg, old):
-            if tier_of(root, cfg, root / p):
-                bad.append(f"  {p} cites it from the global tier")
+            if is_shared(root, cfg, root / p):
+                bad.append(f"  {p} cites it from shared knowledge")
     return bad
 
 
@@ -637,15 +640,15 @@ def closure_residual(root, cfg, mapping, promoting):
         if promoting:
             for _, raw, res in refs(root, cfg, node):
                 if (res.exists() and res.resolve() not in mapping
-                        and tier_of(root, cfg, res) is False):
+                        and is_shared(root, cfg, res) is False):
                     bad.append(f"  {node.relative_to(root)}\n      cites {raw}"
-                               f" — another space's node, which stays local")
+                               f" — another space's node, which stays personal")
         else:
             for pth, _, _ in inbound(root, cfg, node):
                 res = (root / pth).resolve()
-                if res not in mapping and tier_of(root, cfg, res):
+                if res not in mapping and is_shared(root, cfg, res):
                     bad.append(f"  {pth} cites {node.relative_to(root)} "
-                               f"from the global tier, and is not moving")
+                               f"from shared knowledge, and is not moving")
     return bad
 
 
@@ -658,11 +661,11 @@ def move_closure(root, cfg, old, new):
 
     The closure is a **test as much as an operation**. If promoting one node
     requires promoting six obviously product-specific ones, the node was not
-    global — seeing the cost is usually the answer."""
+    shared — seeing the cost is usually the answer."""
     src, dst = space_of(root, cfg, old), space_of(root, cfg, new)
     if src == dst or dst is None or src is None:
         return {}
-    promoting = tier_of(root, cfg, new) and not tier_of(root, cfg, old)
+    promoting = is_shared(root, cfg, new) and not is_shared(root, cfg, old)
     src_graph, dst_graph = graph_of(root, cfg, old)[0], graph_of(root, cfg, new)[0]
 
     # The closure never leaves the source space. What the node rests on in
@@ -729,7 +732,7 @@ def op_mv(root, cfg, args):
                 print(f"  {a.relative_to(root)}\n      -> {b.relative_to(root)}")
             print("\nIf any of these is obviously scoped to where it already is,"
                   "\nthe node being moved is too — that is what the closure tells you.\n")
-        promoting = tier_of(root, cfg, new) and not tier_of(root, cfg, old)
+        promoting = is_shared(root, cfg, new) and not is_shared(root, cfg, old)
         residual = closure_residual(root, cfg, mapping, promoting)
         if residual and not args.force:
             raise Refused(
@@ -753,14 +756,14 @@ def op_mv(root, cfg, args):
         print(f"moved {len(mapping)} node(s)")
         return 0
 
-    bad = check_move_tier(root, cfg, old, new)
+    bad = check_move_scope(root, cfg, old, new)
     if bad and not args.force:
         raise Refused(
             f"this move crosses a space boundary and would break the citation "
             f"rule in {len(bad)} place(s):\n" + "\n".join(bad[:8])
             + (f"\n  … and {len(bad)-8} more" if len(bad) > 8 else "")
-            + "\n\n  A space inherits downward only: a global claim may not rest "
-              "on a local one,\n  because its frame must contain the frames it "
+            + "\n\n  A space inherits downward only: shared knowledge may not rest "
+              "on personal knowledge,\n  because its frame must contain the frames "
               "depends on. Repoint or promote\n  those first, or --force.")
 
     plan = plan_mv(root, cfg, old, new)
@@ -973,7 +976,7 @@ def op_neighbors(root, cfg, args):
 
     Returns a *list*, not the nodes. Searching is not reading: on this graph a
     two-hop list costs ~161 tokens where reading what it names costs ~14,000, and
-    the list carries enough — trust tier, hop distance, edge type — to choose."""
+    the list carries enough — trust level, hop distance, edge type — to choose."""
     seed = str(resolve_ref(root, cfg, args.path)[0].relative_to(root))
     out, inn, state = edges(root, cfg)
     if seed not in state:
@@ -1046,7 +1049,7 @@ def migrate_doc(root, cfg, path, doc):
     """Flat frontmatter to kind/attributes/relations. Returns None if already new.
 
     The relation rebase is the part that cannot be done by hand at scale: `to`
-    was relative to the *graph* root, so a cross-tier edge needed ../ escapes out
+    was relative to the *graph* root, so a cross-scope edge needed ../ escapes out
     of its own graph. Each one is resolved against the old base and re-expressed
     against the repository root."""
     if "attributes" in doc or "kind" in doc:
@@ -1280,21 +1283,21 @@ def op_check(root, cfg, args):
     for p in walk(root, cfg):
         rel = p.relative_to(root)
         try:
-            _, _, src_global = graph_of(root, cfg, p)
+            _, _, src_shared = graph_of(root, cfg, p)
         except Refused:
-            src_global = None
+            src_shared = None
         for kind, raw, resolved in refs(root, cfg, p):
             if not resolved.exists():
                 errs.append(f"{rel}: broken {kind} link -> {raw}")
                 continue
-            if src_global:
+            if src_shared:
                 try:
-                    _, tlabel, t_global = graph_of(root, cfg, resolved)
-                    if not t_global:
-                        errs.append(f"{rel}: global node cites into {tlabel} -> {raw}")
+                    _, tlabel, t_shared = graph_of(root, cfg, resolved)
+                    if not t_shared:
+                        errs.append(f"{rel}: shared node cites into personal graph {tlabel} -> {raw}")
                 except Refused:
                     pass
-        if src_global:
+        if src_shared:
             doc, body = read(p)
             for n, line in enumerate((body or "").split("\n"), 1):
                 if line.lstrip().startswith(">"):
@@ -1302,7 +1305,7 @@ def op_check(root, cfg, args):
                 clean = re.sub(r'"[^"\n]*"', "", re.sub(r"https?://\S+", "", line))
                 m = re.search(r"\b(we|us|our|ours)\b", clean, re.I)
                 if m and m.group(0) != "US":
-                    warns.append(f"{rel}:{n}: first person plural at the global tier "
+                    warns.append(f"{rel}:{n}: first person plural in shared knowledge "
                                  f"— reasoning needing an \"us\" is scope-bound")
                     break
     today = str(datetime.date.today())
@@ -1368,7 +1371,7 @@ def do_init(args):
     cfgp = root / CONFIG
     if cfgp.exists():
         print(f"{CONFIG} already exists"); return 1
-    cfg = {"graphs": [{"path": g, "tier": "global" if i == 0 else "local"}
+    cfg = {"graphs": [{"path": g, "scope": "shared" if i == 0 else "personal"}
                       for i, g in enumerate(args.graphs)],
            "tasks": args.tasks, "meta": args.meta, "next-id": 1}
     cfgp.write_text(json.dumps(cfg, indent=2) + "\n")

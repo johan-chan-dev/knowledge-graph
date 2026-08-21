@@ -101,20 +101,20 @@ means opposite things in the two directions.**
 
 | Moving | The count is | A large one means |
 |---|---|---|
-| local → global, inside one space | the **cost of a generality claim** | the claim is false — usually a refusal |
+| personal → shared, inside one space | the **cost of a generality claim** | the claim is false — usually a refusal |
 | personal space → shared space | the **unit of sharing** | nothing is wrong; that is the shipment |
 
 Read with `--dry-run`. In the origin repo, promoting one stack node returns **all
 40 nodes of the product graph**, because that graph is a single connected
 component under its own edges. As a promotion that is the answer to "is this
-global", arriving as a count rather than as an argument. As a *share* the same 40
+shared", arriving as a count rather than as an argument. As a *share* the same 40
 are simply what has to travel for the reasoning to be readable at the far end.
 
 **The closure stops at the space boundary.** It walks only inside the source
 space; a dependency in a third space is left where it is, and `mv` refuses rather
 than write a graph that breaks the citation rule. Bounding it by space rather
-than by tier is what stops one product's move from silently shipping another
-product's reasoning — with several products, "local" is not one place. What the
+than by scope is what stops one product's move from silently shipping another
+product's reasoning — with several products, "personal" is not one place. What the
 closure declines to carry is exactly what somebody else owns.
 
 **`mv` refuses to cross a space boundary that would break the citation rule.**
@@ -152,7 +152,7 @@ opens files natively. What survives are **computations** — `inbound` needs
 relative-link resolution across every node, `stale` needs date arithmetic — and
 both were hand-rolled repeatedly in the origin repo before being named.
 
-`inbound` is **tier-aware**: it must not surface a local citation under a global
+`inbound` is **scope-aware**: it must not surface a personal citation under a shared
 node, or the derived layer reintroduces downward visibility that the schema
 forbids.
 
@@ -190,8 +190,8 @@ reads as an error and means work was done for you.
 `check` catches only what no constructor can own, all of it prose:
 
 - a link inside a node body does not resolve
-- a global node cites into a local graph
-- a claim at the global tier is written in the first person plural
+- a shared node cites into a personal graph
+- a claim at shared knowledge is written in the first person plural
 - a generated file is stale
 
 Four, down from twenty-four. Every one that went is gone because an operation

@@ -134,9 +134,9 @@ Four are recognised:
 | `blocked-by` | this stands and is usable, but cannot close until the target resolves |
 
 **`to` is relative to the repository root.** Not to the node, and not to the
-graph root — a graph-root convention cannot express the **cross-tier edge**,
-which is the most important one in a two-tier design: a local node citing a
-global one would need `../` escapes out of its own graph, depth-dependent and
+graph root — a graph-root convention cannot express the **cross-scope edge**,
+which is the most important one in a two-scope design: a personal node citing a
+shared one would need `../` escapes out of its own graph, depth-dependent and
 fragile. Repo-root paths name any node in any graph with one convention.
 
 Prose citations remain file-relative, because markdown links must resolve to
@@ -218,20 +218,20 @@ attributes:
 Severity and readiness are separate fields because one field carrying both makes
 neither recoverable from the value.
 
-## Tiers
+## Scopes
 
 ```
-<graph>/                 global — claims holding across every scope
-<scope>/<graph>/         local  — scoped, promotable
+<graph>/                 shared   — claims holding wherever they travel
+<space>/<graph>/         personal — scoped to one space, shareable
 ```
 
-**Local may cite global. Global may not cite local.** A claim's frame must
+**Personal may cite shared. Shared may not cite personal.** A claim's frame must
 contain the frames of everything it depends on, so edges run up only. That is
-what makes promotion safe: nothing global points down at a node being moved up.
+what makes promotion safe: nothing shared points down at a node being moved up.
 
-Direction here is coherence, not mechanism — a global claim resting on a
+Direction here is coherence, not mechanism — a shared claim resting on a
 product-specific one would assert generality while depending on a bounded frame.
-So a symmetric relation observed locally is stored locally, and the global node
+So a symmetric relation observed in one space is stored personal, and the shared node
 is not missing information: **an edge lives with whoever noticed.**
 
 ## Metadata
@@ -245,7 +245,7 @@ loses nothing but navigation**.
 | `meta/MAP.md` | listing and pressure; commentary is authored, with a `reconciled:` watermark |
 | `<graph>/meta/INDEX.md` | listing; editorial is authored |
 
-Each graph keeps its own `meta/`, which is what lets a local graph promoted to
+Each graph keeps its own `meta/`, which is what lets a personal graph promoted to
 root move whole.
 
 Superseded nodes are excluded from the map — **pruning is a predicate, not an
