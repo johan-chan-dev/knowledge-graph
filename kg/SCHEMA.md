@@ -132,7 +132,15 @@ Four are recognised:
 | `depends-on` | this node is meaningless or wrong without the target |
 | `does-not-satisfy` | this capability fails to meet that requirement |
 
-`to` is relative to the graph root, not to the node.
+**`to` is relative to the repository root.** Not to the node, and not to the
+graph root — a graph-root convention cannot express the **cross-tier edge**,
+which is the most important one in a two-tier design: a local node citing a
+global one would need `../` escapes out of its own graph, depth-dependent and
+fragile. Repo-root paths name any node in any graph with one convention.
+
+Prose citations remain file-relative, because markdown links must resolve to
+render. That duality is what makes `mv` a real operation rather than a shell
+alias.
 
 **`aspect` is the one edge attribute that earns its place.** *Which* part of a
 target a node depends on is neither computable from the endpoints nor substantial
