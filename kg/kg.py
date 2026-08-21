@@ -410,16 +410,21 @@ def op_link(root, cfg, args):
         if not t_global:
             raise Refused(f"refused — a global node may not cite into {tlabel}. "
                           f"A claim's frame must contain the frames it depends on.")
-    entry = {"rel": args.rel, "to": str(tgt)}
-    if args.set:
-        entry["attributes"] = json.loads(args.set)
     rels = doc.setdefault("relations", [])
-    for i, r in enumerate(rels):
-        if r.get("to") == str(tgt) and r.get("rel") == args.rel:
-            rels[i] = entry
-            break
-    else:
+    entry = next((r for r in rels
+                  if r.get("to") == str(tgt) and r.get("rel") == args.rel), None)
+    if entry is None:
+        entry = {"rel": args.rel, "to": str(tgt)}
         rels.append(entry)
+    if args.set:
+        # merges, and null deletes — `--set` means the same thing in every
+        # operation. Replacing wholesale would silently drop an aspect on a
+        # re-link that meant to change nothing.
+        attrs = entry.setdefault("attributes", {})
+        for k, v in json.loads(args.set).items():
+            attrs.pop(k, None) if v is None else attrs.update({k: v})
+        if not attrs:
+            entry.pop("attributes", None)
     errs = validate(doc, args.frm)
     if errs:
         raise Refused("\n".join(errs))
