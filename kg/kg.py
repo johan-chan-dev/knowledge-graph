@@ -735,6 +735,120 @@ def op_stale(root, cfg, args):
           "world.")
 
 
+# ── migration ─────────────────────────────────────────────────────────────────
+
+TYPE_TO_KIND = {"decision": "decision", "thesis": "thesis", "concept": "concept",
+                "regulation": "fact", "vendor-capability": "fact",
+                "domain-fact": "fact", "pattern": "fact"}
+
+
+def migrate_doc(root, cfg, path, doc):
+    """Flat frontmatter to kind/attributes/relations. Returns None if already new.
+
+    The relation rebase is the part that cannot be done by hand at scale: `to`
+    was relative to the *graph* root, so a cross-tier edge needed ../ escapes out
+    of its own graph. Each one is resolved against the old base and re-expressed
+    against the repository root."""
+    if "attributes" in doc or "kind" in doc:
+        return None
+    old_type = doc.get("type")
+    if old_type is None:
+        return None
+    kind = TYPE_TO_KIND.get(old_type)
+    if kind is None:
+        raise Refused(f"{path}: unknown type {old_type!r}")
+
+    gdir, _, _ = graph_of(root, cfg, path)
+    rels = []
+    for entry in doc.get("relations") or []:
+        for rel, tgt in entry.items():
+            resolved = (gdir / tgt).resolve()
+            if not resolved.exists():
+                raise Refused(f"{path}: relation {rel} -> {tgt} does not resolve")
+            rels.append({"rel": rel, "to": str(resolved.relative_to(root))})
+
+    attrs = {k: v for k, v in doc.items() if k not in ("type", "relations")}
+    ordered = {"title": attrs.pop("title", None)}
+    ordered["compiled"] = attrs.pop("compiled", None)
+    ordered.update(attrs)
+    attrs = {k: v for k, v in ordered.items() if v is not None}
+
+    out = {"kind": kind, "attributes": attrs}
+    if kind == "fact" and old_type != "domain-fact":
+        attrs["labels"] = [old_type]
+    elif old_type == "domain-fact":
+        attrs["labels"] = ["domain-fact"]
+    if rels:
+        out["relations"] = rels
+    return out
+
+
+def migrate_task(doc):
+    if "attributes" in doc:
+        return None
+    tid = doc.get("id")
+    if tid is None:
+        return None
+    return {"id": int(tid),
+            "attributes": {k: v for k, v in doc.items() if k != "id"}}
+
+
+def op_migrate(root, cfg, args):
+    targets = [pathlib.Path(args.path).resolve()] if args.path else None
+    done = skipped = 0
+    errs = []
+    for gdir, label, _ in graphs(root, cfg):
+        for p in sorted(gdir.rglob("*.md")):
+            if cfg["meta"] in p.relative_to(root).parts:
+                continue
+            if targets and p.resolve() not in targets:
+                continue
+            doc, body = read(p)
+            if not doc:
+                continue
+            new = migrate_doc(root, cfg, p, doc)
+            if new is None:
+                skipped += 1
+                continue
+            bad = validate(new, str(p.relative_to(root)))
+            if bad:
+                errs += bad
+                continue
+            done += 1
+            print(f"  {p.relative_to(root)}  {doc.get('type')} -> kind {new['kind']}"
+                  + (f" labels {new['attributes']['labels']}"
+                     if "labels" in new["attributes"] else ""))
+            for r in new.get("relations") or []:
+                print(f"      {r['rel']:16} {r['to']}")
+            if not args.dry_run:
+                write(p, new, body)
+    for d in task_dirs(root, cfg):
+        for p in sorted(d.glob("*.md")):
+            if targets and p.resolve() not in targets:
+                continue
+            doc, body = read(p)
+            if not doc:
+                continue
+            new = migrate_task(doc)
+            if new is None:
+                skipped += 1
+                continue
+            bad = validate_task(new, str(p.relative_to(root)))
+            if bad:
+                errs += bad
+                continue
+            done += 1
+            print(f"  {p.relative_to(root)}  task {new['id']}")
+            if not args.dry_run:
+                write(p, new, body)
+    for e in errs:
+        print(f"ERROR {e}")
+    print(f"\n{done} migrated, {skipped} already current, {len(errs)} errors")
+    if args.dry_run:
+        print("dry run — nothing written")
+    return 1 if errs else 0
+
+
 def op_check(root, cfg, args):
     errs, warns = [], []
     for p in walk(root, cfg):
@@ -826,6 +940,9 @@ def main(argv=None):
 
     p = sub.add_parser("unlink"); p.set_defaults(fn=op_unlink)
     p.add_argument("frm"); p.add_argument("to"); p.add_argument("--rel")
+
+    p = sub.add_parser("migrate"); p.set_defaults(fn=op_migrate)
+    p.add_argument("path", nargs="?"); p.add_argument("--dry-run", action="store_true")
 
     p = sub.add_parser("stale"); p.set_defaults(fn=op_stale)
     p = sub.add_parser("check"); p.set_defaults(fn=op_check)
