@@ -122,6 +122,18 @@ kg check               # read-only, never writes
 kg init                # once per repository
 ```
 
+**`build` is provisional, pending viewer tools.** It materialises three queries
+into committed files because there is nothing to render them on demand. Once
+there is, those files become a **cache rather than the artifact** — and only one
+reason survives the change: `meta/MAP.md` is an `@`-import, and imports are
+files, so the agent-context path needs something on disk at session start.
+
+Keep it thin for that reason. The durable piece is the **resolver** underneath —
+find candidate references, resolve each to an absolute path, compare — which
+`check`, `inbound` and `mv` need identically and no viewer decision can
+invalidate. Elaborating `build` would be building on the part most likely to
+move.
+
 **Derived** means computed from the source and holding nothing of its own. The
 test is exact: delete it, rebuild, byte-identical.
 
