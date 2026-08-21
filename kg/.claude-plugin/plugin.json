@@ -1,7 +1,7 @@
 {
   "name": "kg",
   "description": "Manage a knowledge graph in any repository. Atomic markdown nodes with typed frontmatter, a two-tier global/local graph, a derived metadata layer read at session start, and a queue of pending work. The toolbelt constructs nodes, tasks and edges so the rules cannot be broken, rather than validating after the fact. Commands are prefixed kg:.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "author": {
     "name": "Johan Chan"
   },

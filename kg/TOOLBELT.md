@@ -41,7 +41,7 @@ kg task new <slug> --cost C --due D [--due-when "…"]
 kg task retire <id> [--force]
 kg link <from> <to> --rel R [--set '{…}']
 kg unlink <from> <to> [--rel R]
-kg mv <old> <new> [--dry-run]
+kg mv <old> <new> [--dry-run] [--force]
 ```
 
 **`set` takes a path or a task id**, because they are the same act on the same
@@ -95,6 +95,12 @@ superseded, which quietly orphaned every citer onto history.
 node depends on is neither computable from the endpoints nor substantial enough
 to be its own node. Everything else proposed — frame overlap, provenance, dates —
 is computable, or lives in git, or needs a source and is therefore a node.
+
+**`mv` refuses to cross a space boundary that would break the citation rule.**
+Promoting carries the node's own downward edges up with it; demoting leaves every
+citation from above pointing down. Both were previously silent — a promotion in
+the origin repo produced 19 errors and exited 0, leaving them to be found at
+commit time rather than at the moment they could still be reconsidered.
 
 **`mv` re-bases every inbound reference** — typed relations, prose links, index
 entries. It exists because doing that by regex broke 157 links in the origin

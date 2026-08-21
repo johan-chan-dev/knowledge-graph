@@ -579,6 +579,37 @@ def plan_mv(root, cfg, old, new):
     return plan
 
 
+def tier_of(root, cfg, path):
+    """True for global, False for local, None for anything outside a graph."""
+    try:
+        return graph_of(root, cfg, path)[2]
+    except Refused:
+        return None
+
+
+def check_move_tier(root, cfg, old, new):
+    """A move between spaces can break the citation rule in both directions.
+
+    Promoting carries the node's own downward edges up with it; demoting leaves
+    every citation from above pointing down. `check` finds both at commit time —
+    this finds them at the moment of the act, which is where they can still be
+    reconsidered rather than merely repaired."""
+    was, now = tier_of(root, cfg, old), tier_of(root, cfg, new)
+    if was == now or now is None:
+        return []
+    bad = []
+    doc, _ = read(old)
+    if now:  # promoted: what this node cites must be global too
+        for kind, raw, res in refs(root, cfg, old):
+            if res.exists() and tier_of(root, cfg, res) is False:
+                bad.append(f"  it cites {raw} — which stays local")
+    else:    # demoted: what cites it from above may no longer
+        for p, kind, _ in inbound(root, cfg, old):
+            if tier_of(root, cfg, root / p):
+                bad.append(f"  {p} cites it from the global tier")
+    return bad
+
+
 def op_mv(root, cfg, args):
     old = pathlib.Path(args.old).resolve()
     new = pathlib.Path(args.new).resolve()
@@ -586,6 +617,16 @@ def op_mv(root, cfg, args):
         raise Refused(f"{args.old} does not exist")
     if new.exists():
         raise Refused(f"{args.new} already exists")
+
+    bad = check_move_tier(root, cfg, old, new)
+    if bad and not args.force:
+        raise Refused(
+            f"this move crosses a space boundary and would break the citation "
+            f"rule in {len(bad)} place(s):\n" + "\n".join(bad[:8])
+            + (f"\n  … and {len(bad)-8} more" if len(bad) > 8 else "")
+            + "\n\n  A space inherits downward only: a global claim may not rest "
+              "on a local one,\n  because its frame must contain the frames it "
+              "depends on. Repoint or promote\n  those first, or --force.")
 
     plan = plan_mv(root, cfg, old, new)
     for p, kind, before, after in plan:
@@ -1223,6 +1264,7 @@ def main(argv=None):
     p = sub.add_parser("mv"); p.set_defaults(fn=op_mv)
     p.add_argument("old"); p.add_argument("new")
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--force", action="store_true")
 
     p = sub.add_parser("inbound"); p.set_defaults(fn=op_inbound)
     p.add_argument("path")
