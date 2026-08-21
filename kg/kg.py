@@ -11,6 +11,7 @@ that does not run.
 import argparse
 import datetime
 import json
+import os
 import pathlib
 import re
 import sys
@@ -432,6 +433,80 @@ def op_link(root, cfg, args):
     print(f"{args.frm}  -{args.rel}->  {args.to}")
 
 
+def all_md(root, cfg):
+    """Every markdown file including metadata.
+
+    `walk` skips meta/ because a node walk should not treat an index as a node.
+    A rename must see them: an INDEX entry is a reference like any other, and
+    missing it leaves the index pointing at a file that no longer exists."""
+    skip = {".git", "node_modules"}
+    for p in sorted(root.rglob("*.md")):
+        if not any(s in p.relative_to(root).parts for s in skip):
+            yield p
+
+
+def plan_mv(root, cfg, old, new):
+    """(file, kind, before, after) for every reference a rename must rewrite."""
+    plan = []
+    for p in all_md(root, cfg):
+        doc, body = read(p)
+        if p.resolve() == old.resolve():
+            # Its own prose links break: the file moved, so every relative path
+            # out of it is measured from a different directory. This is the half
+            # a naive find-and-replace misses entirely.
+            for raw in set(MDLINK.findall(strip_code(body or ""))):
+                tgt = (old.parent / raw).resolve()
+                after = os.path.relpath(tgt, new.parent)
+                if after != raw:
+                    plan.append((p, "own prose", raw, after))
+            continue
+        for rel in (doc or {}).get("relations") or []:
+            if rel.get("to") and (root / rel["to"]).resolve() == old.resolve():
+                plan.append((p, "relation", rel["to"], str(new.relative_to(root))))
+        for raw in set(MDLINK.findall(strip_code(body if doc else p.read_text()))):
+            if (p.parent / raw).resolve() == old.resolve():
+                plan.append((p, "prose", raw, os.path.relpath(new, p.parent)))
+    return plan
+
+
+def op_mv(root, cfg, args):
+    old = pathlib.Path(args.old).resolve()
+    new = pathlib.Path(args.new).resolve()
+    if not old.is_file():
+        raise Refused(f"{args.old} does not exist")
+    if new.exists():
+        raise Refused(f"{args.new} already exists")
+
+    plan = plan_mv(root, cfg, old, new)
+    for p, kind, before, after in plan:
+        print(f"  {p.relative_to(root)}\n      {kind:10} {before}\n      {'':10} -> {after}")
+    print(f"{len(plan)} reference(s) in "
+          f"{len({p for p, *_ in plan})} file(s)")
+    if args.dry_run:
+        print("dry run — nothing written")
+        return 0
+
+    for p, kind, before, after in plan:
+        doc, body = read(p)
+        if kind == "relation":
+            for rel in doc["relations"]:
+                if rel.get("to") == before:
+                    rel["to"] = after
+            write(p, doc, body)
+        else:
+            def swap(m, b=before, a=after):
+                return m.group(0).replace(f"({b}", f"({a}", 1) if m.group(1) == b else m.group(0)
+            if doc:
+                write(p, doc, MDLINK.sub(swap, body))
+            else:
+                p.write_text(MDLINK.sub(swap, p.read_text()))
+
+    new.parent.mkdir(parents=True, exist_ok=True)
+    old.rename(new)
+    print(f"moved {old.relative_to(root)} -> {new.relative_to(root)}")
+    return 0
+
+
 def op_inbound(root, cfg, args):
     target = pathlib.Path(args.path).resolve()
     hits = inbound(root, cfg, target)
@@ -503,6 +578,10 @@ def main(argv=None):
     p.add_argument("frm"); p.add_argument("to")
     p.add_argument("--rel", required=True, choices=RELATIONS)
     p.add_argument("--set")
+
+    p = sub.add_parser("mv"); p.set_defaults(fn=op_mv)
+    p.add_argument("old"); p.add_argument("new")
+    p.add_argument("--dry-run", action="store_true")
 
     p = sub.add_parser("inbound"); p.set_defaults(fn=op_inbound)
     p.add_argument("path")
