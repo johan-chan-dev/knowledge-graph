@@ -32,7 +32,13 @@ KINDS = {
 }
 STATUS = ("open", "provisional", "decided", "superseded")
 CONFIDENCE = ("verified", "partial", "attested")
-RELATIONS = ("supersedes", "contradicts", "depends-on", "does-not-satisfy")
+# blocked-by was earned, not designed. Writing the first node-to-task edge made
+# it obvious that depends-on does not fit: a provisional decision is not
+# *dependent on* the verification that would settle it, it is *blocked by* it —
+# the decision stands and is usable, it simply cannot close. The other three
+# original terms were guessed a priori and two of them have one use each.
+RELATIONS = ("supersedes", "contradicts", "depends-on", "does-not-satisfy",
+             "blocked-by")
 FRAMES = ("jurisdiction", "vendor")
 UNIVERSAL = "universal"
 
@@ -462,19 +468,24 @@ def op_supersede(root, cfg, args):
           f"inbound citations untouched")
 
 
-def op_set(root, cfg, args):
-    """One operation, two entities. A numeric ref is a task, a path is a node —
-    they are the same act on the same key, so they are not two commands."""
-    if args.ref.isdigit():
-        hit = [(p, d) for p, d in tasks(root, cfg) if d["id"] == int(args.ref)]
+def resolve_ref(root, cfg, ref):
+    """A numeric ref is a task, a path is a node. Returns (path, is_task).
+
+    One resolver so every operation accepts both — a task and a node are
+    different entities, but pointing at one is the same act."""
+    if str(ref).isdigit():
+        hit = [(p, d) for p, d in tasks(root, cfg) if d["id"] == int(ref)]
         if not hit:
-            raise Refused(f"no task with id {args.ref}")
-        path, _ = hit[0]
-        is_task = True
-    else:
-        path, is_task = pathlib.Path(args.ref).resolve(), False
-        if not path.exists():
-            raise Refused(f"{args.ref} does not exist")
+            raise Refused(f"no task with id {ref}")
+        return hit[0][0], True
+    path = pathlib.Path(ref).resolve()
+    if not path.exists():
+        raise Refused(f"{ref} does not exist")
+    return path, any(d == "tasks" for d in path.relative_to(root).parts)
+
+
+def op_set(root, cfg, args):
+    path, is_task = resolve_ref(root, cfg, args.ref)
     doc, body = read(path)
     if not doc:
         raise Refused(f"{args.ref} has no frontmatter — use `kg new` to make it a node")
@@ -494,11 +505,11 @@ def op_set(root, cfg, args):
 
 
 def op_link(root, cfg, args):
-    path = pathlib.Path(args.frm).resolve()
+    path, is_task = resolve_ref(root, cfg, args.frm)
     doc, body = read(path)
     if not doc:
-        raise Refused(f"{args.frm} is not a node")
-    _, _, is_global = graph_of(root, cfg, path)
+        raise Refused(f"{args.frm} has no frontmatter")
+    is_global = False if is_task else graph_of(root, cfg, path)[2]
     tgt = pathlib.Path(args.to)
     resolved = (root / tgt).resolve()
     if not resolved.exists():
@@ -525,11 +536,11 @@ def op_link(root, cfg, args):
             attrs.pop(k, None) if v is None else attrs.update({k: v})
         if not attrs:
             entry.pop("attributes", None)
-    errs = validate(doc, args.frm)
+    errs = (validate_task if is_task else validate)(doc, args.frm)
     if errs:
         raise Refused("\n".join(errs))
     write(path, doc, body)
-    print(f"{args.frm}  -{args.rel}->  {args.to}")
+    print(f"{path.relative_to(root)}  -{args.rel}->  {args.to}")
 
 
 def all_md(root, cfg):
@@ -621,10 +632,10 @@ def op_inbound(root, cfg, args):
 
 
 def op_unlink(root, cfg, args):
-    path = pathlib.Path(args.frm).resolve()
+    path, is_task = resolve_ref(root, cfg, args.frm)
     doc, body = read(path)
     if not doc:
-        raise Refused(f"{args.frm} is not a node")
+        raise Refused(f"{args.frm} has no frontmatter")
     rels = doc.get("relations") or []
     keep = [r for r in rels
             if not (r.get("to") == args.to and (not args.rel or r.get("rel") == args.rel))]
@@ -634,7 +645,7 @@ def op_unlink(root, cfg, args):
     doc["relations"] = keep
     if not keep:
         doc.pop("relations")
-    errs = validate(doc, args.frm)
+    errs = (validate_task if is_task else validate)(doc, args.frm)
     if errs:
         raise Refused("\n".join(errs))
     write(path, doc, body)
@@ -683,6 +694,14 @@ def validate_task(doc, where):
                     f"`provisional` would")
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(a.get("queued", ""))):
         errs.append(f"{where}: queued {a.get('queued')!r} is not YYYY-MM-DD")
+    # A task holds edges without becoming a node. It makes no claim — no kind, no
+    # frame, no confidence — but the relations it has are real, and 140 of them
+    # in the origin repo were prose because there was nowhere to put them.
+    for rel in doc.get("relations") or []:
+        if rel.get("rel") not in RELATIONS:
+            errs.append(f"{where}: rel {rel.get('rel')!r} not in {'|'.join(RELATIONS)}")
+        if not rel.get("to"):
+            errs.append(f"{where}: relation missing 'to'")
     return errs
 
 
@@ -749,7 +768,15 @@ def edges(root, cfg):
     out, inn, state = {}, {}, {}
     for p in all_md(root, cfg):
         doc, _ = read(p)
-        if not doc or "kind" not in doc:
+        if not doc or not ("kind" in doc or "id" in doc):
+            continue
+        if "id" in doc:   # a task: no kind, but its edges are real
+            rel, a = str(p.relative_to(root)), doc.get("attributes") or {}
+            state[rel] = (f"task {doc['id']}", p.stem.replace("-", " "))
+            for r in doc.get("relations") or []:
+                if r.get("to"):
+                    out.setdefault(rel, []).append((r["rel"], r["to"]))
+                    inn.setdefault(r["to"], []).append((r["rel"], rel))
             continue
         rel, a = str(p.relative_to(root)), doc.get("attributes") or {}
         state[rel] = (a.get("status") or a.get("confidence") or doc["kind"],
@@ -767,7 +794,7 @@ def op_neighbors(root, cfg, args):
     Returns a *list*, not the nodes. Searching is not reading: on this graph a
     two-hop list costs ~161 tokens where reading what it names costs ~14,000, and
     the list carries enough — trust tier, hop distance, edge type — to choose."""
-    seed = str(pathlib.Path(args.path).resolve().relative_to(root))
+    seed = str(resolve_ref(root, cfg, args.path)[0].relative_to(root))
     out, inn, state = edges(root, cfg)
     if seed not in state:
         raise Refused(f"{args.path} is not a node")

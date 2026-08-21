@@ -131,6 +131,7 @@ Four are recognised:
 | `contradicts` | the two cannot both be true — one is wrong or scoped |
 | `depends-on` | this node is meaningless or wrong without the target |
 | `does-not-satisfy` | this capability fails to meet that requirement |
+| `blocked-by` | this stands and is usable, but cannot close until the target resolves |
 
 **`to` is relative to the repository root.** Not to the node, and not to the
 graph root — a graph-root convention cannot express the **cross-tier edge**,
@@ -196,6 +197,12 @@ test: *would you cite it?*
 
 A second entity, not a node kind. Different lifecycle — it drains — and the only
 thing that can be deleted.
+
+**A task carries `relations` like a node**, and nothing else from the node
+schema: no `kind`, no frames, no `confidence`, no `recheck`, because a task makes
+no claim. Without them a quarter of a real graph's edges — every one crossing the
+boundary in either direction — could only be prose, and traversal stopped exactly
+where the unresolved things live.
 
 ```yaml
 ---
