@@ -31,6 +31,7 @@ kg task retire <id> [--force]
 kg inbound <path>
 kg stale
 kg check
+kg build [--check]
 kg migrate [path] [--dry-run]
 kg init [--graphs …] [--tasks …]
 ```
