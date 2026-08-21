@@ -724,6 +724,72 @@ def op_task_retire(root, cfg, args):
           + (f" (forced past {len(refs_in)} reference(s))" if refs_in else ""))
 
 
+# Ranking is question-independent, so it is mechanical. A verified fact is worth
+# more than a partial one whatever you asked; an open decision is worth flagging
+# whatever you asked. What none of it can know is whether any of this answers the
+# question in front of you — that is the agent's, and it is the whole of the
+# agent's job here.
+TRUST = {"verified": 0, "decided": 1, "partial": 2, "provisional": 3,
+         "attested": 4, "open": 5, "thesis": 6}
+
+
+def edges(root, cfg):
+    """(outbound, inbound, state) over every typed relation in the graph."""
+    out, inn, state = {}, {}, {}
+    for p in all_md(root, cfg):
+        doc, _ = read(p)
+        if not doc or "kind" not in doc:
+            continue
+        rel, a = str(p.relative_to(root)), doc.get("attributes") or {}
+        state[rel] = (a.get("status") or a.get("confidence") or doc["kind"],
+                      a.get("title", p.stem))
+        for r in doc.get("relations") or []:
+            if r.get("to"):
+                out.setdefault(rel, []).append((r["rel"], r["to"]))
+                inn.setdefault(r["to"], []).append((r["rel"], rel))
+    return out, inn, state
+
+
+def op_neighbors(root, cfg, args):
+    """An ego graph — the induced neighbourhood within a radius of one node.
+
+    Returns a *list*, not the nodes. Searching is not reading: on this graph a
+    two-hop list costs ~161 tokens where reading what it names costs ~14,000, and
+    the list carries enough — trust tier, hop distance, edge type — to choose."""
+    seed = str(pathlib.Path(args.path).resolve().relative_to(root))
+    out, inn, state = edges(root, cfg)
+    if seed not in state:
+        raise Refused(f"{args.path} is not a node")
+
+    seen, frontier, rows = {seed}, [seed], []
+    for hop in range(1, args.hops + 1):
+        nxt = []
+        for n in frontier:
+            for rel, t in out.get(n, []) + inn.get(n, []):
+                if t not in seen and t in state:
+                    seen.add(t)
+                    nxt.append(t)
+                    rows.append((hop, rel, t, "out" if any(
+                        x == t for _, x in out.get(n, [])) else "in"))
+        frontier = nxt
+    if not rows:
+        print("no typed neighbours — this node has no relations and none point at it")
+        return 0
+
+    rows.sort(key=lambda r: (r[0], TRUST.get(state[r[2]][0], 9), r[2]))
+    for hop, rel, n, direction in rows:
+        st, title = state[n]
+        arrow = "->" if direction == "out" else "<-"
+        print(f"{hop}  {arrow} {rel:16} {st:11} {n}")
+        print(f"          {title}")
+        if args.frontmatter:
+            doc, _ = read(root / n)
+            for line in _emit(doc.get("attributes") or {}, 10).split("\n"):
+                print(line)
+    print(f"\n{len(rows)} neighbours within {args.hops} hop(s) of {seed}")
+    return 0
+
+
 def op_stale(root, cfg, args):
     today = datetime.date.today()
     overdue, provisional = [], []
@@ -1134,6 +1200,10 @@ def main(argv=None):
 
     p = sub.add_parser("migrate"); p.set_defaults(fn=op_migrate)
     p.add_argument("path", nargs="?"); p.add_argument("--dry-run", action="store_true")
+
+    p = sub.add_parser("neighbors"); p.set_defaults(fn=op_neighbors)
+    p.add_argument("path"); p.add_argument("--hops", type=int, default=2)
+    p.add_argument("--frontmatter", action="store_true")
 
     p = sub.add_parser("stale"); p.set_defaults(fn=op_stale)
     p = sub.add_parser("check"); p.set_defaults(fn=op_check)

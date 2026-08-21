@@ -32,6 +32,7 @@ kg mv <old> <new> [--dry-run]
 kg task new <slug> --cost high|medium|low --due now|deferred [--due-when "…"]
 kg task retire <id> [--force]
 kg inbound <path>
+kg neighbors <path> [--hops N] [--frontmatter]
 kg stale
 kg build [--check]
 kg check
@@ -49,6 +50,7 @@ attributes dict.
 | an existing node is **wrong** | `set` | a mistake is not history; git holds the diff |
 | a decision was **right and got overtaken** | `supersede` | inserts a version behind the same path, so inbound citations never rot |
 | "what breaks if I change this?" | `inbound` | the resolver handles both path conventions; grep cannot |
+| "what does this rest on, and what rests on it?" | `neighbors` | an ego graph — returns a **list**, not the nodes. Add `--frontmatter` for `serves` and `revisit-when`, which is often the whole answer at a twelfth the cost of the bodies |
 | a rename or a move | `mv --dry-run` first | it re-bases the moved file's **own** links too, which a find-and-replace misses entirely |
 | a task has drained | `task retire` | lists inbound references and refuses — that refusal is where cleared blockers surface |
 | before committing | `check` | run `build` first; the hook does both |
