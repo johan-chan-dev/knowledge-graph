@@ -579,6 +579,18 @@ def plan_mv(root, cfg, old, new):
     return plan
 
 
+def space_of(root, cfg, path):
+    """Which space a file belongs to — the graph directory, as identity.
+
+    A space is bounded, not merely tiered. Two sibling product spaces are both
+    "local" and are still different spaces, so a closure computed on tier alone
+    would drag one product's nodes through another's."""
+    try:
+        return graph_of(root, cfg, path)[0].resolve()
+    except Refused:
+        return None
+
+
 def tier_of(root, cfg, path):
     """True for global, False for local, None for anything outside a graph."""
     try:
@@ -610,6 +622,33 @@ def check_move_tier(root, cfg, old, new):
     return bad
 
 
+def closure_residual(root, cfg, mapping, promoting):
+    """Rule violations the closure deliberately did not repair.
+
+    Bounding the closure to one space means a dependency living in a *third*
+    space is left where it is — correct, since dragging it would ship another
+    product's reasoning. But the citation rule still fails, so the move has to
+    say so instead of writing a broken graph quietly.
+
+    This is the closure's refusal half: what it cannot carry is exactly what
+    somebody else owns."""
+    bad = []
+    for node in mapping:
+        if promoting:
+            for _, raw, res in refs(root, cfg, node):
+                if (res.exists() and res.resolve() not in mapping
+                        and tier_of(root, cfg, res) is False):
+                    bad.append(f"  {node.relative_to(root)}\n      cites {raw}"
+                               f" — another space's node, which stays local")
+        else:
+            for pth, _, _ in inbound(root, cfg, node):
+                res = (root / pth).resolve()
+                if res not in mapping and tier_of(root, cfg, res):
+                    bad.append(f"  {pth} cites {node.relative_to(root)} "
+                               f"from the global tier, and is not moving")
+    return bad
+
+
 def move_closure(root, cfg, old, new):
     """Everything that must move with `old` for the citation rule to hold.
 
@@ -620,25 +659,27 @@ def move_closure(root, cfg, old, new):
     The closure is a **test as much as an operation**. If promoting one node
     requires promoting six obviously product-specific ones, the node was not
     global — seeing the cost is usually the answer."""
-    was, now = tier_of(root, cfg, old), tier_of(root, cfg, new)
-    if was == now or now is None:
+    src, dst = space_of(root, cfg, old), space_of(root, cfg, new)
+    if src == dst or dst is None or src is None:
         return {}
-    src_graph = graph_of(root, cfg, old)[0]
-    dst_graph = graph_of(root, cfg, new)[0]
+    promoting = tier_of(root, cfg, new) and not tier_of(root, cfg, old)
+    src_graph, dst_graph = graph_of(root, cfg, old)[0], graph_of(root, cfg, new)[0]
+
+    # The closure never leaves the source space. What the node rests on in
+    # *other* spaces stays where it is — those are the citations that survive the
+    # move, or that need awareness to survive it. Bounding here is the difference
+    # between shipping one product's reasoning and shipping the whole graph.
     moving, frontier = {old.resolve()}, [old.resolve()]
     while frontier:
         nxt = []
         for node in frontier:
-            if now:  # promoting: pull up what it rests on
-                for _, _, res in refs(root, cfg, node):
-                    if (res.exists() and tier_of(root, cfg, res) is False
-                            and res not in moving):
-                        moving.add(res); nxt.append(res)
-            else:    # demoting: pull down what rests on it
-                for pth, _, _ in inbound(root, cfg, node):
-                    res = (root / pth).resolve()
-                    if tier_of(root, cfg, res) and res not in moving:
-                        moving.add(res); nxt.append(res)
+            if promoting:   # what it rests on, that would be left behind
+                cand = [res for _, _, res in refs(root, cfg, node) if res.exists()]
+            else:           # what rests on it, that would lose sight of it
+                cand = [(root / pth).resolve() for pth, _, _ in inbound(root, cfg, node)]
+            for res in cand:
+                if space_of(root, cfg, res) == src and res not in moving:
+                    moving.add(res); nxt.append(res)
         frontier = nxt
     mapping = {old.resolve(): new}
     for m in moving:
@@ -688,6 +729,16 @@ def op_mv(root, cfg, args):
                 print(f"  {a.relative_to(root)}\n      -> {b.relative_to(root)}")
             print("\nIf any of these is obviously scoped to where it already is,"
                   "\nthe node being moved is too — that is what the closure tells you.\n")
+        promoting = tier_of(root, cfg, new) and not tier_of(root, cfg, old)
+        residual = closure_residual(root, cfg, mapping, promoting)
+        if residual and not args.force:
+            raise Refused(
+                f"the closure stops at the space boundary, and {len(residual)} "
+                f"edge(s) cross it:\n" + "\n".join(residual[:8])
+                + (f"\n  … and {len(residual)-8} more" if len(residual) > 8 else "")
+                + "\n\n  These belong to a space this move does not own, so the "
+                  "closure will not\n  carry them. Promote them from their own "
+                  "space first, or --force.")
         plan = plan_moves(root, cfg, mapping)
         for p, kind, before, after in plan:
             print(f"  {p.relative_to(root)}  {kind}  {before} -> {after}")

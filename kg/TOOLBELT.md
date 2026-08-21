@@ -96,13 +96,26 @@ node depends on is neither computable from the endpoints nor substantial enough
 to be its own node. Everything else proposed — frame overlap, provenance, dates —
 is computable, or lives in git, or needs a source and is therefore a node.
 
-**`--closure` moves the dependent subgraph with it, and is a test more than an
-operation.** Promoting a node requires promoting whatever it rests on; if that
-set contains something obviously scoped to where it already is, the node was not
-global either. Run it with `--dry-run` and read the number: in the origin repo,
-promoting one stack node returns **all 40 nodes of the product graph**, because
-that graph is a single connected component under its own edges. The answer to
-"is this global" arrives as a count rather than as an argument.
+**`--closure` moves the dependent subgraph with it, and the number it prints
+means opposite things in the two directions.**
+
+| Moving | The count is | A large one means |
+|---|---|---|
+| local → global, inside one space | the **cost of a generality claim** | the claim is false — usually a refusal |
+| personal space → shared space | the **unit of sharing** | nothing is wrong; that is the shipment |
+
+Read with `--dry-run`. In the origin repo, promoting one stack node returns **all
+40 nodes of the product graph**, because that graph is a single connected
+component under its own edges. As a promotion that is the answer to "is this
+global", arriving as a count rather than as an argument. As a *share* the same 40
+are simply what has to travel for the reasoning to be readable at the far end.
+
+**The closure stops at the space boundary.** It walks only inside the source
+space; a dependency in a third space is left where it is, and `mv` refuses rather
+than write a graph that breaks the citation rule. Bounding it by space rather
+than by tier is what stops one product's move from silently shipping another
+product's reasoning — with several products, "local" is not one place. What the
+closure declines to carry is exactly what somebody else owns.
 
 **`mv` refuses to cross a space boundary that would break the citation rule.**
 Promoting carries the node's own downward edges up with it; demoting leaves every
