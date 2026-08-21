@@ -344,6 +344,15 @@ def index_add(root, cfg, gdir, rel, title):
     idx.write_text(text)
 
 
+# Cloned on supersession, because a replacement usually shares most of the
+# original. NOT cloned: compiled and the decision's own lifecycle fields — a new
+# node is decided now, and `revisit-when` is the one field that must never be
+# inherited. It names the event that would unmake the decision; if you are
+# superseding, that event either fired or was wrong, so carrying it forward
+# produces a trigger that has already gone off and reads as live.
+SUPERSEDE_DROPS = ("compiled", "status", "decided", "revisit-when")
+
+
 def op_new(root, cfg, args):
     path = pathlib.Path(args.path).resolve()
     attrs = json.loads(args.set) if args.set else {}
@@ -351,6 +360,31 @@ def op_new(root, cfg, args):
         attrs["title"] = args.title
     kind = attrs.pop("kind", None) or args.kind
     body = ""
+    old_doc = old_path = None
+
+    if args.supersedes:
+        old_path = pathlib.Path(args.supersedes).resolve()
+        old_doc, _ = read(old_path)
+        if not old_doc:
+            raise Refused(f"{args.supersedes} is not a node")
+        if old_doc.get("kind") != "decision":
+            raise Refused(
+                f"refused — only a decision can be superseded, and "
+                f"{args.supersedes} is a {old_doc.get('kind')}. A fact is checked "
+                f"against a source: when the source moves the fact is wrong and "
+                f"gets corrected in place, with git holding the history. A "
+                f"decision that is replaced was genuinely made, and its record "
+                f"stands on its own.")
+        inherited = {k: v for k, v in (old_doc.get("attributes") or {}).items()
+                     if k not in SUPERSEDE_DROPS}
+        attrs = {**inherited, **attrs}
+        kind = kind or "decision"
+        if not attrs.get("revisit-when"):
+            raise Refused(
+                "refused — a superseding decision needs its own revisit-when in "
+                "--set. It is deliberately not inherited: it names the event that "
+                "would unmake the decision, and if you are superseding, that event "
+                "either fired or was wrong.")
     if path.exists():
         doc, body = read(path)
         if doc:
@@ -368,10 +402,31 @@ def op_new(root, cfg, args):
     path.parent.mkdir(parents=True, exist_ok=True)
     if not body.strip():
         body = f"\n# {attrs['title']}\n"
+    if old_doc is not None:
+        doc.setdefault("relations", [])
+        for rel in old_doc.get("relations") or []:
+            doc["relations"].append(dict(rel))
+        doc["relations"].append(
+            {"rel": "supersedes", "to": str(old_path.relative_to(root))})
+        errs = validate(doc, args.path)
+        if errs:
+            raise Refused("\n".join(errs))
+        old_doc["attributes"]["status"] = "superseded"
+        errs = validate(old_doc, args.supersedes)
+        if errs:
+            raise Refused("refused — the superseded node would be invalid:\n"
+                          + "\n".join(errs))
+
     write(path, doc, body)
     index_add(root, cfg, gdir, path.relative_to(gdir), attrs["title"])
     print(f"wrote {path.relative_to(root)}")
     print(f"indexed in {index_of(root, cfg, gdir).relative_to(root)}")
+    if old_doc is not None:
+        _, old_body = read(old_path)
+        write(old_path, old_doc, old_body)
+        print(f"superseded {old_path.relative_to(root)} — status: superseded")
+        print(f"  inherited {len(inherited)} attribute(s), "
+              f"{len(old_doc.get('relations') or [])} relation(s)")
 
 
 def op_set(root, cfg, args):
@@ -570,6 +625,7 @@ def main(argv=None):
     p = sub.add_parser("new"); p.set_defaults(fn=op_new)
     p.add_argument("path"); p.add_argument("--title")
     p.add_argument("--kind"); p.add_argument("--set")
+    p.add_argument("--supersedes")
 
     p = sub.add_parser("set"); p.set_defaults(fn=op_set)
     p.add_argument("ref"); p.add_argument("--set", required=True)
