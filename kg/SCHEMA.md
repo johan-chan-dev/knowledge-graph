@@ -155,10 +155,20 @@ current node stays where it is; a snapshot of what it used to say is written
 beside it as `<stem>.vN.md`, and the live node's `supersedes` edge points at it.
 
 ```
-charges.md            live — domain relations, plus supersedes -> charges.v2.md
-charges.v2.md         superseded — supersedes -> charges.v1.md, nothing else
-charges.v1.md         superseded — chain start
+charges.md                  live        supersedes -> charges.2026-08-21-2.md
+charges.2026-08-21-2.md     superseded  supersedes -> charges.2026-08-21.md
+charges.2026-08-21.md       superseded  chain start
 ```
+
+**Archives are dated, not numbered**, and sit beside the node rather than in a
+subdirectory. A version number carries no information; the date is when that
+version *stopped being current*, which is the one fact the file does not
+otherwise hold. Every other date in this schema is a date, and a second
+convention for a folder is not worth what it saves. Same-day supersessions get a
+`-2`, `-3` suffix.
+
+An archive carries **`superseded: <date>`** alongside its own `decided`, so each
+version knows both its start and its end and the chain is self-describing.
 
 **Every inbound citation keeps pointing at the current version and none of them
 rot.** That is the whole reason for the shape: creating the replacement at a new

@@ -250,7 +250,7 @@ def validate(doc, where="node"):
             errs.append(f"{where}: attributes.{facet} {v} — universal is exclusive; "
                         f"a claim holding across every value cannot also be bound to some")
 
-    for key in ("compiled", "recheck", "decided", "attested-on"):
+    for key in ("compiled", "recheck", "decided", "attested-on", "superseded"):
         raw = attrs.get(key)
         if raw and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(raw)):
             errs.append(f"{where}: attributes.{key} {raw!r} is not YYYY-MM-DD")
@@ -404,14 +404,22 @@ def op_supersede(root, cfg, args):
             "decision, and if you are superseding, that event either fired or "
             "was wrong.")
 
-    n = 1
-    while (path.parent / f"{path.stem}.v{n}.md").exists():
+    # Dated, not numbered. Every other date in the schema is a date, a version
+    # number carries no information, and an archive sorts chronologically beside
+    # the node it came from. The date is when the snapshot was taken — when this
+    # version stopped being current — which is the one fact the file does not
+    # otherwise hold.
+    today = str(datetime.date.today())
+    archive = path.parent / f"{path.stem}.{today}.md"
+    n = 2
+    while archive.exists():
+        archive = path.parent / f"{path.stem}.{today}-{n}.md"
         n += 1
-    archive = path.parent / f"{path.stem}.v{n}.md"
 
     prior = [r for r in (doc.get("relations") or []) if r.get("rel") == "supersedes"]
     snap = {"kind": doc["kind"], "attributes": dict(doc["attributes"])}
     snap["attributes"]["status"] = "superseded"
+    snap["attributes"]["superseded"] = today
     if prior:
         snap["relations"] = prior          # the chain continues behind it
     errs = validate(snap, str(archive.relative_to(root)))
@@ -433,8 +441,8 @@ def op_supersede(root, cfg, args):
 
     write(archive, snap, body)
     write(path, doc, body)
-    print(f"archived {archive.relative_to(root)}  (v{n}, "
-          f"{'chain continues' if prior else 'chain starts'})")
+    print(f"archived {archive.relative_to(root)}  "
+          f"({'chain continues' if prior else 'chain starts'})")
     print(f"updated  {path.relative_to(root)} — path unchanged, "
           f"inbound citations untouched")
 
