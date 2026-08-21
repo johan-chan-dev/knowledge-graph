@@ -127,7 +127,7 @@ Four are recognised:
 
 | `rel` | Meaning |
 |---|---|
-| `supersedes` | this node replaces the target; the target is history |
+| `supersedes` | this node's previous version; the chain link |
 | `contradicts` | the two cannot both be true — one is wrong or scoped |
 | `depends-on` | this node is meaningless or wrong without the target |
 | `does-not-satisfy` | this capability fails to meet that requirement |
@@ -147,6 +147,27 @@ target a node depends on is neither computable from the endpoints nor substantia
 enough to be its own node — so when a target's `recheck` fires, the blast radius
 is knowable. Everything else proposed for edges is computable (frame overlap),
 lives in git (dates, authorship), or needs a source and is therefore a node.
+
+### Supersession is a chain, and the live node never moves
+
+A node's path is its identity, so a new version is **not** a new file. The
+current node stays where it is; a snapshot of what it used to say is written
+beside it as `<stem>.vN.md`, and the live node's `supersedes` edge points at it.
+
+```
+charges.md            live — domain relations, plus supersedes -> charges.v2.md
+charges.v2.md         superseded — supersedes -> charges.v1.md, nothing else
+charges.v1.md         superseded — chain start
+```
+
+**Every inbound citation keeps pointing at the current version and none of them
+rot.** That is the whole reason for the shape: creating the replacement at a new
+path would leave every citer resting on a node that had just become history,
+silently, with nothing to notice.
+
+An archive keeps **only its own chain link**. Its domain relations move forward
+with the live node, so a dependency never shows an inbound edge from a dead
+version — "what depends on this" has to mean what is alive.
 
 **An edge has no address.** Nothing can cite one, so a relation that is itself a
 claim — needing a source, a frame, or its own expiry — must become a node. The

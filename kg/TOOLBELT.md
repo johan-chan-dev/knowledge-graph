@@ -34,7 +34,8 @@ surface.
 ## Write
 
 ```
-kg new <path> --type T --title "…" [--supersedes <path>] [facets…]
+kg new <path> --kind K --title "…" [--set '{…}']
+kg supersede <path> --title "…" --set '{…}'
 kg adopt <path> --type T --title "…" [facets…]
 kg task new <slug> --cost C --due D [--due-when "…"]
 kg decide <path> --revisit-when "…" [--serves "…"]
@@ -76,10 +77,13 @@ since silently overwriting a draft is unrecoverable in the moment; **`adopt`
 refuses on a missing one** and never writes prose. A single flag would collapse
 them and put the destructive path one keystroke from the safe one.
 
-**`--supersedes` is a flag on create, not a command**, taken from `adr-tools`:
-`adr new -s 9` writes the replacement *and* flips ADR 9's status. One act, both
-files, at the only moment you actually know you are superseding. A separate
-`supersede` step leaves a window where the old node is stale.
+**`supersede` inserts into a chain; it does not create a replacement.** The live
+node keeps its path — which is its identity — so inbound citations never rot. A
+snapshot goes to `<stem>.vN.md` carrying only its own chain link, and the live
+node's `supersedes` edge is repointed at it. A linked-list insert.
+
+An earlier design made the replacement a *new file* and marked the old one
+superseded, which quietly orphaned every citer onto history.
 
 **`--aspect` is the one edge attribute that survived.** *Which* part of a target a
 node depends on is neither computable from the endpoints nor substantial enough
