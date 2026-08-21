@@ -41,7 +41,7 @@ kg task new <slug> --cost C --due D [--due-when "…"]
 kg task retire <id> [--force]
 kg link <from> <to> --rel R [--set '{…}']
 kg unlink <from> <to> [--rel R]
-kg mv <old> <new> [--dry-run] [--force]
+kg mv <old> <new> [--dry-run] [--force] [--closure]
 ```
 
 **`set` takes a path or a task id**, because they are the same act on the same
@@ -95,6 +95,14 @@ superseded, which quietly orphaned every citer onto history.
 node depends on is neither computable from the endpoints nor substantial enough
 to be its own node. Everything else proposed — frame overlap, provenance, dates —
 is computable, or lives in git, or needs a source and is therefore a node.
+
+**`--closure` moves the dependent subgraph with it, and is a test more than an
+operation.** Promoting a node requires promoting whatever it rests on; if that
+set contains something obviously scoped to where it already is, the node was not
+global either. Run it with `--dry-run` and read the number: in the origin repo,
+promoting one stack node returns **all 40 nodes of the product graph**, because
+that graph is a single connected component under its own edges. The answer to
+"is this global" arrives as a count rather than as an argument.
 
 **`mv` refuses to cross a space boundary that would break the citation rule.**
 Promoting carries the node's own downward edges up with it; demoting leaves every

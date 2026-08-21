@@ -610,6 +610,68 @@ def check_move_tier(root, cfg, old, new):
     return bad
 
 
+def move_closure(root, cfg, old, new):
+    """Everything that must move with `old` for the citation rule to hold.
+
+    Promoting: whatever it rests on that stays behind. Demoting: whatever rests
+    on it from above. Both computed transitively, because the same rule applies
+    to each node dragged in.
+
+    The closure is a **test as much as an operation**. If promoting one node
+    requires promoting six obviously product-specific ones, the node was not
+    global — seeing the cost is usually the answer."""
+    was, now = tier_of(root, cfg, old), tier_of(root, cfg, new)
+    if was == now or now is None:
+        return {}
+    src_graph = graph_of(root, cfg, old)[0]
+    dst_graph = graph_of(root, cfg, new)[0]
+    moving, frontier = {old.resolve()}, [old.resolve()]
+    while frontier:
+        nxt = []
+        for node in frontier:
+            if now:  # promoting: pull up what it rests on
+                for _, _, res in refs(root, cfg, node):
+                    if (res.exists() and tier_of(root, cfg, res) is False
+                            and res not in moving):
+                        moving.add(res); nxt.append(res)
+            else:    # demoting: pull down what rests on it
+                for pth, _, _ in inbound(root, cfg, node):
+                    res = (root / pth).resolve()
+                    if tier_of(root, cfg, res) and res not in moving:
+                        moving.add(res); nxt.append(res)
+        frontier = nxt
+    mapping = {old.resolve(): new}
+    for m in moving:
+        if m != old.resolve():
+            mapping[m] = dst_graph / m.relative_to(src_graph)
+    return mapping
+
+
+def plan_moves(root, cfg, mapping):
+    """One plan for many simultaneous moves.
+
+    References between two files that are both moving have to be re-based
+    against their *final* positions, so every rewrite is computed from the whole
+    mapping rather than one move at a time."""
+    plan = []
+    for p in all_md(root, cfg):
+        doc, body = read(p)
+        src = mapping.get(p.resolve(), p)
+        for rel in (doc or {}).get("relations") or []:
+            tgt = (root / rel["to"]).resolve() if rel.get("to") else None
+            if tgt in mapping:
+                plan.append((p, "relation", rel["to"],
+                             str(mapping[tgt].relative_to(root))))
+        for raw in set(MDLINK.findall(strip_code(body if doc else p.read_text()))):
+            tgt = (p.parent / raw).resolve()
+            if tgt in mapping or p.resolve() in mapping:
+                final = mapping.get(tgt, tgt)
+                after = os.path.relpath(final, src.parent)
+                if after != raw:
+                    plan.append((p, "prose", raw, after))
+    return plan
+
+
 def op_mv(root, cfg, args):
     old = pathlib.Path(args.old).resolve()
     new = pathlib.Path(args.new).resolve()
@@ -617,6 +679,28 @@ def op_mv(root, cfg, args):
         raise Refused(f"{args.old} does not exist")
     if new.exists():
         raise Refused(f"{args.new} already exists")
+
+    if args.closure:
+        mapping = move_closure(root, cfg, old, new)
+        if len(mapping) > 1:
+            print(f"{len(mapping)} nodes must move together:")
+            for a, b in sorted(mapping.items()):
+                print(f"  {a.relative_to(root)}\n      -> {b.relative_to(root)}")
+            print("\nIf any of these is obviously scoped to where it already is,"
+                  "\nthe node being moved is too — that is what the closure tells you.\n")
+        plan = plan_moves(root, cfg, mapping)
+        for p, kind, before, after in plan:
+            print(f"  {p.relative_to(root)}  {kind}  {before} -> {after}")
+        print(f"{len(plan)} reference(s) in {len({p for p,*_ in plan})} file(s)")
+        if args.dry_run:
+            print("dry run — nothing written")
+            return 0
+        apply_plan(root, plan)
+        for a, b in mapping.items():
+            b.parent.mkdir(parents=True, exist_ok=True)
+            a.rename(b)
+        print(f"moved {len(mapping)} node(s)")
+        return 0
 
     bad = check_move_tier(root, cfg, old, new)
     if bad and not args.force:
@@ -637,6 +721,15 @@ def op_mv(root, cfg, args):
         print("dry run — nothing written")
         return 0
 
+    apply_plan(root, plan)
+
+    new.parent.mkdir(parents=True, exist_ok=True)
+    old.rename(new)
+    print(f"moved {old.relative_to(root)} -> {new.relative_to(root)}")
+    return 0
+
+
+def apply_plan(root, plan):
     for p, kind, before, after in plan:
         doc, body = read(p)
         if kind == "relation":
@@ -651,11 +744,6 @@ def op_mv(root, cfg, args):
                 write(p, doc, MDLINK.sub(swap, body))
             else:
                 p.write_text(MDLINK.sub(swap, p.read_text()))
-
-    new.parent.mkdir(parents=True, exist_ok=True)
-    old.rename(new)
-    print(f"moved {old.relative_to(root)} -> {new.relative_to(root)}")
-    return 0
 
 
 def op_inbound(root, cfg, args):
@@ -1265,6 +1353,7 @@ def main(argv=None):
     p.add_argument("old"); p.add_argument("new")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--force", action="store_true")
+    p.add_argument("--closure", action="store_true")
 
     p = sub.add_parser("inbound"); p.set_defaults(fn=op_inbound)
     p.add_argument("path")
