@@ -576,6 +576,148 @@ def op_inbound(root, cfg, args):
                 print(f"    {p}")
 
 
+def op_unlink(root, cfg, args):
+    path = pathlib.Path(args.frm).resolve()
+    doc, body = read(path)
+    if not doc:
+        raise Refused(f"{args.frm} is not a node")
+    rels = doc.get("relations") or []
+    keep = [r for r in rels
+            if not (r.get("to") == args.to and (not args.rel or r.get("rel") == args.rel))]
+    if len(keep) == len(rels):
+        raise Refused(f"no relation to {args.to}"
+                      + (f" with rel {args.rel}" if args.rel else ""))
+    doc["relations"] = keep
+    if not keep:
+        doc.pop("relations")
+    errs = validate(doc, args.frm)
+    if errs:
+        raise Refused("\n".join(errs))
+    write(path, doc, body)
+    print(f"removed {len(rels) - len(keep)} relation(s) to {args.to}")
+
+
+# ── tasks ─────────────────────────────────────────────────────────────────────
+# A second entity, not a node kind. It drains, and it is the only thing that can
+# be deleted.
+
+COSTS, DUE = ("high", "medium", "low"), ("now", "deferred")
+
+
+def task_dirs(root, cfg):
+    out = []
+    for pat in cfg["tasks"]:
+        out += [d for d in (sorted(root.glob(pat)) if "*" in pat else [root / pat])
+                if d.is_dir()]
+    return out
+
+
+def tasks(root, cfg):
+    for d in task_dirs(root, cfg):
+        for p in sorted(d.glob("*.md")):
+            doc, _ = read(p)
+            if doc and "id" in doc:
+                # Frontmatter scalars come back as strings; a task id is a number
+                # and every comparison downstream assumes so.
+                try:
+                    doc["id"] = int(doc["id"])
+                except (TypeError, ValueError):
+                    raise Refused(f"{p}: id {doc['id']!r} is not an integer")
+                yield p, doc
+
+
+def validate_task(doc, where):
+    errs, a = [], doc.get("attributes") or {}
+    if a.get("cost-if-wrong") not in COSTS:
+        errs.append(f"{where}: cost-if-wrong {a.get('cost-if-wrong')!r} "
+                    f"not in {'|'.join(COSTS)}")
+    if a.get("due") not in DUE:
+        errs.append(f"{where}: due {a.get('due')!r} not in {'|'.join(DUE)}")
+    elif a["due"] == "deferred" and not a.get("due-when"):
+        errs.append(f"{where}: due deferred needs due-when — the event that makes "
+                    f"it due, not a date. A bare `deferred` rots the way a bare "
+                    f"`provisional` would")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(a.get("queued", ""))):
+        errs.append(f"{where}: queued {a.get('queued')!r} is not YYYY-MM-DD")
+    return errs
+
+
+def op_task_new(root, cfg, args):
+    dirs = task_dirs(root, cfg)
+    if not dirs:
+        raise Refused("no task directory configured")
+    into = pathlib.Path(args.dir).resolve() if args.dir else dirs[0]
+    path = into / f"{args.slug}.md"
+    if path.exists():
+        raise Refused(f"{path.relative_to(root)} already exists")
+
+    # A counter rather than max+1. Ids are never reused, and max+1 reuses one the
+    # moment the highest-numbered task is retired.
+    cfgp = root / CONFIG
+    raw = json.loads(cfgp.read_text())
+    used = {d["id"] for _, d in tasks(root, cfg)}
+    nid = max([int(raw.get("next-id", 1)), *(i + 1 for i in used)])
+    attrs = {"cost-if-wrong": args.cost, "queued": str(datetime.date.today()),
+             "due": args.due}
+    if args.due_when:
+        attrs["due-when"] = args.due_when
+    doc = {"id": nid, "attributes": attrs}
+    errs = validate_task(doc, str(path.relative_to(root)))
+    if errs:
+        raise Refused("\n".join(errs))
+    into.mkdir(parents=True, exist_ok=True)
+    write(path, doc, f"\n# {args.slug.replace('-', ' ').capitalize()}\n")
+    raw["next-id"] = nid + 1
+    cfgp.write_text(json.dumps(raw, indent=2) + "\n")
+    print(f"wrote {path.relative_to(root)}  (id {nid})")
+
+
+def op_task_retire(root, cfg, args):
+    hit = [(p, d) for p, d in tasks(root, cfg) if d["id"] == int(args.id)]
+    if not hit:
+        raise Refused(f"no task with id {args.id}")
+    path, _ = hit[0]
+    refs_in = inbound(root, cfg, path)
+    if refs_in and not args.force:
+        lines = "\n".join(f"    {p}  ({kind})" for p, kind, _ in refs_in)
+        raise Refused(
+            f"{len(refs_in)} inbound reference(s) to {path.relative_to(root)}:\n"
+            f"{lines}\n"
+            f"  Repoint them, or --force. A task drains — its content moved — but a\n"
+            f"  reference left behind asserts work that no longer exists, and that\n"
+            f"  is where blockers that already cleared are found.")
+    path.unlink()
+    print(f"retired {path.relative_to(root)}"
+          + (f" (forced past {len(refs_in)} reference(s))" if refs_in else ""))
+
+
+def op_stale(root, cfg, args):
+    today = datetime.date.today()
+    overdue, provisional = [], []
+    for gdir, label, _ in graphs(root, cfg):
+        for p in sorted(gdir.rglob("*.md")):
+            if cfg["meta"] in p.relative_to(root).parts:
+                continue
+            doc, _ = read(p)
+            if not doc:
+                continue
+            a = doc.get("attributes") or {}
+            r = a.get("recheck")
+            if r and str(r) < str(today):
+                overdue.append((p.relative_to(root), r))
+            if doc.get("kind") == "decision" and a.get("status") == "provisional":
+                provisional.append((p.relative_to(root), a.get("revisit-when", "—"),
+                                    a.get("decided", "—")))
+    print(f"recheck overdue  {len(overdue)}")
+    for rel, when in overdue:
+        print(f"    {rel}  {when}")
+    print(f"\nprovisional, trigger unread  {len(provisional)}")
+    for rel, trig, dec in provisional:
+        print(f"    {rel}  ({dec})\n        {trig}")
+    print("\nListed, not decided. Whether a trigger has fired is an event in the "
+          "world.")
+
+
 def op_check(root, cfg, args):
     errs, warns = [], []
     for p in walk(root, cfg):
@@ -615,7 +757,28 @@ def op_check(root, cfg, args):
 
 
 def op_init(root, cfg, args):
-    raise Refused("not built yet")
+    raise Refused("unreachable — init runs before a config exists")
+
+
+def do_init(args):
+    root = pathlib.Path.cwd()
+    cfgp = root / CONFIG
+    if cfgp.exists():
+        print(f"{CONFIG} already exists"); return 1
+    cfg = {"graphs": [{"path": g, "tier": "global" if i == 0 else "local"}
+                      for i, g in enumerate(args.graphs)],
+           "tasks": args.tasks, "meta": args.meta, "next-id": 1}
+    cfgp.write_text(json.dumps(cfg, indent=2) + "\n")
+    for g in args.graphs:
+        if "*" not in g:
+            (root / g / args.meta).mkdir(parents=True, exist_ok=True)
+    for d in args.tasks:
+        if "*" not in d:
+            (root / d).mkdir(parents=True, exist_ok=True)
+    print(f"wrote {CONFIG}")
+    print("\nOne thing this cannot do for you — hook paths are local config and "
+          "do not travel with a clone:\n\n    git config core.hooksPath .githooks\n")
+    return 0
 
 
 def main(argv=None):
@@ -642,10 +805,28 @@ def main(argv=None):
     p = sub.add_parser("inbound"); p.set_defaults(fn=op_inbound)
     p.add_argument("path")
 
+    p = sub.add_parser("unlink"); p.set_defaults(fn=op_unlink)
+    p.add_argument("frm"); p.add_argument("to"); p.add_argument("--rel")
+
+    p = sub.add_parser("stale"); p.set_defaults(fn=op_stale)
     p = sub.add_parser("check"); p.set_defaults(fn=op_check)
-    p = sub.add_parser("init"); p.set_defaults(fn=op_init)
+
+    tk = sub.add_parser("task").add_subparsers(dest="tcmd", required=True)
+    p = tk.add_parser("new"); p.set_defaults(fn=op_task_new)
+    p.add_argument("slug"); p.add_argument("--cost", required=True, choices=COSTS)
+    p.add_argument("--due", required=True, choices=DUE)
+    p.add_argument("--due-when"); p.add_argument("--dir")
+    p = tk.add_parser("retire"); p.set_defaults(fn=op_task_retire)
+    p.add_argument("id"); p.add_argument("--force", action="store_true")
+
+    p = sub.add_parser("init"); p.set_defaults(fn=None)
+    p.add_argument("--graphs", nargs="+", default=["knowledge"])
+    p.add_argument("--tasks", nargs="+", default=["tasks"])
+    p.add_argument("--meta", default="meta")
 
     args = ap.parse_args(argv)
+    if args.cmd == "init":
+        return do_init(args)
     try:
         root = find_root()
         return args.fn(root, load_config(root), args) or 0
