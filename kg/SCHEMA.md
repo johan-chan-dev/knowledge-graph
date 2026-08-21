@@ -155,20 +155,29 @@ current node stays where it is; a snapshot of what it used to say is written
 beside it as `<stem>.vN.md`, and the live node's `supersedes` edge points at it.
 
 ```
-charges.md                  live        supersedes -> charges.2026-08-21-2.md
-charges.2026-08-21-2.md     superseded  supersedes -> charges.2026-08-21.md
-charges.2026-08-21.md       superseded  chain start
+charges.20260821-085304.md  superseded  chain start
+charges.20260821-085305.md  superseded  supersedes -> charges.20260821-085304.md
+charges.md                  live        supersedes -> charges.20260821-085305.md
 ```
 
-**Archives are dated, not numbered**, and sit beside the node rather than in a
-subdirectory. A version number carries no information; the date is when that
-version *stopped being current*, which is the one fact the file does not
-otherwise hold. Every other date in this schema is a date, and a second
-convention for a folder is not worth what it saves. Same-day supersessions get a
-`-2`, `-3` suffix.
+**Archives are timestamped `YYYYMMDD-HHMMSS`**, not numbered, and sit beside the
+node rather than in a subdirectory.
+
+A version number carries no information. The stamp is when that version *stopped
+being current*, which is the one fact the file does not otherwise hold — its
+frontmatter records when it was decided, never when it was replaced. Seconds
+resolution removes collisions outright, so there is no suffix scheme to
+remember, and a plain directory listing comes out in order with the live node
+last.
+
+A subdirectory is not worth a second path convention: the map already excludes
+superseded nodes, so the only cost is a listing.
 
 An archive carries **`superseded: <date>`** alongside its own `decided`, so each
-version knows both its start and its end and the chain is self-describing.
+version knows both its start and its end and the chain describes itself without
+being traversed. The attribute stays a plain date like every other date in this
+schema; the filename carries the precision, because uniqueness is the only thing
+that needs it.
 
 **Every inbound citation keeps pointing at the current version and none of them
 rot.** That is the whole reason for the shape: creating the replacement at a new

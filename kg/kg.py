@@ -404,17 +404,16 @@ def op_supersede(root, cfg, args):
             "decision, and if you are superseding, that event either fired or "
             "was wrong.")
 
-    # Dated, not numbered. Every other date in the schema is a date, a version
-    # number carries no information, and an archive sorts chronologically beside
-    # the node it came from. The date is when the snapshot was taken — when this
-    # version stopped being current — which is the one fact the file does not
-    # otherwise hold.
-    today = str(datetime.date.today())
-    archive = path.parent / f"{path.stem}.{today}.md"
-    n = 2
-    while archive.exists():
-        archive = path.parent / f"{path.stem}.{today}-{n}.md"
-        n += 1
+    # Timestamped, not numbered. A version number carries no information; the
+    # stamp is when this version stopped being current, which is the one fact the
+    # file does not otherwise hold. Seconds resolution removes the same-day
+    # collision entirely, so there is no suffix scheme to remember.
+    now = datetime.datetime.now()
+    today = now.strftime("%Y-%m-%d")
+    archive = path.parent / f"{path.stem}.{now.strftime('%Y%m%d-%H%M%S')}.md"
+    if archive.exists():
+        raise Refused(f"{archive.name} already exists — two supersessions in the "
+                      f"same second")
 
     prior = [r for r in (doc.get("relations") or []) if r.get("rel") == "supersedes"]
     snap = {"kind": doc["kind"], "attributes": dict(doc["attributes"])}
