@@ -1,0 +1,82 @@
+[
+ {
+  "query": "add a node for the french e-invoicing mandate under knowledge/billing \u2014 it's a regulation, france-only, sourced from BOFiP, and recheck it in six months. make sure the index picks it up so the hook doesn't fail",
+  "should_trigger": true
+ },
+ {
+  "query": "flip knowledge/payments/charge-structure.md from provisional to decided. revisit-when is 'SCA forces sequential authentication'. i want the pre-commit hook to pass after",
+  "should_trigger": true
+ },
+ {
+  "query": "rename knowledge/data/schema.md to schema-isolation.md and fix everything pointing at it \u2014 the frontmatter relations and the prose links and the index entry. last time i did this with sed and broke 150 links",
+  "should_trigger": true
+ },
+ {
+  "query": "the supabase privilege-boundary task is finished, all the findings are in stack/sessions.md now. clean it up properly \u2014 i don't want dangling references left behind",
+  "should_trigger": true
+ },
+ {
+  "query": "we're switching from direct charges to platform-collected. record the new decision without losing the old one, and don't break the eight things that cite it",
+  "should_trigger": true
+ },
+ {
+  "query": "file a task to verify whether stripe connect direct charges keep us out of ACPR licensing. high cost, due now, and it blocks the charge-structure work",
+  "should_trigger": true
+ },
+ {
+  "query": "go through the repo and tell me what's gone stale \u2014 overdue rechecks, provisional decisions whose trigger might have fired, tasks that have already drained",
+  "should_trigger": true
+ },
+ {
+  "query": "set up this repo the way market-places is \u2014 two-tier graph, a tasks queue, the pre-commit validation. it currently has about 40 loose markdown notes with yaml frontmatter",
+  "should_trigger": true
+ },
+ {
+  "query": "work out what actually breaks if i rewrite products/etalade/knowledge/stack/sessions.md \u2014 i need the typed dependencies separated from the ones that just mention it in passing",
+  "should_trigger": true
+ },
+ {
+  "query": "migrate these 60 notes to the new frontmatter shape \u2014 kind and attributes instead of the flat type field \u2014 and rebase the relation paths while you're at it",
+  "should_trigger": true
+ },
+ {
+  "query": "can you help me tidy my obsidian vault? there's a load of orphaned notes and some [[wikilinks]] pointing at pages i renamed",
+  "should_trigger": false
+ },
+ {
+  "query": "my hugo site has draft: true in the frontmatter of about 20 posts and the build is silently skipping them. content/posts/ if you want to look",
+  "should_trigger": false
+ },
+ {
+  "query": "neo4j instance, roughly 400k nodes, the cypher for shortest path between two account nodes is timing out at 30s. can you look at the query plan",
+  "should_trigger": false
+ },
+ {
+  "query": "which commits touched knowledge/payments in the last week and who wrote them",
+  "should_trigger": false
+ },
+ {
+  "query": "we use adr-tools at work. write me a bash alias that opens the most recently numbered ADR in nvim",
+  "should_trigger": false
+ },
+ {
+  "query": "need a json schema that validates our API request bodies \u2014 there's a nested address object and postcode has to match a UK pattern",
+  "should_trigger": false
+ },
+ {
+  "query": "building retrieval over our confluence export. should i chunk by heading or fixed token count, and does it matter for recall",
+  "should_trigger": false
+ },
+ {
+  "query": "rename the User class to Account across this typescript monorepo and fix every import that references it",
+  "should_trigger": false
+ },
+ {
+  "query": "what does KNOWLEDGE.md say about attestation again? i can't remember if basis is required",
+  "should_trigger": false
+ },
+ {
+  "query": "write a README for this python package. it's a cli that converts csv to parquet with a --compression flag",
+  "should_trigger": false
+ }
+]
