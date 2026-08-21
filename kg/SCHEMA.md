@@ -5,83 +5,158 @@ is versioned with it, so the rules and the code cannot drift apart. The
 *reasoning* — why a repository organises itself this way — is scaffolded once and
 then owned locally.
 
-## Node
+## The shape
+
+Three top-level keys, and only two are structural.
 
 ```yaml
 ---
-title: string
-type: regulation | vendor-capability | domain-fact | pattern | concept | decision | thesis
-jurisdiction: [universal] | [fr, eu] | []      # a frame
-vendor: [universal] | [stripe] | []            # a frame
-topics: [invoicing, tax]                       # enrichment, names no frame
-compiled: YYYY-MM-DD
-recheck: YYYY-MM-DD                            # required, except type: concept
-confidence: verified | partial | attested      # facts only
+kind: fact
+attributes:
+  title: Automation bias, fluency, and error compounding
+  labels: [pattern, domain-fact]
+  jurisdiction: [universal]
+  vendor: [universal]
+  topics: [decision-making, verification]
+  compiled: 2026-08-19
+  recheck: 2027-08-19
+  confidence: partial
 relations:
-  - depends-on: domain/other-node.md
+  - rel: depends-on
+    to: practice/debiasing.md
+  - rel: depends-on
+    to: auth/supabase-sessions.md
+    attributes:
+      aspect: rotation, not multiplicity
 ---
 ```
 
-### Frames
+| Key | Role |
+|---|---|
+| `kind` | **exclusive.** Decides which attributes are required and which are forbidden |
+| `relations` | edges — `rel` and `to`, each with its own optional `attributes` |
+| `attributes` | everything else, open |
 
-`jurisdiction` and `vendor` name the world a claim is true *in*.
+The nesting is what keeps the toolbelt stable: `set` writes into **one
+dictionary**, so adding a field is a schema change and never a command change.
+Flat, every new field competes with `kind` and `relations` at the top level and
+the tool has to know which is which.
+
+It also makes a node and an edge **the same shape** — something typed, plus a bag.
+
+## `kind`
+
+Exclusive, because it answers *what makes this true*, and a claim cannot be both
+chosen and checked.
+
+| `kind` | True because | Requires | Forbids |
+|---|---|---|---|
+| `fact` | checked against a cited source | `confidence`, `compiled`, `recheck` | — |
+| `concept` | it is a definition | `confidence`, `compiled` | **`recheck`** |
+| `decision` | it was chosen | `status`, `serves`; plus `decided` and `revisit-when` unless `status: open` | `confidence`, `recheck` |
+| `thesis` | neither — it has evidence, not a verdict | `basis`, `would-falsify` | `confidence`, `recheck` |
+
+**`concept` carries no `recheck`.** Facts are dated and go stale; definitions do
+not.
+
+**A decision may not carry `confidence`, and the absence is the point.**
+`confidence: verified` on a choice is a category error, and a dangerous one:
+placed beside genuine facts, a decision inherits their authority by proximity.
+Forbidding the field makes its absence a positive statement — *this was chosen,
+not checked.*
+
+### `labels` is not `kind`
+
+`labels` is a **list**, carries no rules, and exists for retrieval:
+`regulation`, `vendor-capability`, `domain-fact`, `pattern`. A node reporting
+empirical findings from cited literature *and* distilling a pattern is both, and
+nothing about that needs resolving.
+
+An earlier design fused the two into a single `type`, which conflated an axis the
+schema enforces with one it ignores — and the implementation gave it away, since
+every rule keyed off a `kind` computed from the type rather than off the type
+itself.
+
+## Frames
+
+`jurisdiction` and `vendor` name **frames** — the world a claim is true *in*.
+`topics` names no frame; it is enrichment.
 
 | Value | Means |
 |---|---|
-| `[universal]` | holds whatever the value — including "this axis does not apply" |
+| `[universal]` | holds whatever the jurisdiction or vendor — including "this axis does not apply" |
 | `[fr, eu]` | bound to those, and only those |
-| `[]` | **unbound** — nobody determined the frame; warns |
+| `[]` | **unbound** — nobody determined the frame. Warns |
 
-`universal` is exclusive: `[universal, fr]` is rejected.
+`universal` is **exclusive**: `[universal, fr]` is rejected, since a claim
+holding across every value cannot also be bound to some.
 
-### Confidence
+Do not restate the folder as a facet; the path already carries the domain.
 
-Three values, and the test is **provenance, not recency**.
+## `confidence`
 
-- `verified` — every claim checked against a cited source
-- `partial` — core claims checked; each unchecked detail marked inline
-- `attested` — no source exists and a human accepted it; requires
-  `attested-by`, `attested-on`, `basis`, and `basis` must say why verification is
-  *impossible* rather than inconvenient
+Three values, and the test is **provenance, not recency** — where a claim came
+from, never how recently it was said.
 
-### Decisions and theses carry neither `confidence` nor `recheck`
+| Value | Means |
+|---|---|
+| `verified` | every claim checked against a cited source |
+| `partial` | core claims checked; each unchecked detail **marked inline**, where it appears |
+| `attested` | no source exists, and a human accepted it |
 
-A decision is **chosen**, not checked, and the absent field is the positive
-statement of that. Placed beside verified facts, a decision otherwise inherits
-their authority by proximity.
+Attestation additionally requires `attested-by`, `attested-on`, and `basis` — and
+**`basis` must say why verification is *impossible*, not inconvenient.** If a
+source exists and simply was not consulted, the material is recalled and belongs
+in a task. Attestation used as a shortcut around checking is worse than leaving
+something unverified: the label reads as settled and removes the prompt to ever
+check.
+
+Never present checked and unchecked claims at one confidence level.
+
+## `relations`
 
 ```yaml
-type: decision
-status: open | provisional | decided | superseded
-decided: YYYY-MM-DD        # required unless open
-serves: >-                 # what it buys — not what was chosen
-revisit-when: >-           # the event that would unmake it. A trigger, never a date
+relations:
+  - rel: depends-on
+    to: practice/debiasing.md
+    attributes:            # optional
+      aspect: "…"
 ```
 
-```yaml
-type: thesis
-basis: >-                  # what supports it, and whose claim it is
-would-falsify: >-          # what observation would kill it
-```
+Four are recognised:
 
-### Relations
+| `rel` | Meaning |
+|---|---|
+| `supersedes` | this node replaces the target; the target is history |
+| `contradicts` | the two cannot both be true — one is wrong or scoped |
+| `depends-on` | this node is meaningless or wrong without the target |
+| `does-not-satisfy` | this capability fails to meet that requirement |
 
-Only four, and only where the edge carries weight:
+`to` is relative to the graph root, not to the node.
 
-`supersedes` · `contradicts` · `depends-on` · `does-not-satisfy`
+**`aspect` is the one edge attribute that earns its place.** *Which* part of a
+target a node depends on is neither computable from the endpoints nor substantial
+enough to be its own node — so when a target's `recheck` fires, the blast radius
+is knowable. Everything else proposed for edges is computable (frame overlap),
+lives in git (dates, authorship), or needs a source and is therefore a node.
 
-## Task
+**An edge has no address.** Nothing can cite one, so a relation that is itself a
+claim — needing a source, a frame, or its own expiry — must become a node. The
+test: *would you cite it?*
 
-A second entity, not a node subtype. Different lifecycle — it drains — and the
-only thing that can be deleted.
+## Tasks
+
+A second entity, not a node kind. Different lifecycle — it drains — and the only
+thing that can be deleted.
 
 ```yaml
 ---
 id: 16                                  # assigned once, never reused
-cost-if-wrong: high | medium | low      # severity, alone
-queued: YYYY-MM-DD
-due: now | deferred                     # readiness, alone
-due-when: >-                            # required when deferred. A trigger, never a date
+attributes:
+  cost-if-wrong: high | medium | low    # severity, alone
+  queued: 2026-08-20
+  due: now | deferred                   # readiness, alone
+  due-when: >-                          # required when deferred. A trigger, never a date
 ---
 ```
 
@@ -99,17 +174,25 @@ neither recoverable from the value.
 contain the frames of everything it depends on, so edges run up only. That is
 what makes promotion safe: nothing global points down at a node being moved up.
 
+Direction here is coherence, not mechanism — a global claim resting on a
+product-specific one would assert generality while depending on a bounded frame.
+So a symmetric relation observed locally is stored locally, and the global node
+is not missing information: **an edge lives with whoever noticed.**
+
 ## Metadata
 
-Lives in `meta/` and holds no claim — the test is that **deleting it loses
-nothing but navigation**.
+Lives in a `meta/` folder and holds no claim — the test is that **deleting it
+loses nothing but navigation**.
 
-| File | Derived? |
+| File | Derived |
 |---|---|
-| `meta/MAP.md` | listing generated; commentary authored, with a `reconciled:` watermark |
-| `meta/QUEUE.md` | wholly generated |
-| `<graph>/meta/INDEX.md` | listing generated; editorial authored |
+| `meta/QUEUE.md` | wholly |
+| `meta/MAP.md` | listing and pressure; commentary is authored, with a `reconciled:` watermark |
+| `<graph>/meta/INDEX.md` | listing; editorial is authored |
 
-Superseded nodes are excluded from the map — pruning is a predicate, not an act.
-Exclusions are counted, because a filter applied silently forever needs its
+Each graph keeps its own `meta/`, which is what lets a local graph promoted to
+root move whole.
+
+Superseded nodes are excluded from the map — **pruning is a predicate, not an
+act.** Exclusions are counted, because a filter applied silently forever needs its
 effect to stay observable.
