@@ -22,7 +22,7 @@ that land are the ones carrying a number from the graph in front of you.
 
 | Instead of | Say |
 |---|---|
-| "shared knowledge may not cite personal knowledge" | run `kg mv <node> <shared-path> --closure --dry-run` — *"promoting this means promoting 40 nodes, which is the whole product graph"* |
+| "these two spaces are disjoint" | run `kg mv <node> <shared-path> --closure --dry-run` — *"promoting this means promoting 40 nodes, which is the whole product graph"* |
 | "typed relations distinguish weight" | run `kg inbound <node>` — *"one typed relation, twelve prose citations, and no way to rank them"* |
 | "traversal is cheaper than reading" | `kg neighbors` versus the node sizes — *"378 tokens against 14,000"* |
 
@@ -42,7 +42,13 @@ knowledge/                   shared   — holds across this repository's product
 
 One rule falls out, and it is the only one:
 
-> **Personal knowledge may cite shared knowledge. Shared may not cite personal.**
+> **A citation is allowed only where the target's frame contains the source's.**
+
+Shared contains everything, so it is always citable. A personal space contains
+only itself — so two sibling products are **disjoint**, and neither may cite the
+other. That case is not a weaker version of the shared/personal rule; it is the
+same rule seen sideways, and it is the one people miss. A raw node has no frame
+and is exempt in both directions.
 
 A claim cannot be more general than what it rests on. Étalade's charge-structure
 decision may depend on a fact about Stripe; a fact about Stripe cannot depend on
@@ -114,7 +120,7 @@ turns a house rule into something the reader can go and check.
 - **spaces and the citation rule** — Cyc microtheories. `(genlMt MT1 MT2)` means MT1
   inherits MT2's facts; transitive, monotonic, and **a query in the general
   context cannot see the specific one**. That visibility asymmetry is the whole
-  of why personal may cite shared and not the reverse — and it is what makes
+  of why containment decides the direction — and it is what makes
   the awareness flip principled rather than a quirk of this repository, and what
   licenses treating the axis as one recursive chain rather than two.
 - **relations as nodes** — the W3C n-ary note: reify when arity exceeds two, or
