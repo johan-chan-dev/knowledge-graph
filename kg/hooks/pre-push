@@ -1,0 +1,28 @@
+#!/bin/sh
+# Knowledge graph: the settle trigger.
+#
+# NOT a second validator. pre-commit already blocks on structural faults, and a
+# push can only carry commits that passed it. What this reports is the one thing
+# only visible at push time: how much graph change is about to be published that
+# nobody has reconciled into meta/MAP.md's commentary.
+#
+# It never blocks, deliberately. The failure it watches for — advancing the
+# watermark without doing the pass — is a rubber stamp, and a rubber stamp is
+# caught by being visible in history, not by a gate. A hook that refused the
+# push would trade a real record for a ceremony.
+#
+# It lives here rather than in pre-commit because warnings printed on every
+# commit are volume, and volume is what exhausts attention — the whole argument
+# of the automation-bias literature. A push is rare enough to be read.
+KG="${KG_PATH:-$HOME/.claude/plugins/marketplaces/knowledge-graph/kg/kg.py}"
+[ -f "$KG" ] || exit 0
+
+OUT=$(python3 "$KG" check 2>/dev/null) || exit 0
+SIGNALS=$(printf '%s\n' "$OUT" | grep '^warn' | sed 's/^warn  /  /')
+
+[ -z "$SIGNALS" ] && exit 0
+
+printf '\n  ── standing signals, not blocking ──\n%s\n' "$SIGNALS"
+printf '\n  These are the settle pass triggers.\n'
+printf '  Nothing here is a reason to hold the push.\n\n'
+exit 0

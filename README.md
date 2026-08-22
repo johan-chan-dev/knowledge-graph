@@ -113,13 +113,30 @@ claude plugin install kg@knowledge-graph
 Then, in a repository that should hold a graph:
 
 ```bash
-kg init          # writes .kg.json — declares the graphs, tasks dir, metadata dir
+kg init --graphs knowledge 'products/*/knowledge'
 kg migrate       # adopt an existing tree of markdown notes, if there is one
 ```
 
-Wire `kg build && kg check` into a pre-commit hook. `build` regenerates the
-derived layer; `check` fails the commit on a structural fault and warns on the
-rest.
+`--graphs` takes the shared graph first, then the personal ones; a glob expands
+against directories that exist, so a new product needs its directory created
+before its first node. Omit the flag and you get a single shared graph, which is
+a valid setup but not the two-scope one.
+
+`init` also writes `.githooks/pre-commit` and `.githooks/pre-push` and points
+`core.hooksPath` at them. **The hooks are shipped rather than documented**,
+because the instruction people would otherwise follow — *"wire `kg build && kg
+check` into a pre-commit hook"* — is subtly wrong: `build` rewrites the derived
+layer, and a hook that does not then **stage** what it wrote commits a stale
+queue and an unbumped `next-id`, which is how two tasks come to share an id.
+
+| Hook | Does | Blocks |
+|---|---|---|
+| `pre-commit` | validate the derived path, build, stage it, check | yes, on structural faults |
+| `pre-push` | report how much graph change is being published that nobody reconciled into `meta/MAP.md` | **no** |
+
+`core.hooksPath` is local config and does not travel with a clone. A fresh clone
+needs `git config core.hooksPath .githooks` — nothing in the repository can do
+that for you.
 
 **Updating an installed copy needs a version bump.** Installed plugins are cached
 by version, so `marketplace update` alone will not propagate an edit.
@@ -131,6 +148,7 @@ by version, so `marketplace update` alone will not propagate an edit.
 | toolbelt | 15 operations, in daily use |
 | schema, design rationale, use cases | written |
 | skill, guide agent | written |
+| git hooks | shipped, written by `kg init` |
 | settle agent | **not shipped** — lives in the origin repo; the procedure it follows is here, at `kg/skills/graph/references/settle.md` |
 | skill description | **unmeasured** — six optimizer runs returned 0% recall and the cause was the harness, not the description. Triggering is untested |
 

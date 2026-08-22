@@ -1,0 +1,46 @@
+#!/bin/sh
+# Knowledge graph: build the derived layer, stage it, then check.
+# Enable with:  git config core.hooksPath .githooks
+#
+# kg ships as a Claude Code plugin. The marketplace clone is an unversioned path
+# that `claude plugin marketplace update` keeps current; override with KG_PATH.
+KG="${KG_PATH:-$HOME/.claude/plugins/marketplaces/knowledge-graph/kg/kg.py}"
+if [ ! -f "$KG" ]; then
+  echo "kg not found at $KG"
+  echo "  install:  claude plugin marketplace add https://github.com/johan-chan-dev/knowledge-graph.git"
+  echo "            claude plugin install kg@knowledge-graph"
+  echo "  or set KG_PATH to a checkout of kg.py"
+  exit 1
+fi
+
+# Resolve and validate the derived path FIRST. These are DERIVED — meta/ regenerates whole, and
+# .kg.json's next-id is state the tool advances, not prose anyone authors. Not
+# staging them committed a stale queue and an unbumped counter, which is how two
+# tasks end up sharing an id.
+#
+# `kg build` writes into this directory and `git add` stages it, and the path
+# comes from .kg.json, which is IN the repository — so it is input, not
+# a constant, and its value decides what this stages. `meta: "."` would stage the
+# whole working tree, which is exactly the unreviewed-commit failure the scoping
+# exists to prevent, and build would have scattered files there before the
+# refusal landed. Validate before trusting, and fail loudly: a silent skip here
+# reinstates the stale-queue bug with no signal that it happened.
+META=$(python3 -c '
+import json, re, sys
+try:
+    v = json.load(open(".kg.json"))["meta"]
+except Exception as e:
+    sys.exit("pre-commit: cannot read `meta` from .kg.json: %s" % e)
+if (not isinstance(v, str)
+        or not re.fullmatch(r"[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*", v)
+        or any(seg in (".", "..") for seg in v.split("/"))):
+    sys.exit("pre-commit: refusing to stage — `meta` is %r, "
+             "which is not a plain relative subdirectory" % (v,))
+print(v)
+') || exit 1
+
+python3 "$KG" build || exit 1
+
+git add -- "$META" .kg.json || exit 1
+
+python3 "$KG" check

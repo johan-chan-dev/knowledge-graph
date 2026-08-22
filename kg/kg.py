@@ -1382,8 +1382,39 @@ def do_init(args):
         if "*" not in d:
             (root / d).mkdir(parents=True, exist_ok=True)
     print(f"wrote {CONFIG}")
-    print("\nOne thing this cannot do for you — hook paths are local config and "
-          "do not travel with a clone:\n\n    git config core.hooksPath .githooks\n")
+
+    # Ship the hooks rather than documenting them. The staging step in pre-commit
+    # is subtle and load-bearing: `build` rewrites the derived layer, and not
+    # staging what it wrote commits a stale queue and an unbumped next-id, which
+    # is how two tasks come to share an id. Every prose instruction to "wire
+    # build && check into a pre-commit hook" reproduces that bug exactly.
+    src = pathlib.Path(__file__).parent / "hooks"
+    dst = root / ".githooks"
+    written = []
+    if src.is_dir():
+        dst.mkdir(exist_ok=True)
+        for h in sorted(src.iterdir()):
+            target = dst / h.name
+            if target.exists():
+                print(f"  kept existing .githooks/{h.name}")
+                continue
+            target.write_text(h.read_text())
+            target.chmod(0o755)
+            written.append(h.name)
+    if written:
+        print(f"wrote .githooks/{', .githooks/'.join(written)}")
+
+    # hooksPath is local config, so it is set here and still absent from every
+    # future clone. Saying so is the only thing that travels.
+    # git() returns "" on failure and "" on a successful set, so the write tells
+    # us nothing. Read it back; that is the only thing that distinguishes them.
+    git("config", "core.hooksPath", ".githooks", cwd=root)
+    if git("config", "core.hooksPath", cwd=root) == ".githooks":
+        print("set core.hooksPath = .githooks")
+    else:
+        print("could NOT set core.hooksPath — run: git config core.hooksPath .githooks")
+    print("\nThat setting is local config and does NOT travel with a clone. "
+          "In a fresh one:\n\n    git config core.hooksPath .githooks\n")
     return 0
 
 
