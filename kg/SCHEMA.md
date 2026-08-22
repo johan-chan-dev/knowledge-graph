@@ -251,3 +251,26 @@ root move whole.
 Superseded nodes are excluded from the map — **pruning is a predicate, not an
 act.** Exclusions are counted, because a filter applied silently forever needs its
 effect to stay observable.
+
+## What the checker can and cannot see about provenance
+
+`confidence` names where a claim came from, and provenance is not machine-
+readable. One half of the rule is enforced and the other is structurally not, and
+conflating them is what makes a label read as a guarantee.
+
+| | |
+|---|---|
+| **checked** | `verified` or `partial` with **no source URL in the body** warns — both labels mean *checked against a cited source*, so citing nothing contradicts the label on its face |
+| **checked** | `attested` carries `attested-by`, `attested-on`, `basis` — errors without them |
+| **not checkable** | whether a cited URL says what the node claims |
+| **not checkable** | whether the citation was invented |
+| **not checkable** | whether `attested` was actually accepted by a person |
+
+`attested` is exempt from the source check **by definition** — it means no source
+exists, so demanding one would invert the rule.
+
+**A clean pass is not verification.** The check catches a label whose own meaning
+is contradicted by the text under it. Nothing here can bless a claim; that is
+reached only by consulting and citing a source, and a cheap check emitting a
+confidence signal is worse than no check.
+

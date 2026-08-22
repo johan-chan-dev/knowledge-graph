@@ -21,6 +21,7 @@ CONFIG = ".kg.json"
 CAP = 4            # queue items surfaced at once
 MAP_BUDGET = 1400  # estimated tokens; past this the listing degrades to domains
 GEN = re.compile(r"(<!-- generated:(\w+) -->\n)(.*?)(<!-- /generated:\2 -->)", re.S)
+SOURCE_URL = re.compile(r"https?://\S+")
 WATERMARK = re.compile(r"^reconciled: ([0-9a-f]{7,40})$", re.M)
 
 KINDS = {
@@ -1330,6 +1331,22 @@ def op_check(root, cfg, args):
         r = a.get("recheck")
         if r and str(r) < today:
             warns.append(f"{rel}: recheck overdue since {r}")
+
+        # `verified` and `partial` both MEAN "checked against a cited source", so
+        # a node carrying either while citing nothing contradicts its own label.
+        # That is syntactic and therefore checkable — the same trick as the
+        # first-person-plural check, which enforces a semantic rule through the
+        # one marker it leaves in the text.
+        #
+        # What this CANNOT see: whether the URL says what the node claims, or
+        # whether it was invented. Provenance is not machine-readable, and a
+        # clean pass here is not verification. `attested` is exempt by
+        # definition — it means no source exists.
+        if a.get("confidence") in ("verified", "partial"):
+            doc2, body2 = read(path)
+            if not SOURCE_URL.search(body2 or ""):
+                warns.append(f"{rel}: confidence {a['confidence']} with no source "
+                             f"cited — the label claims a check that left no trace")
     census["tasks"] = sum(1 for _ in tasks(root, cfg))
 
     # The watermark cannot show the map's commentary is right. It proves nobody
