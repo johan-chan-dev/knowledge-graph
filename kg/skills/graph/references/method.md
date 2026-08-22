@@ -43,7 +43,10 @@ products/<name>/knowledge/    personal — scoped to one product, shareable
 Identical node schema, identical validation, one index each. What differs is a
 single directional rule:
 
-> **Personal knowledge may cite shared knowledge. Shared may not cite personal.**
+> **A citation is allowed only where the target's frame contains the
+> source's.** Shared contains everything. A personal space contains only
+> itself, so two sibling products are disjoint and neither may cite the
+> other. A raw node has no frame and is exempt in both directions.
 
 ### Why the direction is not arbitrary
 

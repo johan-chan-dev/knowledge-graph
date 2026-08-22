@@ -233,7 +233,10 @@ neither recoverable from the value.
 <space>/<graph>/         personal — scoped to one space, shareable
 ```
 
-**Personal may cite shared. Shared may not cite personal.** A claim's frame must
+**A citation is allowed only where the target's frame contains the
+source's.** Shared contains everything; a personal space contains only
+itself, so two sibling products are disjoint and neither may cite the
+other. A raw node has no frame and is exempt both ways. A claim's frame must
 contain the frames of everything it depends on, so edges run up only. That is
 what makes promotion safe: nothing shared points down at a node being moved up.
 
