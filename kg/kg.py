@@ -30,14 +30,6 @@ KINDS = {
     "concept":  (("title", "confidence", "compiled"), ("recheck",)),
     "decision": (("title", "status", "serves"), ("confidence", "recheck")),
     "thesis":   (("title", "basis", "would-falsify"), ("confidence", "recheck")),
-    # A raw capture. Deliberately the thinnest kind in the schema: a URL and the
-    # day it was seen. It asserts nothing, so it takes no confidence and no
-    # recheck — those belong to claims, and this is a record that a thing exists.
-    #
-    # Capture must be frictionless or it does not happen. Everything that makes
-    # a source useful — what it says, whether it is any good, what it supports —
-    # is a later act on a node that by then already exists.
-    "source":   (("url", "captured"), ("confidence", "recheck", "compiled")),
 }
 STATUS = ("open", "provisional", "decided", "superseded")
 CONFIDENCE = ("verified", "partial", "attested")
@@ -241,9 +233,15 @@ def write(path, doc, body):
 def validate(doc, where="node"):
     errs = []
     kind = doc.get("kind")
+    attrs = doc.get("attributes") or {}
+    if kind is None:
+        # Unqualified. `kind` is a judgement about what a thing IS, so its
+        # absence is the positive statement that nobody has made that judgement
+        # yet — the same device as a decision being forbidden `confidence`.
+        # Nothing about a raw node is checkable, because it claims nothing.
+        return []
     if kind not in KINDS:
         return [f"{where}: kind {kind!r} not in {'|'.join(KINDS)}"]
-    attrs = doc.get("attributes") or {}
     required, forbidden = KINDS[kind]
 
     for k in required:
@@ -251,9 +249,7 @@ def validate(doc, where="node"):
             errs.append(f"{where}: kind {kind} requires attributes.{k}")
     for k in forbidden:
         if k in attrs:
-            why = {"confidence": "only a claim carries one, and this is not a claim"
-                                 if kind == "source" else
-                                 "this was chosen, not checked",
+            why = {"confidence": "this was chosen, not checked",
                    "recheck": "definitions do not expire" if kind == "concept"
                               else "nothing here goes stale on a calendar",
                    "compiled": "a capture carries `captured`, not `compiled`"}
@@ -394,59 +390,36 @@ def op_new(root, cfg, args):
             raise Refused(f"{args.path} already has frontmatter — it is a node. "
                           f"Use `kg set` to change it.")
     ordered = {"title": attrs.pop("title", None)}
-    ordered["compiled"] = attrs.pop("compiled", str(datetime.date.today()))
+    if kind is not None:
+        ordered["compiled"] = attrs.pop("compiled", str(datetime.date.today()))
     ordered.update(attrs)
     attrs = {k: v for k, v in ordered.items() if v is not None}
-    doc = {"kind": kind, "attributes": attrs}
+    doc = {"attributes": attrs} if kind is None else {"kind": kind,
+                                                       "attributes": attrs}
     errs = validate(doc, args.path)
     if errs:
         raise Refused("\n".join(errs))
-    gdir, _, _ = graph_of(root, cfg, path)
+    # A node outside every declared graph is raw: it belongs to no scope, so it
+    # has no index to appear in and nothing to be checked against. That is not a
+    # gap — an index is a map of claims, and a raw node makes none. Refusing to
+    # write one here would force the raw layer to be a graph, which would then
+    # warn about every fresh capture having no inbound link.
+    try:
+        gdir = graph_of(root, cfg, path)[0]
+    except Refused:
+        gdir = None
+    if gdir is None and kind is not None:
+        raise Refused(f"{args.path} is outside every graph, so it cannot carry a "
+                      f"kind — qualifying a claim is what a graph is for. Drop "
+                      f"--kind to write it raw, or put it inside a graph.")
     path.parent.mkdir(parents=True, exist_ok=True)
-    if not body.strip():
+    if not body.strip() and attrs.get("title"):
         body = f"\n# {attrs['title']}\n"
     write(path, doc, body)
-    index_add(root, cfg, gdir, path.relative_to(gdir), attrs["title"])
     print(f"wrote {path.relative_to(root)}")
-    print(f"indexed in {index_of(root, cfg, gdir).relative_to(root)}")
-
-
-def slug(url):
-    """A filename from a URL: host plus the last meaningful path segment.
-
-    Collisions are possible and are not a problem — `new` refuses an existing
-    path, so a second capture of the same page is caught rather than silently
-    overwriting the first."""
-    u = re.sub(r"^https?://(www\.)?", "", url.strip()).rstrip("/")
-    host = re.split(r"[/?#]", u)[0]
-    rest = [s for s in re.split(r"[/?#=&]", u[len(host):]) if s]
-    tail = rest[-1] if rest else ""
-    s = re.sub(r"[^a-z0-9]+", "-", f"{host}-{tail}".lower()).strip("-")
-    return (s[:70] or "source") + ".md"
-
-
-def op_capture(root, cfg, args):
-    """Store a URL as a raw node. That is the whole operation.
-
-    It does not fetch, classify, title or summarise. Those need judgement or a
-    network, and both are reasons not to do them at capture time — an agent that
-    summarises from what it already believes about a URL has invented a source,
-    which is the one failure the confidence rules exist to prevent."""
-    raw = root / cfg.get("raw", "sources")
-    path = raw / slug(args.url)
-    if path.exists():
-        raise Refused(f"{path.relative_to(root)} already exists — captured before")
-    attrs = {"url": args.url, "captured": str(datetime.date.today())}
-    if args.note:
-        attrs["note"] = args.note
-    doc = {"kind": "source", "attributes": attrs}
-    errs = validate(doc, str(path))
-    if errs:
-        raise Refused("\n".join(errs))
-    path.parent.mkdir(parents=True, exist_ok=True)
-    write(path, doc, f"\n<{args.url}>\n")
-    print(f"captured {path.relative_to(root)}")
-    return 0
+    if gdir is not None:
+        index_add(root, cfg, gdir, path.relative_to(gdir), attrs["title"])
+        print(f"indexed in {index_of(root, cfg, gdir).relative_to(root)}")
 
 
 def op_supersede(root, cfg, args):
@@ -491,6 +464,10 @@ def op_supersede(root, cfg, args):
                       f"same second")
 
     prior = [r for r in (doc.get("relations") or []) if r.get("rel") == "supersedes"]
+    if "kind" not in doc:
+        raise Refused("this node is unqualified — nothing has been decided about "
+                      "it, so there is no version of it to keep. Supersession "
+                      "inserts into a chain of judgements; make one first.")
     snap = {"kind": doc["kind"], "attributes": dict(doc["attributes"])}
     snap["attributes"]["status"] = "superseded"
     snap["attributes"]["superseded"] = today
@@ -562,18 +539,22 @@ def op_link(root, cfg, args):
     doc, body = read(path)
     if not doc:
         raise Refused(f"{args.frm} has no frontmatter")
-    shared = False if is_task else graph_of(root, cfg, path)[2]
+    # A raw node belongs to no graph, so it has no scope and the citation rule
+    # cannot apply to it in either direction. That is not a loophole: the rule
+    # constrains what a *claim* may rest on, and a raw node makes no claim. The
+    # extraction edge — a qualified node pointing at what it was drawn from — is
+    # the whole reason the boundary has to be crossable.
+    shared = False if is_task else (is_shared(root, cfg, path) or False)
     tgt = pathlib.Path(args.to)
     resolved = (root / tgt).resolve()
     if not resolved.exists():
         raise Refused(f"relation target does not resolve: {args.to} "
                       f"(a relation's `to` is relative to the repository root, so it "
                       f"can name a node in another graph without ../ escapes)")
-    if shared:
-        _, tlabel, t_shared = graph_of(root, cfg, resolved)
-        if not t_shared:
-            raise Refused(f"refused — a shared node may not cite into {tlabel}. "
-                          f"A claim's frame must contain the frames it depends on.")
+    if shared and is_shared(root, cfg, resolved) is False:
+        raise Refused(f"refused — a shared node may not cite into "
+                      f"{graph_of(root, cfg, resolved)[1]}. A claim's frame must "
+                      f"contain the frames it depends on.")
     rels = doc.setdefault("relations", [])
     entry = next((r for r in rels
                   if r.get("to") == str(tgt) and r.get("rel") == args.rel), None)
@@ -1015,7 +996,8 @@ def edges(root, cfg):
                     inn.setdefault(r["to"], []).append((r["rel"], rel))
             continue
         rel, a = str(p.relative_to(root)), doc.get("attributes") or {}
-        state[rel] = (a.get("status") or a.get("confidence") or doc["kind"],
+        state[rel] = (a.get("status") or a.get("confidence")
+                      or doc.get("kind") or "raw",
                       a.get("title", p.stem))
         for r in doc.get("relations") or []:
             if r.get("to"):
@@ -1217,7 +1199,13 @@ def live_nodes(root, cfg):
             if cfg["meta"] in p.relative_to(root).parts:
                 continue
             doc, _ = read(p)
-            if not doc or "kind" not in doc:
+            if not doc:
+                continue
+            if "kind" not in doc:
+                # Unqualified, and deliberately not listed. live_nodes feeds the
+                # map and the census-by-kind, both of which are projections of
+                # the *qualified* graph. Raw nodes are counted separately rather
+                # than being absent — see census["raw"] in check.
                 continue
             a = doc.get("attributes") or {}
             if a.get("status") == "superseded":
@@ -1406,8 +1394,8 @@ def op_check(root, cfg, args):
     # is the one number that shows the practice failing, and an uncounted inbox
     # is how it fails unnoticed.
     rawdir = root / cfg.get("raw", "sources")
-    census["raw"] = sum(1 for p in rawdir.glob("*.md")
-                        if (read(p)[0] or {}).get("kind") == "source") \
+    census["raw"] = sum(1 for p in rawdir.rglob("*.md")
+                        if (d := read(p)[0]) and "kind" not in d) \
         if rawdir.is_dir() else 0
 
     # The watermark cannot show the map's commentary is right. It proves nobody
@@ -1504,12 +1492,6 @@ def main(argv=None):
     p = sub.add_parser("new"); p.set_defaults(fn=op_new)
     p.add_argument("path"); p.add_argument("--title")
     p.add_argument("--kind"); p.add_argument("--set")
-
-    p = sub.add_parser("capture"); p.set_defaults(fn=op_capture)
-    p.add_argument("url", help="the URL to store, verbatim")
-    p.add_argument("--note", help="why you grabbed it, in a few words — "
-                                  "optional, and the only thing you will not "
-                                  "be able to reconstruct later")
 
     p = sub.add_parser("set"); p.set_defaults(fn=op_set)
     p.add_argument("ref"); p.add_argument("--set", required=True)

@@ -31,35 +31,38 @@ That is the whole reason there are two. Everything else — `new`, `link`, `mv`,
 `retire` — is only ever reached from a skill, so it needs arguments, not a
 surface.
 
-## Capture
+## Raw nodes
+
+A node outside every declared graph is **raw**: it carries no `kind`, appears in
+no index, and is checked for nothing.
+
+That is not a gap. `kind` is a *judgement* about what a thing is — fact, concept,
+decision, thesis — and making that judgement is the qualifying act. A node nobody
+has judged yet has no kind, and its absence is the positive statement, the same
+way a decision's forbidden `confidence` positively states *chosen, not checked*.
+Nothing about a raw node is checkable, because it claims nothing.
 
 ```
-kg capture <url> [--note "why you grabbed it"]
+kg new sources/<name>.md --set '{"url": "...", "captured": "2026-08-22"}'
 ```
 
-Stores the URL as a `kind: source` node and stops. It does not fetch, classify,
-title or summarise.
+There is no dedicated capture command, and there was one for a day. Deriving a
+filename from a URL, refusing a second capture of the same page, knowing that a
+video yields three artifacts — all of that is **policy**, and policy belongs to
+the skill that knows what the user asked for. The tool writes nodes and edges and
+knows nothing about URLs. If the skill derives the path deterministically, `new`
+already refuses the duplicate, because it refuses any node that exists.
 
-**The thinness is the operation.** Capture that needs a decision does not happen,
-and every field beyond the URL and the date needs one. `--note` is the single
-exception, because why you grabbed it is the one thing that is gone in a week —
-everything else about a source can be recovered from the source.
+**A kind outside a graph is refused**, since qualifying a claim is what a graph
+is for.
 
-An agent that titles or summarises a URL it has not fetched has invented a
-source, and an invented citation passes every check in this tool. Refusing to
-produce content at capture time is what keeps that from being the default.
+**Edges cross the raw boundary in both directions.** The citation rule constrains
+what a *claim* may rest on; a raw node makes no claim and has no scope, so the
+rule cannot apply to it either way. That crossing is the point — a qualified node
+pointing at what it was drawn from is the whole reason the layer exists.
 
-A second capture of the same URL refuses rather than overwriting.
-
-`source` carries no `confidence` and no `recheck`: it asserts nothing. It is a
-record that a thing exists and was seen on a day. Claims come later, as separate
-nodes, and what makes a source good or bad is a property of the source rather
-than of the claims drawn from it.
-
-Raw captures live outside every graph, so they are neither indexed nor checked
-for inbound links — a fresh capture has none by definition. `check` counts them:
-**capture rate against acceptance rate is the number that shows the practice
-failing**, and an uncounted inbox is how it fails unnoticed.
+`check` counts raw nodes separately: **raw against qualified is the number that
+shows the practice failing**, and an uncounted inbox is how it fails unnoticed.
 
 ## Write
 

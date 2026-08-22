@@ -218,6 +218,14 @@ attributes:
 Severity and readiness are separate fields because one field carrying both makes
 neither recoverable from the value.
 
+> **Under revision — 2026-08-22.** The sections on `kind` and `confidence` below
+> describe a model that is actively being reworked. `kind` is now optional
+> (absent means unqualified), and `confidence` is known to conflate two things:
+> fidelity of an extraction to its source, and quality of the source itself.
+> Nothing here is wrong as far as it goes; it is incomplete, and a reader should
+> not take it as settled. The open questions are written up in the origin repo
+> as task 22, *settle the ingestion model*.
+
 ## Scopes
 
 ```
