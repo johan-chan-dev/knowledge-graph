@@ -38,8 +38,12 @@ CONFIDENCE = ("verified", "partial", "attested")
 # *dependent on* the verification that would settle it, it is *blocked by* it —
 # the decision stands and is usable, it simply cannot close. The other three
 # original terms were guessed a priori and two of them have one use each.
+# `has` was earned the same way `blocked-by` was: a real edge arrived that none
+# of the others described. A raw node and the bytes it resolved to are not in a
+# dependency relation — the transcript does not *depend on* the URI, it IS what
+# the URI yielded. Composition, not support.
 RELATIONS = ("supersedes", "contradicts", "depends-on", "does-not-satisfy",
-             "blocked-by")
+             "blocked-by", "has")
 FRAMES = ("jurisdiction", "vendor")
 UNIVERSAL = "universal"
 

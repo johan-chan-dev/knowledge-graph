@@ -131,6 +131,7 @@ Four are recognised:
 | `contradicts` | the two cannot both be true — one is wrong or scoped |
 | `depends-on` | this node is meaningless or wrong without the target |
 | `does-not-satisfy` | this capability fails to meet that requirement |
+| `has` | the target is an artifact this node yielded — composition, not support |
 | `blocked-by` | this stands and is usable, but cannot close until the target resolves |
 
 **`to` is relative to the repository root.** Not to the node, and not to the
