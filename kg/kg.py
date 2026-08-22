@@ -1004,7 +1004,12 @@ def edges(root, cfg):
     out, inn, state = {}, {}, {}
     for p in all_md(root, cfg):
         doc, _ = read(p)
-        if not doc or not ("kind" in doc or "id" in doc):
+        # Anything with frontmatter participates. A task has an id and no kind;
+        # a raw node has neither, and its edges are just as real — the edge from
+        # a qualified claim to what it was drawn from is the whole point of the
+        # raw layer, and dropping it here made that layer invisible to every
+        # read operation while `inbound` (which walks files) still found it.
+        if not doc:
             continue
         if "id" in doc:   # a task: no kind, but its edges are real
             rel, a = str(p.relative_to(root)), doc.get("attributes") or {}
