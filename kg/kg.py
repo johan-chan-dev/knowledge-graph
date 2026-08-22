@@ -30,6 +30,14 @@ KINDS = {
     "concept":  (("title", "confidence", "compiled"), ("recheck",)),
     "decision": (("title", "status", "serves"), ("confidence", "recheck")),
     "thesis":   (("title", "basis", "would-falsify"), ("confidence", "recheck")),
+    # A raw capture. Deliberately the thinnest kind in the schema: a URL and the
+    # day it was seen. It asserts nothing, so it takes no confidence and no
+    # recheck — those belong to claims, and this is a record that a thing exists.
+    #
+    # Capture must be frictionless or it does not happen. Everything that makes
+    # a source useful — what it says, whether it is any good, what it supports —
+    # is a later act on a node that by then already exists.
+    "source":   (("url", "captured"), ("confidence", "recheck", "compiled")),
 }
 STATUS = ("open", "provisional", "decided", "superseded")
 CONFIDENCE = ("verified", "partial", "attested")
@@ -243,8 +251,14 @@ def validate(doc, where="node"):
             errs.append(f"{where}: kind {kind} requires attributes.{k}")
     for k in forbidden:
         if k in attrs:
+            why = {"confidence": "only a claim carries one, and this is not a claim"
+                                 if kind == "source" else
+                                 "this was chosen, not checked",
+                   "recheck": "definitions do not expire" if kind == "concept"
+                              else "nothing here goes stale on a calendar",
+                   "compiled": "a capture carries `captured`, not `compiled`"}
             errs.append(f"{where}: kind {kind} must not carry attributes.{k} — "
-                        f"a decision is chosen, not checked; a concept does not expire")
+                        f"{why.get(k, 'not admissible for this kind')}")
 
     if kind == "decision":
         st = attrs.get("status")
@@ -395,6 +409,44 @@ def op_new(root, cfg, args):
     index_add(root, cfg, gdir, path.relative_to(gdir), attrs["title"])
     print(f"wrote {path.relative_to(root)}")
     print(f"indexed in {index_of(root, cfg, gdir).relative_to(root)}")
+
+
+def slug(url):
+    """A filename from a URL: host plus the last meaningful path segment.
+
+    Collisions are possible and are not a problem — `new` refuses an existing
+    path, so a second capture of the same page is caught rather than silently
+    overwriting the first."""
+    u = re.sub(r"^https?://(www\.)?", "", url.strip()).rstrip("/")
+    host = re.split(r"[/?#]", u)[0]
+    rest = [s for s in re.split(r"[/?#=&]", u[len(host):]) if s]
+    tail = rest[-1] if rest else ""
+    s = re.sub(r"[^a-z0-9]+", "-", f"{host}-{tail}".lower()).strip("-")
+    return (s[:70] or "source") + ".md"
+
+
+def op_capture(root, cfg, args):
+    """Store a URL as a raw node. That is the whole operation.
+
+    It does not fetch, classify, title or summarise. Those need judgement or a
+    network, and both are reasons not to do them at capture time — an agent that
+    summarises from what it already believes about a URL has invented a source,
+    which is the one failure the confidence rules exist to prevent."""
+    raw = root / cfg.get("raw", "sources")
+    path = raw / slug(args.url)
+    if path.exists():
+        raise Refused(f"{path.relative_to(root)} already exists — captured before")
+    attrs = {"url": args.url, "captured": str(datetime.date.today())}
+    if args.note:
+        attrs["note"] = args.note
+    doc = {"kind": "source", "attributes": attrs}
+    errs = validate(doc, str(path))
+    if errs:
+        raise Refused("\n".join(errs))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write(path, doc, f"\n<{args.url}>\n")
+    print(f"captured {path.relative_to(root)}")
+    return 0
 
 
 def op_supersede(root, cfg, args):
@@ -1349,6 +1401,15 @@ def op_check(root, cfg, args):
                              f"cited — the label claims a check that left no trace")
     census["tasks"] = sum(1 for _ in tasks(root, cfg))
 
+    # Raw captures are not in any graph and make no claims, so nothing above
+    # counts them. Count them here anyway: capture rate against acceptance rate
+    # is the one number that shows the practice failing, and an uncounted inbox
+    # is how it fails unnoticed.
+    rawdir = root / cfg.get("raw", "sources")
+    census["raw"] = sum(1 for p in rawdir.glob("*.md")
+                        if (read(p)[0] or {}).get("kind") == "source") \
+        if rawdir.is_dir() else 0
+
     # The watermark cannot show the map's commentary is right. It proves nobody
     # has looked at the graph changes since it was written.
     m = root / cfg["meta"] / "MAP.md"
@@ -1375,7 +1436,8 @@ def op_check(root, cfg, args):
                                                   key=lambda kv: -kv[1]))
     print(f"\n{sum(census['kinds'].values())} nodes, {len(errs)} errors, "
           f"{len(warns)} warnings")
-    print(f"census  {kinds} | decisions {st} | tasks {census['tasks']}")
+    raw = f" | raw {census['raw']}" if census["raw"] else ""
+    print(f"census  {kinds} | decisions {st} | tasks {census['tasks']}{raw}")
     return 1 if errs else 0
 
 
@@ -1442,6 +1504,12 @@ def main(argv=None):
     p = sub.add_parser("new"); p.set_defaults(fn=op_new)
     p.add_argument("path"); p.add_argument("--title")
     p.add_argument("--kind"); p.add_argument("--set")
+
+    p = sub.add_parser("capture"); p.set_defaults(fn=op_capture)
+    p.add_argument("url", help="the URL to store, verbatim")
+    p.add_argument("--note", help="why you grabbed it, in a few words — "
+                                  "optional, and the only thing you will not "
+                                  "be able to reconstruct later")
 
     p = sub.add_parser("set"); p.set_defaults(fn=op_set)
     p.add_argument("ref"); p.add_argument("--set", required=True)
