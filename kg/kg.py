@@ -544,17 +544,32 @@ def op_link(root, cfg, args):
     # constrains what a *claim* may rest on, and a raw node makes no claim. The
     # extraction edge — a qualified node pointing at what it was drawn from — is
     # the whole reason the boundary has to be crossable.
-    shared = False if is_task else (is_shared(root, cfg, path) or False)
+    src_space = None if is_task else space_of(root, cfg, path)
     tgt = pathlib.Path(args.to)
     resolved = (root / tgt).resolve()
     if not resolved.exists():
         raise Refused(f"relation target does not resolve: {args.to} "
                       f"(a relation's `to` is relative to the repository root, so it "
                       f"can name a node in another graph without ../ escapes)")
-    if shared and is_shared(root, cfg, resolved) is False:
-        raise Refused(f"refused — a shared node may not cite into "
-                      f"{graph_of(root, cfg, resolved)[1]}. A claim's frame must "
-                      f"contain the frames it depends on.")
+    # One rule, and it generalises to any number of spaces: a citation is
+    # allowed only where the target's frame CONTAINS the source's. Shared
+    # contains everything, so it is always citable. A personal space contains
+    # only itself — which makes two sibling products disjoint, and a claim in
+    # one resting on a claim in the other is the same violation as shared citing
+    # personal, turned sideways. A raw node has no frame at all and is exempt.
+    #
+    # The boolean this replaced could not see that: two personal spaces both
+    # read False, so the sideways case passed. `move_closure` was bounded by
+    # space when it was written; this is the same correction to the rule.
+    tgt_space = space_of(root, cfg, resolved)
+    if (src_space is not None and tgt_space is not None
+            and not is_shared(root, cfg, resolved) and tgt_space != src_space):
+        raise Refused(
+            f"refused — {graph_of(root, cfg, path)[1]} may not cite into "
+            f"{graph_of(root, cfg, resolved)[1]}. A claim's frame must contain "
+            f"the frames it depends on, and these two spaces are disjoint.\n\n"
+            f"  If the target claim really holds for both, it is shared: move it "
+            f"up and cite it there.")
     rels = doc.setdefault("relations", [])
     entry = next((r for r in rels
                   if r.get("to") == str(tgt) and r.get("rel") == args.rel), None)
@@ -1327,17 +1342,20 @@ def op_check(root, cfg, args):
             _, _, src_shared = graph_of(root, cfg, p)
         except Refused:
             src_shared = None
+        src_space = space_of(root, cfg, p)
         for kind, raw, resolved in refs(root, cfg, p):
             if not resolved.exists():
                 errs.append(f"{rel}: broken {kind} link -> {raw}")
                 continue
-            if src_shared:
-                try:
-                    _, tlabel, t_shared = graph_of(root, cfg, resolved)
-                    if not t_shared:
-                        errs.append(f"{rel}: shared node cites into personal graph {tlabel} -> {raw}")
-                except Refused:
-                    pass
+            # Same containment rule as `link`. Keyed on space rather than on a
+            # shared/personal boolean, so a citation between two sibling
+            # personal spaces is caught rather than reading as same-tier.
+            if src_space is not None:
+                tgt_space = space_of(root, cfg, resolved)
+                if (tgt_space is not None and tgt_space != src_space
+                        and not is_shared(root, cfg, resolved)):
+                    errs.append(f"{rel}: cites into the disjoint space "
+                                f"{graph_of(root, cfg, resolved)[1]} -> {raw}")
         if src_shared:
             doc, body = read(p)
             for n, line in enumerate((body or "").split("\n"), 1):
