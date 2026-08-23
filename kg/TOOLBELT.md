@@ -2,9 +2,12 @@
 
 **What `kg` does.** `SCHEMA.md` is what it writes; this is what writes it.
 
-The test for whether an operation belongs: **which invariant does it make
-unreachable?** An operation that only saves typing is a wrapper, and a wrapper is
-where the rules leak back out.
+The test for whether an operation belongs: **which invalid state does it stop
+`kg` from producing?** An operation that only saves typing is a wrapper, and a
+wrapper is where the rules leak back out.
+
+Note the scope of that sentence. These are states `kg` will not write. They are
+**not** properties of the graph — see the limit at the end of this file.
 
 ## It is not a CLI product
 
@@ -86,7 +89,7 @@ a second verb. And `set` validates the *merged result* before writing, so
 `{"status":"decided"}` without a `revisit-when` is refused — which is the whole
 guarantee a bespoke transition verb existed to provide.
 
-| Made unreachable |
+| `kg` will not produce |
 |---|
 | missing frontmatter · missing required field · unknown `type` · facet not a list |
 | `[universal, fr]` — the exclusive-frame rule |
@@ -227,9 +230,21 @@ reads as an error and means work was done for you.
 - a claim at shared knowledge is written in the first person plural
 - a generated file is stale
 
-Four, down from twenty-four. Every one that went is gone because an operation
-makes it unreachable — and the four that remain do so because **nothing owns a
-sentence**.
+Four, down from twenty-four. Every one that went is gone because a constructor
+produces the field correctly and re-checking it would be work done twice — and
+the four that remain do so because **nothing owns a sentence**.
+
+### The limit, stated plainly
+
+**`check` does not re-validate frontmatter at all.** The twenty checks were not
+replaced by a guarantee; they were dropped because the writer was assumed to be
+`kg`. A node written by hand, by another tool, or living in a mounted repository
+that does not run `kg` is validated by nothing, anywhere.
+
+So the saving is real and it is a property of **how a node was produced**, never
+of the graph that holds it. Anything that admits a second writer — mounting a
+foreign space, adopting a node from elsewhere, an editor — removes the premise
+the reduction rests on.
 
 `init` writes the config, creates the `meta/` directories, scaffolds the doctrine
 stubs, and prints the one thing it cannot do:

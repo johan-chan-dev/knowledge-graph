@@ -1,6 +1,6 @@
 ---
 name: graph
-description: Manage a repository's knowledge graph with the kg toolbelt — create and change nodes, relate them, supersede a decision, file or retire a task, trace what cites a node, and check the graph before committing. Use this whenever a repository contains a .kg.json, and whenever work involves atomic markdown notes with typed frontmatter, decision records, knowledge nodes, a two-scope personal/shared graph, or a queue of pending verification work — even when kg is never mentioned by name. Reach for it before hand-editing any node's frontmatter: every operation here writes it correctly by construction, and editing by hand puts the rules back to being checked afterwards, which is what the tool exists to remove.
+description: Manage a repository's knowledge graph with the kg toolbelt — create and change nodes, relate them, supersede a decision, file or retire a task, trace what cites a node, and check the graph before committing. Use this whenever a repository contains a .kg.json, and whenever work involves atomic markdown notes with typed frontmatter, decision records, knowledge nodes, a two-scope personal/shared graph, or a queue of pending verification work — even when kg is never mentioned by name. Reach for it before hand-editing any node's frontmatter: every operation here validates before writing, and `check` does not re-validate frontmatter — so a node edited by hand is checked by nothing at all.
 ---
 
 # kg
@@ -71,4 +71,4 @@ Read these when the question is not "which command" but "what should this be":
 | `${CLAUDE_PLUGIN_ROOT}/SCHEMA.md` | what a node *is* — kinds, attributes, frames, confidence, relations |
 | `references/method.md` | placing a node, choosing a scope, deciding one node or two, judging whether a relation earns being typed |
 | `references/settle.md` | resolving what the checker cannot decide — fired triggers, drained tasks, cleared blockers |
-| `${CLAUDE_PLUGIN_ROOT}/TOOLBELT.md` | why an operation exists and which invariant it makes unreachable |
+| `${CLAUDE_PLUGIN_ROOT}/TOOLBELT.md` | why an operation exists and which invalid state it will not produce |
