@@ -13,21 +13,27 @@ reader. Atomic markdown nodes with typed frontmatter, a personal/shared graph, a
 derived metadata layer small enough to load at session start, and a queue of
 pending work with a cap on what is surfaced at once.
 
-## The one idea
+## Why there are so few checks
 
-**Correct by construction, not by inspection.**
+The tool writes the nodes, so validation runs **before** the write rather than
+after it. Re-checking frontmatter that `kg new` just generated is work done twice
+— which is the whole of the argument, and it is about not wasting effort, not
+about guarantees.
 
-Rules enforced after the fact are rules an agent can break and then be told
-about. Rules encoded in the operation that writes the file cannot be broken —
-there is no path to the broken state. So `kg new` writes complete frontmatter and
-the index entry together; `kg set` refuses a state its own schema forbids; and
-there is deliberately **no** `kg rm`, because the graph is monotonic and a
-missing operation is stronger than a refused one.
+So `kg new` writes complete frontmatter and the index entry together; `kg set`
+refuses a state its own schema forbids; and there is deliberately **no** `kg rm`,
+because the graph is monotonic and a missing operation is stronger than a refused
+one.
 
-Building it this way removed 20 of the origin repo's 24 validation checks. What
-survives as a check is only what no constructor can own: prose. Links inside a
-body, a citation crossing a scope, a claim written in the first person plural.
-Nothing owns a sentence.
+That removed 20 of the origin repo's 24 validation checks. What survives is what
+no constructor can own: prose. Links inside a body, a citation crossing a scope, a
+claim written in the first person plural. Nothing owns a sentence.
+
+**And the limit is real.** This holds only while `kg` is the sole writer. `check`
+does not re-validate frontmatter at all, so a node written by anything else —
+by hand, by another tool, or inside a mounted repository that does not run `kg` —
+gets no validation from anywhere. The savings are genuine; they are not a
+property of the graph, only of how it was produced.
 
 ## Personal and shared
 
