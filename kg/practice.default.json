@@ -1,0 +1,134 @@
+{
+  "kinds": {
+    "fact": {
+      "requires": [
+        "title",
+        "confidence",
+        "compiled",
+        "recheck"
+      ]
+    },
+    "concept": {
+      "requires": [
+        "title",
+        "confidence",
+        "compiled"
+      ],
+      "forbids": {
+        "recheck": "definitions do not expire"
+      }
+    },
+    "decision": {
+      "requires": [
+        "title",
+        "status",
+        "serves"
+      ],
+      "forbids": {
+        "confidence": "this was chosen, not checked",
+        "recheck": "decisions go stale on an event, not a calendar"
+      },
+      "versioned": true,
+      "renews": [
+        "revisit-when"
+      ]
+    },
+    "thesis": {
+      "requires": [
+        "title",
+        "basis",
+        "would-falsify"
+      ],
+      "forbids": {
+        "confidence": "a hypothesis is neither checked nor chosen",
+        "recheck": "it is killed by evidence, not by a date"
+      }
+    }
+  },
+  "enums": {
+    "status": [
+      "open",
+      "provisional",
+      "decided",
+      "superseded"
+    ],
+    "confidence": [
+      "verified",
+      "partial",
+      "attested"
+    ],
+    "cost-if-wrong": [
+      "high",
+      "medium",
+      "low"
+    ],
+    "due": [
+      "now",
+      "deferred"
+    ]
+  },
+  "conditional": [
+    {
+      "when": {
+        "status": {
+          "not": "open"
+        }
+      },
+      "requires": [
+        "decided",
+        "revisit-when"
+      ],
+      "why": "a decision past open without a trigger reads as watched, and is not"
+    },
+    {
+      "when": {
+        "confidence": "attested"
+      },
+      "requires": [
+        "attested-by",
+        "attested-on",
+        "basis"
+      ],
+      "why": "attestation belongs to the user, and basis must say why verification is impossible"
+    },
+    {
+      "when": {
+        "due": "deferred"
+      },
+      "requires": [
+        "due-when"
+      ],
+      "why": "a bare deferred rots the way a bare provisional would"
+    }
+  ],
+  "task": {
+    "requires": [
+      "cost-if-wrong",
+      "due",
+      "queued"
+    ]
+  },
+  "relations": [
+    "supersedes",
+    "contradicts",
+    "depends-on",
+    "does-not-satisfy",
+    "blocked-by",
+    "has"
+  ],
+  "frames": [
+    "jurisdiction",
+    "vendor"
+  ],
+  "universal": "universal",
+  "dates": [
+    "compiled",
+    "recheck",
+    "decided",
+    "attested-on",
+    "superseded",
+    "queued"
+  ],
+  "queue-cap": 4,
+  "map-budget": 1400
+}

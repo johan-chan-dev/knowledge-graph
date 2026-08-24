@@ -18,34 +18,29 @@ import subprocess
 import sys
 
 CONFIG = ".kg.json"
-CAP = 4            # queue items surfaced at once
-MAP_BUDGET = 1400  # estimated tokens; past this the listing degrades to domains
 GEN = re.compile(r"(<!-- generated:(\w+) -->\n)(.*?)(<!-- /generated:\2 -->)", re.S)
 SOURCE_URL = re.compile(r"https?://\S+")
 WATERMARK = re.compile(r"^reconciled: ([0-9a-f]{7,40})$", re.M)
 
-KINDS = {
-    #  kind        required attributes            forbidden attributes
-    "fact":     (("title", "confidence", "compiled", "recheck"), ()),
-    "concept":  (("title", "confidence", "compiled"), ("recheck",)),
-    "decision": (("title", "status", "serves"), ("confidence", "recheck")),
-    "thesis":   (("title", "basis", "would-falsify"), ("confidence", "recheck")),
-}
-STATUS = ("open", "provisional", "decided", "superseded")
-CONFIDENCE = ("verified", "partial", "attested")
-# blocked-by was earned, not designed. Writing the first node-to-task edge made
-# it obvious that depends-on does not fit: a provisional decision is not
-# *dependent on* the verification that would settle it, it is *blocked by* it —
-# the decision stands and is usable, it simply cannot close. The other three
-# original terms were guessed a priori and two of them have one use each.
-# `has` was earned the same way `blocked-by` was: a real edge arrived that none
-# of the others described. A raw node and the bytes it resolved to are not in a
-# dependency relation — the transcript does not *depend on* the URI, it IS what
-# the URI yielded. Composition, not support.
-RELATIONS = ("supersedes", "contradicts", "depends-on", "does-not-satisfy",
-             "blocked-by", "has")
-FRAMES = ("jurisdiction", "vendor")
-UNIVERSAL = "universal"
+# The methodology is NOT compiled in. Kinds, relations, enumerations, frames and
+# the queue cap are practice, not mechanism, and they live in `.kg.json` where
+# they can be read, versioned with the graph, and changed without a release.
+# `practice.default.json` beside this file is what `init` copies in; nothing
+# falls back to it at runtime, so a repository always states what it holds itself
+# to.
+
+def practice(cfg):
+    p = cfg.get("practice")
+    if not p:
+        raise Refused(
+            ".kg.json has no `practice` block, and there is no built-in default "
+            "to fall back on.\n\n  The methodology is data: kinds, relations, "
+            "enumerations, frames, the queue cap.\n  Copy the starting set from "
+            f"{pathlib.Path(__file__).parent / 'practice.default.json'}\n  into "
+            '.kg.json under "practice", and edit it to what you actually hold '
+            "yourself to.")
+    return p
+
 
 FM = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.S)
 MDLINK = re.compile(r"\[[^\]]*\]\((?!https?://|#)([^)]+?\.md)[^)]*\)")
@@ -234,69 +229,101 @@ def write(path, doc, body):
 # Called before every write. Not validation after the fact — a precondition, so
 # an operation that would produce an invalid node does not run.
 
-def validate(doc, where="node"):
+def _enum_errs(pr, attrs, where):
+    errs = []
+    for field, allowed in (pr.get("enums") or {}).items():
+        v = attrs.get(field)
+        if v is not None and v not in allowed:
+            errs.append(f"{where}: {field} {v!r} not in {'|'.join(allowed)}")
+    return errs
+
+
+def _conditional_errs(pr, attrs, where):
+    """Requirements that depend on a value, e.g. attested needs a basis.
+
+    `when` matches attributes: a plain value, or {"not": value}. It fires only
+    when the field is present, so a missing field is one error from `requires`
+    rather than two."""
+    errs = []
+    for rule in pr.get("conditional") or []:
+        hit = True
+        for field, want in (rule.get("when") or {}).items():
+            have = attrs.get(field)
+            if have is None:
+                hit = False; break
+            if isinstance(want, dict) and "not" in want:
+                if have == want["not"]:
+                    hit = False; break
+            elif have != want:
+                hit = False; break
+        if not hit:
+            continue
+        for k in rule.get("requires") or []:
+            if not attrs.get(k):
+                cond = ", ".join(f"{f}={v!r}" for f, v in rule["when"].items())
+                why = rule.get("why")
+                errs.append(f"{where}: {cond} requires attributes.{k}"
+                            + (f" — {why}" if why else ""))
+    return errs
+
+
+def _relation_errs(pr, doc, where):
+    errs, rels = [], pr.get("relations") or []
+    for rel in doc.get("relations") or []:
+        if rel.get("rel") not in rels:
+            errs.append(f"{where}: rel {rel.get('rel')!r} not in {'|'.join(rels)}")
+        if not rel.get("to"):
+            errs.append(f"{where}: relation missing 'to'")
+    return errs
+
+
+def _date_errs(pr, attrs, where):
+    errs = []
+    for key in pr.get("dates") or []:
+        raw = attrs.get(key)
+        if raw and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(raw)):
+            errs.append(f"{where}: attributes.{key} {raw!r} is not YYYY-MM-DD")
+    return errs
+
+
+def validate(cfg, doc, where="node"):
+    pr = practice(cfg)
     errs = []
     kind = doc.get("kind")
     attrs = doc.get("attributes") or {}
     if kind is None:
         # Unqualified. `kind` is a judgement about what a thing IS, so its
         # absence is the positive statement that nobody has made that judgement
-        # yet — the same device as a decision being forbidden `confidence`.
-        # Nothing about a raw node is checkable, because it claims nothing.
+        # yet. Nothing about a raw node is checkable, because it claims nothing.
         return []
-    if kind not in KINDS:
-        return [f"{where}: kind {kind!r} not in {'|'.join(KINDS)}"]
-    required, forbidden = KINDS[kind]
+    kinds = pr.get("kinds") or {}
+    if kind not in kinds:
+        return [f"{where}: kind {kind!r} not in {'|'.join(kinds)}"]
+    spec = kinds[kind]
 
-    for k in required:
+    for k in spec.get("requires") or []:
         if not attrs.get(k):
             errs.append(f"{where}: kind {kind} requires attributes.{k}")
-    for k in forbidden:
+    for k, why in (spec.get("forbids") or {}).items():
         if k in attrs:
-            why = {"confidence": "this was chosen, not checked",
-                   "recheck": "definitions do not expire" if kind == "concept"
-                              else "nothing here goes stale on a calendar",
-                   "compiled": "a capture carries `captured`, not `compiled`"}
-            errs.append(f"{where}: kind {kind} must not carry attributes.{k} — "
-                        f"{why.get(k, 'not admissible for this kind')}")
+            errs.append(f"{where}: kind {kind} must not carry attributes.{k} — {why}")
 
-    if kind == "decision":
-        st = attrs.get("status")
-        if st not in STATUS:
-            errs.append(f"{where}: status {st!r} not in {'|'.join(STATUS)}")
-        elif st != "open":
-            for k in ("decided", "revisit-when"):
-                if not attrs.get(k):
-                    errs.append(f"{where}: status {st} requires attributes.{k}")
-    if kind in ("fact", "concept"):
-        c = attrs.get("confidence")
-        if c not in CONFIDENCE:
-            errs.append(f"{where}: confidence {c!r} not in {'|'.join(CONFIDENCE)}")
-        elif c == "attested":
-            for k in ("attested-by", "attested-on", "basis"):
-                if not attrs.get(k):
-                    errs.append(f"{where}: confidence attested requires attributes.{k}")
+    errs += _enum_errs(pr, attrs, where)
+    errs += _conditional_errs(pr, attrs, where)
 
-    for facet in FRAMES:
+    for facet in pr.get("frames") or []:
         v = attrs.get(facet)
         if v is None:
             continue
         if not isinstance(v, list):
             errs.append(f"{where}: attributes.{facet} must be a list, e.g. [fr, eu]")
-        elif UNIVERSAL in v and len(v) > 1:
-            errs.append(f"{where}: attributes.{facet} {v} — universal is exclusive; "
-                        f"a claim holding across every value cannot also be bound to some")
+        elif pr.get("universal") in v and len(v) > 1:
+            errs.append(f"{where}: attributes.{facet} {v} — "
+                        f"{pr.get('universal')} is exclusive; a claim holding across "
+                        f"every value cannot also be bound to some")
 
-    for key in ("compiled", "recheck", "decided", "attested-on", "superseded"):
-        raw = attrs.get(key)
-        if raw and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(raw)):
-            errs.append(f"{where}: attributes.{key} {raw!r} is not YYYY-MM-DD")
-
-    for rel in doc.get("relations") or []:
-        if rel.get("rel") not in RELATIONS:
-            errs.append(f"{where}: rel {rel.get('rel')!r} not in {'|'.join(RELATIONS)}")
-        if not rel.get("to"):
-            errs.append(f"{where}: relation missing 'to'")
+    errs += _date_errs(pr, attrs, where)
+    errs += _relation_errs(pr, doc, where)
     return errs
 
 
@@ -400,7 +427,7 @@ def op_new(root, cfg, args):
     attrs = {k: v for k, v in ordered.items() if v is not None}
     doc = {"attributes": attrs} if kind is None else {"kind": kind,
                                                        "attributes": attrs}
-    errs = validate(doc, args.path)
+    errs = validate(cfg, doc, args.path)
     if errs:
         raise Refused("\n".join(errs))
     # A node outside every declared graph is raw: it belongs to no scope, so it
@@ -440,21 +467,37 @@ def op_supersede(root, cfg, args):
     doc, body = read(path)
     if not doc:
         raise Refused(f"{args.path} is not a node")
-    if doc.get("kind") != "decision":
+    # Which kinds have versions is practice, declared per kind as `versioned`.
+    # It was hardcoded to `decision` on the argument that a fact is corrected in
+    # place while a choice has a history — a real argument, and one a different
+    # methodology may answer differently.
+    kinds = practice(cfg).get("kinds") or {}
+    versioned = [k for k, s in kinds.items() if s.get("versioned")]
+    if doc.get("kind") not in versioned:
         raise Refused(
-            f"refused — only a decision is superseded, and {args.path} is a "
-            f"{doc.get('kind')}. A fact is checked against a source: when the "
-            f"source moves the fact is wrong and gets corrected in place, with "
-            f"git holding the history.")
+            f"refused — {args.path} is a {doc.get('kind') or 'raw node'}, and "
+            f"{'|'.join(versioned) or 'nothing'} carries versions in this "
+            f"repository's practice.\n\n  Supersession inserts into a chain of "
+            f"states. Something corrected in place has no chain — git holds that "
+            f"history.\n  Change `versioned` in .kg.json if that is wrong here.")
     patch = json.loads(args.set) if args.set else {}
     if args.title:
         patch["title"] = args.title
-    if not patch.get("revisit-when"):
-        raise Refused(
-            "refused — a new version needs its own revisit-when in --set. It is "
-            "never carried forward: it names the event that would unmake the "
-            "decision, and if you are superseding, that event either fired or "
-            "was wrong.")
+    if "kind" not in doc:
+        raise Refused("this node is unqualified — nothing has been decided about "
+                      "it, so there is no version of it to keep. Supersession "
+                      "inserts into a chain of judgements; make one first.")
+
+    # Which fields a new version must restate is practice, declared per kind as
+    # `renews`. It was hardcoded to `revisit-when` on a decision-specific
+    # argument: the trigger names the event that would unmake the choice, so if
+    # you are superseding, that event either fired or was wrong and carrying it
+    # forward would be a lie. True of decisions; not of every versioned thing.
+    for k in (practice(cfg).get("kinds") or {}).get(doc["kind"], {}).get("renews") or []:
+        if not patch.get(k):
+            raise Refused(
+                f"refused — a new version of a {doc['kind']} needs its own {k} "
+                f"in --set. It is never carried forward.")
 
     # Timestamped, not numbered. A version number carries no information; the
     # stamp is when this version stopped being current, which is the one fact the
@@ -468,16 +511,12 @@ def op_supersede(root, cfg, args):
                       f"same second")
 
     prior = [r for r in (doc.get("relations") or []) if r.get("rel") == "supersedes"]
-    if "kind" not in doc:
-        raise Refused("this node is unqualified — nothing has been decided about "
-                      "it, so there is no version of it to keep. Supersession "
-                      "inserts into a chain of judgements; make one first.")
     snap = {"kind": doc["kind"], "attributes": dict(doc["attributes"])}
     snap["attributes"]["status"] = "superseded"
     snap["attributes"]["superseded"] = today
     if prior:
         snap["relations"] = prior          # the chain continues behind it
-    errs = validate(snap, str(archive.relative_to(root)))
+    errs = validate(cfg, snap, str(archive.relative_to(root)))
     if errs:
         raise Refused("\n".join(errs))
 
@@ -490,7 +529,7 @@ def op_supersede(root, cfg, args):
                         if r.get("rel") != "supersedes"]
     doc["relations"].append(
         {"rel": "supersedes", "to": str(archive.relative_to(root))})
-    errs = validate(doc, args.path)
+    errs = validate(cfg, doc, args.path)
     if errs:
         raise Refused("refused — the new version would be invalid:\n" + "\n".join(errs))
 
@@ -531,7 +570,7 @@ def op_set(root, cfg, args):
             doc.setdefault("attributes", {}).pop(k, None)
         else:
             doc.setdefault("attributes", {})[k] = v
-    errs = (validate_task if is_task else validate)(doc, args.ref)
+    errs = (validate_task if is_task else validate)(cfg, doc, args.ref)
     if errs:
         raise Refused("refused — the result would be invalid:\n" + "\n".join(errs))
     write(path, doc, body)
@@ -589,7 +628,7 @@ def op_link(root, cfg, args):
             attrs.pop(k, None) if v is None else attrs.update({k: v})
         if not attrs:
             entry.pop("attributes", None)
-    errs = (validate_task if is_task else validate)(doc, args.frm)
+    errs = (validate_task if is_task else validate)(cfg, doc, args.frm)
     if errs:
         raise Refused("\n".join(errs))
     write(path, doc, body)
@@ -881,7 +920,7 @@ def op_unlink(root, cfg, args):
     doc["relations"] = keep
     if not keep:
         doc.pop("relations")
-    errs = (validate_task if is_task else validate)(doc, args.frm)
+    errs = (validate_task if is_task else validate)(cfg, doc, args.frm)
     if errs:
         raise Refused("\n".join(errs))
     write(path, doc, body)
@@ -892,7 +931,6 @@ def op_unlink(root, cfg, args):
 # A second entity, not a node kind. It drains, and it is the only thing that can
 # be deleted.
 
-COSTS, DUE = ("high", "medium", "low"), ("now", "deferred")
 
 
 def task_dirs(root, cfg):
@@ -917,27 +955,18 @@ def tasks(root, cfg):
                 yield p, doc
 
 
-def validate_task(doc, where):
+def validate_task(cfg, doc, where):
+    pr = practice(cfg)
     errs, a = [], doc.get("attributes") or {}
-    if a.get("cost-if-wrong") not in COSTS:
-        errs.append(f"{where}: cost-if-wrong {a.get('cost-if-wrong')!r} "
-                    f"not in {'|'.join(COSTS)}")
-    if a.get("due") not in DUE:
-        errs.append(f"{where}: due {a.get('due')!r} not in {'|'.join(DUE)}")
-    elif a["due"] == "deferred" and not a.get("due-when"):
-        errs.append(f"{where}: due deferred needs due-when — the event that makes "
-                    f"it due, not a date. A bare `deferred` rots the way a bare "
-                    f"`provisional` would")
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(a.get("queued", ""))):
-        errs.append(f"{where}: queued {a.get('queued')!r} is not YYYY-MM-DD")
+    for k in ((pr.get("task") or {}).get("requires") or []):
+        if not a.get(k):
+            errs.append(f"{where}: a task requires attributes.{k}")
+    errs += _enum_errs(pr, a, where)
+    errs += _conditional_errs(pr, a, where)
+    errs += _date_errs(pr, a, where)
     # A task holds edges without becoming a node. It makes no claim — no kind, no
-    # frame, no confidence — but the relations it has are real, and 140 of them
-    # in the origin repo were prose because there was nowhere to put them.
-    for rel in doc.get("relations") or []:
-        if rel.get("rel") not in RELATIONS:
-            errs.append(f"{where}: rel {rel.get('rel')!r} not in {'|'.join(RELATIONS)}")
-        if not rel.get("to"):
-            errs.append(f"{where}: relation missing 'to'")
+    # frame, no confidence — but the relations it has are real.
+    errs += _relation_errs(pr, doc, where)
     return errs
 
 
@@ -961,7 +990,7 @@ def op_task_new(root, cfg, args):
     if args.due_when:
         attrs["due-when"] = args.due_when
     doc = {"id": nid, "attributes": attrs}
-    errs = validate_task(doc, str(path.relative_to(root)))
+    errs = validate_task(cfg, doc, str(path.relative_to(root)))
     if errs:
         raise Refused("\n".join(errs))
     into.mkdir(parents=True, exist_ok=True)
@@ -1243,6 +1272,7 @@ def live_nodes(root, cfg):
 
 
 def render_queue(root, cfg):
+    cap = practice(cfg).get("queue-cap", 4)
     items = []
     for p, d in tasks(root, cfg):
         a = d.get("attributes") or {}
@@ -1266,13 +1296,13 @@ def render_queue(root, cfg):
            "**Generated by `kg build`. Do not edit** — change the source files and",
            "rebuild.", "",
            "Everything pending, in one place, so nothing survives only in a",
-           f"conversation. At most **{CAP}** items are surfaced; the rest are held.",
+           f"conversation. At most **{cap}** items are surfaced; the rest are held.",
            "", "**Order.** Open decisions first, then everything `due: now` before",
            "anything `deferred`, then by `cost-if-wrong`, then oldest first.", "",
-           f"## Surfaced — {min(CAP, len(items))} of {len(items)}", "",
-           *head, *rows(items[:CAP])]
-    if items[CAP:]:
-        out += ["", f"## Held — {len(items[CAP:])}", "", *head, *rows(items[CAP:])]
+           f"## Surfaced — {min(cap, len(items))} of {len(items)}", "",
+           *head, *rows(items[:cap])]
+    if items[cap:]:
+        out += ["", f"## Held — {len(items[cap:])}", "", *head, *rows(items[cap:])]
     return "\n".join(out) + "\n"
 
 
@@ -1295,7 +1325,8 @@ def render_map_blocks(root, cfg):
         by_graph.setdefault(label, []).append(
             (str(p.relative_to(root)), f"{state}{stale}", a.get("title", p.stem)))
     total = len(nodes)
-    degrade = total * 14 > MAP_BUDGET
+    budget = practice(cfg).get("map-budget", 1400)
+    degrade = total * 14 > budget
     listing = []
     for label in sorted(by_graph, key=lambda l: (l.count("/"), l)):
         items = sorted(by_graph[label])
@@ -1307,9 +1338,9 @@ def render_map_blocks(root, cfg):
         listing.append("")
     if degrade:
         listing += ["", f"*Listing degraded to counts: the node list would exceed "
-                    f"the {MAP_BUDGET}-token budget. Read each graph's "
+                    f"the {budget}-token budget. Read each graph's "
                     f"`meta/INDEX.md` to drill.*"]
-    pressure = [f"- budget    {total * 14} of {MAP_BUDGET} tokens"
+    pressure = [f"- budget    {total * 14} of {budget} tokens"
                 f"{' — DEGRADED' if degrade else ''}",
                 f"- nodes     {total} listed, {excluded} excluded (superseded)",
                 f"- recheck   {overdue} overdue"]
@@ -1468,6 +1499,12 @@ def do_init(args):
     cfg = {"graphs": [{"path": g, "scope": "shared" if i == 0 else "personal"}
                       for i, g in enumerate(args.graphs)],
            "tasks": args.tasks, "meta": args.meta, "next-id": 1}
+    # The practice is written INTO the repository, not referenced from the
+    # plugin. It is the methodology this graph holds itself to, so it belongs
+    # beside the graph, versioned with it, and editable without a release.
+    default = pathlib.Path(__file__).parent / "practice.default.json"
+    if default.is_file():
+        cfg["practice"] = json.loads(default.read_text())
     cfgp.write_text(json.dumps(cfg, indent=2) + "\n")
     for g in args.graphs:
         if "*" not in g:
@@ -1525,7 +1562,7 @@ def main(argv=None):
 
     p = sub.add_parser("link"); p.set_defaults(fn=op_link)
     p.add_argument("frm"); p.add_argument("to")
-    p.add_argument("--rel", required=True, choices=RELATIONS)
+    p.add_argument("--rel", required=True)
     p.add_argument("--set")
 
     p = sub.add_parser("mv"); p.set_defaults(fn=op_mv)
@@ -1558,8 +1595,8 @@ def main(argv=None):
 
     tk = sub.add_parser("task").add_subparsers(dest="tcmd", required=True)
     p = tk.add_parser("new"); p.set_defaults(fn=op_task_new)
-    p.add_argument("slug"); p.add_argument("--cost", required=True, choices=COSTS)
-    p.add_argument("--due", required=True, choices=DUE)
+    p.add_argument("slug"); p.add_argument("--cost", required=True)
+    p.add_argument("--due", required=True)
     p.add_argument("--due-when"); p.add_argument("--dir")
     p = tk.add_parser("retire"); p.set_defaults(fn=op_task_retire)
     p.add_argument("id"); p.add_argument("--force", action="store_true")

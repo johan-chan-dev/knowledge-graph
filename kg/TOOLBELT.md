@@ -34,6 +34,41 @@ That is the whole reason there are two. Everything else — `new`, `link`, `mv`,
 `retire` — is only ever reached from a skill, so it needs arguments, not a
 surface.
 
+## The practice is data
+
+Kinds, their required and forbidden fields, relations, enumerations, frames, the
+queue cap and the map budget are **not compiled into the tool**. They live in
+`.kg.json` under `practice`, and `kg` reads them from there with no fallback — so
+a repository always states what it holds itself to, in a file you can read.
+
+```
+kinds       requires / forbids{field: why} / versioned / renews
+enums       field -> allowed values, checked when the field is present
+conditional when {field: value | {not: value}} -> requires [...]
+task        requires [...]
+relations   frames  universal  dates  queue-cap  map-budget
+```
+
+`init` copies `practice.default.json` into the new config. Nothing reads that
+file at runtime: the default is a **starting point**, not a fallback, and a
+config without a `practice` block refuses rather than quietly using it.
+
+**Why it moved.** The methodology and the graph belong to the same repository and
+should version together; they were in different repos on different release
+cycles, so adding one relation meant a version bump and a marketplace update. It
+is also inspectable — you can read the rules you are held to instead of finding
+them as constants in a Python file.
+
+**Two kind-specific rules moved with it**, because they were practice wearing the
+shape of mechanism: `versioned` decides what `supersede` accepts (it was
+hardcoded to `decision`), and `renews` lists the fields a new version must
+restate (it was hardcoded to `revisit-when`). Both arguments were sound and both
+were about decisions specifically, not about versioning as such.
+
+**What did not move** is mechanism: reading and writing frontmatter, resolving
+links, walking graphs, the index, the scope rule. Those are not opinions about
+how to think.
+
 ## Raw nodes
 
 A node outside every declared graph is **raw**: it carries no `kind`, appears in
