@@ -227,6 +227,17 @@ both were hand-rolled repeatedly in the origin repo before being named.
 node, or the derived layer reintroduces downward visibility that the schema
 forbids.
 
+**`check` and `inbound` read the authored half of `meta/`, and only that half.**
+An INDEX is hand-maintained and `check` already requires every node to appear in
+one, so its links are claims and are link- and scope-checked like any other.
+`MAP.md` and `QUEUE.md` are written whole by `build`, so checking them would
+report on the generator rather than on the graph.
+
+One predicate used to cover both halves, and the cost fell on `task retire`,
+which refuses on inbound references: it could not see an index citation at all.
+Retiring a task an index still pointed at succeeded, and `check` then passed over
+the dangling link. Found by using it, not by reading it.
+
 `stale` **lists rather than decides**. Whether a `revisit-when` has fired is an
 event in the world; a tool can only put the trigger in front of someone.
 

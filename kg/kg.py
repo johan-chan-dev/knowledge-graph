@@ -349,12 +349,33 @@ def refs(root, cfg, path):
     return out
 
 
-def walk(root, cfg):
-    """Every markdown file that is not metadata, with whether it is a node."""
-    skip = {".git", "node_modules", cfg["meta"]}
+def generated(root, cfg):
+    """The derived layer — the files `build` writes whole.
+
+    Half of `meta/` is generated and half is authored, and one predicate was
+    being applied to both. These two regenerate from the graph, so link-checking
+    them reports on the generator rather than on the graph. An INDEX is
+    hand-maintained and its links are claims like any other."""
+    return {(root / cfg["meta"] / "QUEUE.md").resolve(),
+            (root / cfg["meta"] / "MAP.md").resolve()}
+
+
+def walk(root, cfg, meta=False):
+    """Every markdown file that is not metadata, with whether it is a node.
+
+    `meta=True` also yields the AUTHORED metadata — the per-graph indexes —
+    while still skipping the generated layer. Callers asking about *references*
+    want it, and two were silently getting no answer: `check` link- and
+    scope-checked no index, and `inbound` could not see a citation from one.
+    The second defeats `task retire`, which exists to refuse on inbound
+    references and cannot refuse on one it cannot see."""
+    skip = {".git", "node_modules"}
+    gen = generated(root, cfg) if meta else set()
     for p in sorted(root.rglob("*.md")):
         parts = p.relative_to(root).parts
         if any(s in parts for s in skip):
+            continue
+        if cfg["meta"] in parts and (not meta or p.resolve() in gen):
             continue
         yield p
 
@@ -368,7 +389,7 @@ def inbound(root, cfg, target):
     operation exists for, and for a shared node the answer is mostly personal."""
     target = target.resolve()
     hits = []
-    for p in walk(root, cfg):
+    for p in walk(root, cfg, meta=True):
         if p.resolve() == target:
             continue
         try:
@@ -1376,7 +1397,7 @@ def op_build(root, cfg, args):
 
 def op_check(root, cfg, args):
     errs, warns = [], []
-    for p in walk(root, cfg):
+    for p in walk(root, cfg, meta=True):
         rel = p.relative_to(root)
         try:
             _, _, src_shared = graph_of(root, cfg, p)
@@ -1464,14 +1485,31 @@ def op_check(root, cfg, args):
         if not w:
             warns.append(f"{m.relative_to(root)}: no `reconciled: <sha>` line")
         else:
-            paths = [g["path"] for g in cfg["graphs"]]
+            # Expand the globs before handing them to git. A wildcard pathspec
+            # is matched against the WHOLE path, so `products/*/knowledge`
+            # selects that directory and nothing beneath it — the count came
+            # back 1 over a range where the real figure was 24. Every other
+            # operation expands first; this one passed the pattern through.
+            #
+            # A warning that fires with a believable number is worse than one
+            # that does not fire: the failure this watermark exists to prevent
+            # is advancing it without a pass, and `1 commit` invites a glance
+            # where `24 commits` forces a read.
+            #
+            # Tasks count, deliberately. A settle pass reads task drift — what
+            # drained, which blockers cleared — and QUEUE.md is generated from
+            # them, so a range touching only tasks is still one this page has
+            # not been reconciled against.
+            paths = [str(d.relative_to(root)) for d, _, _ in graphs(root, cfg)]
+            paths += [str(d.relative_to(root)) for d in task_dirs(root, cfg)]
             since = git("log", "--oneline", f"{w.group(1)}..HEAD", "--", *paths,
                         cwd=root)
             n = len(since.splitlines())
             if n:
                 warns.append(
                     f"{m.relative_to(root)}: commentary reconciled at "
-                    f"{w.group(1)[:7]}; {n} commit(s) have touched a graph since")
+                    f"{w.group(1)[:7]}; {n} commit(s) have touched a graph or a "
+                    f"task since")
 
     for w in warns:
         print(f"warn  {w}")
