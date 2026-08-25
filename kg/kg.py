@@ -1287,9 +1287,25 @@ def live_nodes(root, cfg):
             kind = doc["kind"]
             state = (a.get("status") if kind == "decision"
                      else "thesis" if kind == "thesis"
+                     else _derived_state(doc) if kind == "use-case"
                      else a.get("confidence", "?"))
             out.append((p, label, kind, state, a))
     return out
+
+
+def _derived_state(doc):
+    """A use case's state, computed from its edges rather than stored.
+
+    Its kind FORBIDS `status` for this reason: whether a scenario works is a fact
+    about what still blocks it, and a stored label would drift from that the
+    moment a blocker cleared. So the answer is read off the graph every time.
+
+    `ready` means nothing pending stands in front of it — NOT that it is built.
+    Nothing here can know that; the code lives in another repository and no
+    relative path crosses that boundary.
+    """
+    blockers = [r for r in (doc.get("relations") or []) if r.get("rel") == "blocked-by"]
+    return "blocked" if blockers else "ready"
 
 
 def render_queue(root, cfg):
