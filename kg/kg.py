@@ -1327,9 +1327,55 @@ def render_queue(root, cfg):
     return "\n".join(out) + "\n"
 
 
+def pending_review(root, cfg):
+    """Which nodes have changed since the settle watermark, and when.
+
+    **Derived, never stored.** A `reviewed:` field would be typed by hand, so it
+    could claim a node was read that nobody opened — the rubber stamp the
+    watermark already has, multiplied by node count. And `STRUCTURE.md` settled
+    the shape of the record: settle passes commit with the `settle:` prefix so
+    that git history IS the log and no second file is needed.
+
+    **Not "appears in a settle commit".** That was the first attempt and it was
+    wrong: a pass that reads a node and finds it correct leaves no commit
+    touching that file, so the measure reported *edited* while claiming *read* —
+    and called 73 of 80 nodes unread on a graph that had just been reviewed.
+
+    `reconciled: <sha>` already means "everything up to here has been read". So a
+    node is pending exactly when it changed AFTER the watermark. Same query
+    `kg check` runs repo-wide, per path.
+
+    One `git log` for the whole range, not one per node.
+
+    Measures **attention, not correctness**: a node inside the watermark can
+    still be wrong. The same limit `reconciled:` declares about itself.
+    """
+    m = root / cfg["meta"] / "MAP.md"
+    if not m.exists():
+        return {}
+    w = WATERMARK.search(m.read_text())
+    if not w:
+        return {}
+
+    out = git("log", f"{w.group(1)}..HEAD", "--format=%x00%cs", "--name-only",
+              cwd=root)
+    if not out:
+        return {}
+
+    changed, date = {}, None
+    for line in out.splitlines():
+        if line.startswith("\x00"):
+            date = line[1:].strip()
+        elif line.strip() and date:
+            # Newest first, so the first sighting is the most recent change.
+            changed.setdefault(line.strip(), date)
+    return changed
+
+
 def render_map_blocks(root, cfg):
     nodes, excluded, overdue = live_nodes(root, cfg), 0, 0
     today = str(datetime.date.today())
+    pending, unread = pending_review(root, cfg), 0
     for gdir, _, _ in graphs(root, cfg):
         for p in gdir.rglob("*.md"):
             if cfg["meta"] in p.relative_to(root).parts:
@@ -1339,12 +1385,21 @@ def render_map_blocks(root, cfg):
                 excluded += 1
     by_graph = {}
     for p, label, kind, state, a in nodes:
+        rel = str(p.relative_to(root))
         r = a.get("recheck")
         stale = " STALE" if r and str(r) < today else ""
         if stale:
             overdue += 1
+        # Inside the watermark means a settle pass has covered it. Outside means
+        # it changed since, and the date is when — which is the useful half: a
+        # node written this morning SHOULD be pending, and one pending for a
+        # month is the signal.
+        since = pending.get(rel)
+        if since:
+            unread += 1
         by_graph.setdefault(label, []).append(
-            (str(p.relative_to(root)), f"{state}{stale}", a.get("title", p.stem)))
+            (rel, f"{state}{stale}", a.get("title", p.stem),
+             f"changed {since}" if since else "reviewed"))
     total = len(nodes)
     budget = practice(cfg).get("map-budget", 1400)
     degrade = total * 14 > budget
@@ -1355,7 +1410,7 @@ def render_map_blocks(root, cfg):
             listing.append(f"{label}/  {len(items)} nodes")
             continue
         listing.append(f"### {label}/")
-        listing += [f"- `{rel}` · {st} · {ti}" for rel, st, ti in items]
+        listing += [f"- `{rel}` · {st} · {rd} · {ti}" for rel, st, ti, rd in items]
         listing.append("")
     if degrade:
         listing += ["", f"*Listing degraded to counts: the node list would exceed "
@@ -1364,7 +1419,11 @@ def render_map_blocks(root, cfg):
     pressure = [f"- budget    {total * 14} of {budget} tokens"
                 f"{' — DEGRADED' if degrade else ''}",
                 f"- nodes     {total} listed, {excluded} excluded (superseded)",
-                f"- recheck   {overdue} overdue"]
+                f"- recheck   {overdue} overdue",
+                # Counted, never judged — the same posture as the census. A node
+                # written since the last pass is SUPPOSED to be pending, so this
+                # is read against the watermark rather than as a fault.
+                f"- pending   {unread} of {total} changed since the watermark"]
     return {"listing": "\n".join(listing).rstrip() + "\n",
             "pressure": "\n".join(pressure) + "\n"}
 
