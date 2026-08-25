@@ -1749,21 +1749,6 @@ def op_check(root, cfg, args):
 
     # The watermark cannot show the map's commentary is right. It proves nobody
     # has looked at the graph changes since it was written.
-    ly = root / cfg["meta"] / "LAYERS.md"
-    want_layers = render_layers(root, cfg)
-    if not ly.exists() or ly.read_text() != want_layers:
-        stale.append(ly)
-        if not args.check:
-            ly.parent.mkdir(parents=True, exist_ok=True)
-            ly.write_text(want_layers)
-
-    pl = root / cfg["meta"] / "PLAN.md"
-    want_plan = render_plan(root, cfg)
-    if not pl.exists() or pl.read_text() != want_plan:
-        stale.append(pl)
-        if not args.check:
-            pl.parent.mkdir(parents=True, exist_ok=True)
-            pl.write_text(want_plan)
 
     m = root / cfg["meta"] / "MAP.md"
     if m.exists():
