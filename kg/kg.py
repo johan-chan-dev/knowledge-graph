@@ -1561,6 +1561,52 @@ def render_plan(root, cfg):
 UNSETTLED = {"provisional", "open", "partial"}
 
 
+def render_actors(root, cfg):
+    """Use cases grouped by the actor facet.
+
+    **The second axis, and the reason it is a facet rather than a folder.**
+    `collect-an-order` has two actors — the buyer gives a name, the stand-holder
+    hands the goods over — so a folder would force one parent and the scenario
+    would vanish from whichever half you asked about. A facet puts it under both,
+    once.
+
+    Blocked/ready is derived from `blocked-by` edges, so this table says what an
+    actor can do and what still stands in front of it. It does NOT say what is
+    built; nothing here can know that.
+    """
+    rows = {}
+    for path, label, kind, state, a in live_nodes(root, cfg):
+        if kind != "use-case":
+            continue
+        for who in (a.get("actor") or ["—"]):
+            rows.setdefault(who, []).append((a.get("title", path.stem), state, path))
+
+    if not rows:
+        return ""
+
+    order = {"buyer": 0, "staff": 1, "vendor": 2, "operator": 3}
+    out = ["", "## By actor", "",
+           "The same eight scenarios under the `actor` facet. A scenario with two",
+           "actors appears under both and exists once — which is why this is a",
+           "facet and not a folder.", "",
+           "`ready` means nothing pending stands in front of it, **not** that it is",
+           "built.", "",
+           "| Actor | Scenarios | Ready | Blocked |",
+           "|---|---:|---:|---:|"]
+
+    for who in sorted(rows, key=lambda w: (order.get(w, 9), w)):
+        items = rows[who]
+        ready = sum(1 for _, s, _ in items if s == "ready")
+        out.append(f"| **{who}** | {len(items)} | {ready or '·'} | {len(items) - ready or '·'} |")
+
+    out += ["", "| Actor | Scenario | State |", "|---|---|---|"]
+    for who in sorted(rows, key=lambda w: (order.get(w, 9), w)):
+        for title, state, path in sorted(rows[who]):
+            out.append(f"| {who} | {title} | {state} |")
+
+    return "\n".join(out) + "\n"
+
+
 def render_layers(root, cfg):
     """Every graph resolved into a table by scope and layer.
 
@@ -1636,7 +1682,7 @@ def render_layers(root, cfg):
         "87 used exactly once. Grouping by it yields tables of a single row. A",
         "feature axis needs a closed vocabulary the validator enforces, which is a",
         "decision to take rather than a tag to infer.", "",
-        *head, *rows]) + "\n"
+        *head, *rows]) + "\n" + render_actors(root, cfg)
 
 
 def op_build(root, cfg, args):
