@@ -44,6 +44,7 @@ a repository always states what it holds itself to, in a file you can read.
 ```
 kinds       requires / forbids{field: why} / versioned / renews
 enums       field -> allowed values, checked when the field is present
+multi-enums fields from `enums` that hold a LIST of values, checked per element
 conditional when {field: value | {not: value}} -> requires [...]
 task        requires [...]
 relations   frames  universal  dates  queue-cap  map-budget

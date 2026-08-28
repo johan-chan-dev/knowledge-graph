@@ -230,10 +230,34 @@ def write(path, doc, body):
 # an operation that would produce an invalid node does not run.
 
 def _enum_errs(pr, attrs, where):
+    """Closed vocabularies, for scalar fields and for facets.
+
+    A facet holds several values from one axis — `actor: [operator, staff]` —
+    so it is checked element by element. Which fields are facets is DECLARED,
+    in `practice.multi-enums`, never inferred from what a node happens to hold.
+
+    Inferring it would make the check permissive in the one place it must not
+    be: `status: [open]` would pass, and `_derived_state` compares `status`
+    with `==`, so a decision would silently stop being open without ever
+    failing anything. The cost of declaring is one config line; the cost of
+    inferring is a value that reads correct and behaves wrong.
+    """
     errs = []
+    multi = set(pr.get("multi-enums") or [])
     for field, allowed in (pr.get("enums") or {}).items():
         v = attrs.get(field)
-        if v is not None and v not in allowed:
+        if v is None:
+            continue
+        if field in multi:
+            if not isinstance(v, list):
+                errs.append(f"{where}: {field} {v!r} must be a list")
+                continue
+            bad = [x for x in v if x not in allowed]
+            if bad:
+                errs.append(f"{where}: {field} {bad!r} not in {'|'.join(allowed)}")
+        elif isinstance(v, list):
+            errs.append(f"{where}: {field} {v!r} is a list, but {field} holds one value")
+        elif v not in allowed:
             errs.append(f"{where}: {field} {v!r} not in {'|'.join(allowed)}")
     return errs
 
@@ -1769,6 +1793,27 @@ def op_check(root, cfg, args):
 
     for path, label, kind, state, a in live_nodes(root, cfg):
         rel = path.relative_to(root)
+        # **Frontmatter is re-validated here, not only on write.**
+        #
+        # Every write path validates its result, which was read as meaning a
+        # node cannot reach an invalid state. That holds only while the schema
+        # is FIXED. Add an enum to `.kg.json` after nodes exist and each one is
+        # retroactively judged against a rule it was never checked against —
+        # and nothing was looking, because this walked links and scope only.
+        #
+        # Found the way such things are found: a `kg link` refused a node that
+        # `kg check` had just passed clean.
+        node_errs = validate(cfg, read(path)[0], str(rel))
+        if node_errs:
+            # **Report, then skip — never aggregate an invalid node.**
+            # `status: [decided]` is unhashable, and the census used it as a
+            # dict key: the checker died with a traceback pointing at the
+            # census line, having collected the real error and printed none of
+            # it. A checker that crashes on the malformed input it exists to
+            # detect is worse than one that passes, because the traceback
+            # names the wrong file.
+            errs += node_errs
+            continue
         census["kinds"][kind] = census["kinds"].get(kind, 0) + 1
         if kind == "decision":
             census["status"][state] = census["status"].get(state, 0) + 1
@@ -1798,6 +1843,19 @@ def op_check(root, cfg, args):
             if not SOURCE_URL.search(body2 or ""):
                 warns.append(f"{rel}: confidence {a['confidence']} with no source "
                              f"cited — the label claims a check that left no trace")
+    # Tasks carry frontmatter with its own schema, and it went unchecked here
+    # for the same reason nodes did — `validate_task` ran on `task new` and on
+    # edits, never over the tree. A duplicate `id` is the failure that counter
+    # actually has, and it is one this loop can see.
+    seen_ids = {}
+    for tpath, tdoc in tasks(root, cfg):
+        trel = str(tpath.relative_to(root))
+        errs += validate_task(cfg, tdoc, trel)
+        tid = tdoc.get("id")
+        if tid is not None:
+            if tid in seen_ids:
+                errs.append(f"{trel}: id {tid} already used by {seen_ids[tid]}")
+            seen_ids[tid] = trel
     census["tasks"] = sum(1 for _ in tasks(root, cfg))
 
     # Raw captures are not in any graph and make no claims, so nothing above

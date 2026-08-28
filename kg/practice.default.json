@@ -67,6 +67,7 @@
       "deferred"
     ]
   },
+  "multi-enums": [],
   "conditional": [
     {
       "when": {
