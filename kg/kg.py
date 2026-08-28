@@ -649,15 +649,33 @@ def op_link(root, cfg, args):
     # The boolean this replaced could not see that: two personal spaces both
     # read False, so the sideways case passed. `move_closure` was bounded by
     # space when it was written; this is the same correction to the rule.
+    # **A subspace may not reach outside itself by path. The parent may reach in.**
+    #
+    # Reversed 2026-08-28. This enforced the opposite — a shared node could not
+    # cite a personal one — on the ground that a claim's frame must contain the
+    # frames it depends on. That argument is about GENERALITY. It is not the
+    # constraint that binds here, and encoding it cost real work: a root node
+    # citing a product node was refused, and the edge was deleted to satisfy
+    # the tool, while 73 references running the other way passed unremarked.
+    #
+    # What binds is CONTAINMENT. A subspace is internal today and may become a
+    # submodule tomorrow, and a relative path out of it encodes how deep its
+    # own repository sits inside someone else's — which a submodule does not
+    # control. `../../../../knowledge/` is right only at one mount depth, and
+    # wrong silently: mounted elsewhere beside a different `knowledge/`, it
+    # resolves to another repository's file with no error.
+    #
+    # The parent direction has no such problem: a parent contains its subspaces
+    # by construction, so a path down is as stable as the parent itself.
     tgt_space = space_of(root, cfg, resolved)
     if (src_space is not None and tgt_space is not None
-            and not is_shared(root, cfg, resolved) and tgt_space != src_space):
+            and tgt_space != src_space and not is_shared(root, cfg, path)):
         raise Refused(
-            f"refused — {graph_of(root, cfg, path)[1]} may not cite into "
-            f"{graph_of(root, cfg, resolved)[1]}. A claim's frame must contain "
-            f"the frames it depends on, and these two spaces are disjoint.\n\n"
-            f"  If the target claim really holds for both, it is shared: move it "
-            f"up and cite it there.")
+            f"refused — {owner_of(root, cfg, path)[1]} may not reach outside "
+            f"itself into {owner_of(root, cfg, resolved)[1]}. A subspace can be "
+            f"extracted into a submodule, and no relative path survives that: "
+            f"it encodes a depth the subspace does not control.\n\n"
+            f"  Cite it from the parent instead, or reference it by URL.")
     rels = doc.setdefault("relations", [])
     entry = next((r for r in rels
                   if r.get("to") == str(tgt) and r.get("rel") == args.rel), None)
@@ -1800,15 +1818,29 @@ def op_check(root, cfg, args):
             if not resolved.exists():
                 errs.append(f"{rel}: broken {kind} link -> {raw}")
                 continue
-            # Same containment rule as `link`. Keyed on space rather than on a
-            # shared/personal boolean, so a citation between two sibling
-            # personal spaces is caught rather than reading as same-tier.
-            if src_space is not None:
+            # Same containment rule as `link`, and reversed with it: a subspace
+            # may not reach outside itself, the parent may reach in.
+            #
+            # **Severity splits by whether a backlog exists**, not by how bad
+            # the violation is — they are the same violation. Reaching UP into
+            # the parent warns, because 73 such references predate the rule
+            # being stated correctly and erroring would block every commit
+            # until they are migrated. Reaching SIDEWAYS into a sibling
+            # subspace errors, because none exists and none should be created.
+            #
+            # The upward case is promoted to an error once the backlog clears.
+            # Until then it is counted rather than hidden, which is the whole
+            # difference between a warning and silence.
+            if src_space is not None and not is_shared(root, cfg, p):
                 tgt_space = space_of(root, cfg, resolved)
-                if (tgt_space is not None and tgt_space != src_space
-                        and not is_shared(root, cfg, resolved)):
-                    errs.append(f"{rel}: cites into the disjoint space "
-                                f"{graph_of(root, cfg, resolved)[1]} -> {raw}")
+                if tgt_space is not None and tgt_space != src_space:
+                    where = owner_of(root, cfg, resolved)[1]
+                    if is_shared(root, cfg, resolved):
+                        warns.append(f"{rel}: reaches up out of its subspace into "
+                                     f"{where} -> {raw}")
+                    else:
+                        errs.append(f"{rel}: reaches sideways into the disjoint "
+                                    f"subspace {where} -> {raw}")
         if src_shared:
             doc, body = read(p)
             # Line numbers are FILE-relative. `body` starts after the
