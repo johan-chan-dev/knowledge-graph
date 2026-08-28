@@ -384,6 +384,22 @@ def generated(root, cfg):
             (root / cfg["meta"] / "MAP.md").resolve()}
 
 
+def nested_repos(root):
+    """Directories that are a DIFFERENT repository — submodules and worktrees.
+
+    A `.git` entry marks one, whether a directory (a clone or a worktree) or a
+    file (`gitdir: ...`, how git records a submodule). Skipping the name `.git`
+    hides that directory and nothing else, so the *contents* of a nested repo
+    were walked: a submodule's markdown was link-checked against our rules, and
+    a worktree — a whole second copy of this repository, at whatever commit it
+    sits on — was validated as if it were part of the first.
+
+    `STRUCTURE.md` already states the rule: across a repository boundary nothing
+    relative resolves, in either direction. So a nested repo's files are not this
+    graph's to judge."""
+    return [g.parent.resolve() for g in root.rglob(".git") if g.parent != root]
+
+
 def walk(root, cfg, meta=False):
     """Every markdown file that is not metadata, with whether it is a node.
 
@@ -394,10 +410,13 @@ def walk(root, cfg, meta=False):
     The second defeats `task retire`, which exists to refuse on inbound
     references and cannot refuse on one it cannot see."""
     skip = {".git", "node_modules"}
+    nested = nested_repos(root)
     gen = generated(root, cfg) if meta else set()
     for p in sorted(root.rglob("*.md")):
         parts = p.relative_to(root).parts
         if any(s in parts for s in skip):
+            continue
+        if any(n in p.resolve().parents for n in nested):
             continue
         if cfg["meta"] in parts and (not meta or p.resolve() in gen):
             continue
@@ -705,9 +724,13 @@ def all_md(root, cfg):
     A rename must see them: an INDEX entry is a reference like any other, and
     missing it leaves the index pointing at a file that no longer exists."""
     skip = {".git", "node_modules"}
+    nested = nested_repos(root)
     for p in sorted(root.rglob("*.md")):
-        if not any(s in p.relative_to(root).parts for s in skip):
-            yield p
+        if any(s in p.relative_to(root).parts for s in skip):
+            continue
+        if any(n in p.resolve().parents for n in nested):
+            continue
+        yield p
 
 
 def plan_mv(root, cfg, old, new):
