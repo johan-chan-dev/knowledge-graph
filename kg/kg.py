@@ -716,27 +716,60 @@ def plan_mv(root, cfg, old, new):
     return plan
 
 
+def owner_of(root, cfg, path):
+    """The graph a file answers to — its own, or its nearest SIBLING graph.
+
+    A README, a task, a register: none is inside a graph, and every one of them
+    can cite into one. Treating "inside no graph" as "no scope to enforce" is
+    how a root file cites a product graph and passes clean.
+
+    So a file outside every graph belongs to the **nearest graph directory that
+    shares an ancestor with it**. `tasks/` sits beside `knowledge/`, so a root
+    task answers to the shared graph; `products/x/tasks/` sits beside
+    `products/x/knowledge/`, so it answers to that product. Nearest wins, which
+    is what keeps a product task with its own product rather than with root.
+
+    **Derived rather than declared, and that is the stronger option here.** A
+    `scope` field on task paths would say *personal* without saying *which
+    product* — and the containment rule keys on space IDENTITY, precisely so one
+    product citing another's graph is caught. Declaring identity would restate
+    in config what the layout already says, and the two would drift. This reads
+    the declared graph paths and infers nothing the config does not carry.
+
+    Returns the `(dir, label, shared)` triple, or None when no graph is
+    configured at all."""
+    try:
+        return graph_of(root, cfg, path)
+    except Refused:
+        pass
+    p = path.resolve()
+    best = None
+    for d, label, shared in graphs(root, cfg):
+        anc = d.resolve().parent
+        if anc == p.parent or anc in p.parents:
+            if best is None or len(anc.parts) > best[0]:
+                best = (len(anc.parts), (d.resolve(), label, shared))
+    return best[1] if best else None
+
+
 def space_of(root, cfg, path):
     """Which space a file belongs to — the graph directory, as identity.
 
     A space is bounded, not merely ordered. Two sibling product spaces are both
     personal and are still different spaces, so a closure computed on scope alone
     would drag one product's nodes through another's."""
-    try:
-        return graph_of(root, cfg, path)[0].resolve()
-    except Refused:
-        return None
+    owner = owner_of(root, cfg, path)
+    return owner[0].resolve() if owner else None
 
 
 def is_shared(root, cfg, path):
-    """True for shared, False for personal, None for anything outside a graph.
+    """True for shared, False for personal, None only where no graph exists.
 
     The tristate matters: None is *unknown*, not personal. A caller treating
-    it as falsy exempts every file living outside a declared graph."""
-    try:
-        return graph_of(root, cfg, path)[2]
-    except Refused:
-        return None
+    it as falsy exempts every file living outside a declared graph — which was
+    exactly the hole, since every such file used to answer None."""
+    owner = owner_of(root, cfg, path)
+    return owner[2] if owner else None
 
 
 def check_move_scope(root, cfg, old, new):
@@ -1755,11 +1788,14 @@ def op_check(root, cfg, args):
     errs, warns = [], []
     for p in walk(root, cfg, meta=True):
         rel = p.relative_to(root)
-        try:
-            _, _, src_shared = graph_of(root, cfg, p)
-        except Refused:
-            src_shared = None
-        src_space = space_of(root, cfg, p)
+        # Both read through `owner_of`, so a file outside every graph still has
+        # a scope. Calling `graph_of` here directly was the second half of the
+        # same hole: `space_of` could be fixed and this would keep answering
+        # None, leaving the first-person-plural check silent on root `tasks/`
+        # while `STRUCTURE.md` claimed it ran there.
+        owner = owner_of(root, cfg, p)
+        src_shared = owner[2] if owner else None
+        src_space = owner[0].resolve() if owner else None
         for kind, raw, resolved in refs(root, cfg, p):
             if not resolved.exists():
                 errs.append(f"{rel}: broken {kind} link -> {raw}")
@@ -1775,10 +1811,25 @@ def op_check(root, cfg, args):
                                 f"{graph_of(root, cfg, resolved)[1]} -> {raw}")
         if src_shared:
             doc, body = read(p)
-            for n, line in enumerate((body or "").split("\n"), 1):
-                if line.lstrip().startswith(">"):
+            # Line numbers are FILE-relative. `body` starts after the
+            # frontmatter, so numbering it from 1 pointed at `id:` lines and
+            # other places the pronoun could not be — a warning nobody can act
+            # on because the line it names is innocent.
+            offset = len(p.read_text().split("\n")) - len((body or "").split("\n"))
+            fence = False
+            for n, line in enumerate((body or "").split("\n"), 1 + offset):
+                if line.lstrip().startswith("```"):
+                    fence = not fence
                     continue
-                clean = re.sub(r'"[^"\n]*"', "", re.sub(r"https?://\S+", "", line))
+                if fence or line.lstrip().startswith(">"):
+                    continue
+                # Code spans go too. `KNOWLEDGE.md` says they are skipped, and
+                # they were not — so the sentence in `STRUCTURE.md` DOCUMENTING
+                # this rule, which lists `we`, `us` and `our` in backticks,
+                # tripped the rule it describes. Naming a word stays available
+                # where asserting it does not, exactly as for quoted spans.
+                clean = re.sub(r"`[^`\n]*`", "", line)
+                clean = re.sub(r'"[^"\n]*"', "", re.sub(r"https?://\S+", "", clean))
                 m = re.search(r"\b(we|us|our|ours)\b", clean, re.I)
                 if m and m.group(0) != "US":
                     warns.append(f"{rel}:{n}: first person plural in shared knowledge "
