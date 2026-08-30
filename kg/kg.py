@@ -374,14 +374,42 @@ def refs(root, cfg, path):
 
 
 def generated(root, cfg):
-    """The derived layer — the files `build` writes whole.
+    """The derived layer — the files `build` writes WHOLE.
 
     Half of `meta/` is generated and half is authored, and one predicate was
-    being applied to both. These two regenerate from the graph, so link-checking
+    being applied to both. These regenerate from the graph, so link-checking
     them reports on the generator rather than on the graph. An INDEX is
-    hand-maintained and its links are claims like any other."""
+    hand-maintained and its links are claims like any other.
+
+    **MAP.md is not one of them, and listing it here was the same error one
+    level down.** `op_build` writes QUEUE, LAYERS and PLAN with `write_text`
+    and edits MAP with `GEN.sub` — the code already says MAP is part authored.
+    Excluding it exempted its commentary from every check, and a link there to
+    a task that had been retired survived four commits: `task retire` refuses
+    on inbound references and could not see one it was told not to walk. The
+    two genuinely-whole files that were missing, LAYERS and PLAN, were being
+    walked meanwhile — the set was inverted from its own argument.
+
+    A partly-generated file is walked, and its generated regions are stripped
+    per check instead. See `strip_generated`."""
     return {(root / cfg["meta"] / "QUEUE.md").resolve(),
-            (root / cfg["meta"] / "MAP.md").resolve()}
+            (root / cfg["meta"] / "LAYERS.md").resolve(),
+            (root / cfg["meta"] / "PLAN.md").resolve()}
+
+
+def strip_generated(text):
+    """Blank the body of every `<!-- generated:x -->` block, keeping line count.
+
+    A check that reads a partly-generated file must not report on the generated
+    half. `strip_code` already makes the listing inert for links — it is all
+    code spans — but the first-person scan reads prose, and node TITLES echoed
+    into a listing are the graph's words, correctly personal in a personal
+    graph. Firing there would report on the generator and name the wrong file.
+
+    Line numbers are preserved because the warnings carry them, and a warning
+    pointing at a line the reader cannot find is worse than none."""
+    return GEN.sub(lambda m: m.group(1) + "\n" * m.group(3).count("\n")
+                   + m.group(4), text)
 
 
 def nested_repos(root):
@@ -1872,7 +1900,8 @@ def op_check(root, cfg, args):
             # on because the line it names is innocent.
             offset = len(p.read_text().split("\n")) - len((body or "").split("\n"))
             fence = False
-            for n, line in enumerate((body or "").split("\n"), 1 + offset):
+            for n, line in enumerate(strip_generated(body or "").split("\n"),
+                                     1 + offset):
                 if line.lstrip().startswith("```"):
                     fence = not fence
                     continue
