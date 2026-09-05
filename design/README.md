@@ -4,6 +4,7 @@ Why this works the way it does. One argument per document, and only that
 argument.
 
 - [location](location.md) — nothing here is identified by where it sits
+- [grouping](grouping.md) — a group is a word a node carries, and membership is never written down
 
 ## The one rule
 
