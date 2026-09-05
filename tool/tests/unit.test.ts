@@ -1,6 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import { isV7 } from "../src/tokens.ts";
-import { canonicalise, serialise, split } from "../src/node.ts";
+import { canonicalise, serialise } from "../src/node.ts";
 import { exitCode, ok, refused } from "../src/outcome.ts";
 import { generate as uuidv7 } from "@std/uuid/v7";
 
@@ -8,30 +8,8 @@ Deno.test("canonical order is alphabetical", () => {
   assertEquals(Object.keys(canonicalise({ zeta: 1, alpha: 2 })), ["alpha", "zeta"]);
 });
 
-Deno.test("a node with no attributes still has frontmatter", () => {
-  const text = serialise({}, "");
-  assertEquals(text, "---\n---\n\n");
-  const r = split(text);
-  assert(r.kind === "split");
-  assertEquals(r.attrs, {});
-  assertEquals(r.body, "");
-});
-
-Deno.test("split round-trips through serialise", () => {
-  const r = split(serialise({ alpha: "one" }, "prose here\n"));
-  assert(r.kind === "split");
-  assertEquals(r.attrs, { alpha: "one" });
-  assertEquals(r.body, "prose here\n");
-});
-
-Deno.test("a date-shaped value stays a string", () => {
-  const r = split("---\nuntil: 2027-01-01\n---\n\n");
-  assert(r.kind === "split");
-  assertEquals(r.attrs.until, "2027-01-01");
-});
-
-Deno.test("a file without frontmatter is malformed, not empty", () => {
-  assertEquals(split("just prose\n").kind, "malformed");
+Deno.test("a new node is frontmatter and nothing else", () => {
+  assertEquals(serialise({}, ""), "---\n---\n\n");
 });
 
 Deno.test("exit codes are a projection of the outcome", () => {

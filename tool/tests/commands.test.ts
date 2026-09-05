@@ -2,7 +2,7 @@ import { assert, assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import { init, list, newNode, show } from "../src/commands.ts";
 import { findSpace, spaceName } from "../src/space.ts";
-import { split } from "../src/node.ts";
+import { serialise } from "../src/node.ts";
 import { isV7 } from "../src/tokens.ts";
 
 const lines = (o: Awaited<ReturnType<typeof list>>) => o.kind === "ok" ? o.lines : [];
@@ -69,10 +69,11 @@ Deno.test("new writes an empty node and prints its path", async () => {
   assert(isV7(id), `${id} should be a v7 uuid`);
   assertEquals(rel, `.kg/nodes/${id}.md`);
 
-  const node = split(await Deno.readTextFile(join(dir, rel)));
-  assert(node.kind === "split");
-  assertEquals(node.attrs, {}, "nothing is initialised beyond the file itself");
-  assertEquals(node.body, "");
+  assertEquals(
+    await Deno.readTextFile(join(dir, rel)),
+    serialise({}, ""),
+    "nothing is initialised beyond the file itself",
+  );
 });
 
 Deno.test("list enumerates in creation order, ids or paths", async () => {
