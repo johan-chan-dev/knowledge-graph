@@ -61,7 +61,7 @@ independently and land on the same string.
 Anything requiring quoting or escaping is a word that will eventually be typed
 wrong, and will fail by silently matching nothing rather than by complaining.
 That is the whole reason the form is restricted; the specific restriction is
-[the spec's](../spec/batch-2.md).
+[the spec's](../spec/api.md).
 
 ## What a group is not
 

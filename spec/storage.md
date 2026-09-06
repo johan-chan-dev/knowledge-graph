@@ -1,0 +1,105 @@
+# Storage
+
+What a node is on disk, and how the tool writes one. [`api.md`](api.md) is the
+surface; this is what sits underneath it.
+
+## The shape
+
+```
+<repo>/.kg/
+└── nodes/{id}.md
+```
+
+**At the repository root.** A space sits at `.kg/` in a repository's root, so
+`space init` finds the root rather than using the working directory — run it
+three directories down and the space still appears at the top.
+
+**No manifest.** The `.kg/` directory is what marks a space; nothing inside has
+to assert it.
+
+**The space's name is the repository directory's name.** Not minted, not stored,
+not derived from a remote — read off the directory when anyone needs it. It
+travels when the repository is moved or cloned, exactly as a node's name travels
+with its file ([location](../design/location.md)).
+
+## A node
+
+Frontmatter and a body, the id being the filename and appearing nowhere inside
+it ([location](../design/location.md)):
+
+```
+---
+---
+
+```
+
+**The frontmatter block is written even when it holds nothing**, so a node is
+always well-formed and the reader can stay strict. The tool is the only thing
+that writes either half — a node's content arrives at creation or not at all,
+and nothing outside opens the file to supply it.
+
+## Identity
+
+**Ids are UUIDv7**, lowercase, canonical hyphenated form. Unique without
+coordination, and lexicographically ordered by their 48-bit timestamp — so a
+directory listing is in creation order for free, with no field carrying a date,
+and creation time is readable back out of the name itself.
+
+Ordering is to the **millisecond**. Two nodes minted inside the same millisecond
+sort by their random bits, in no meaningful order. Nothing depends on which of
+two simultaneous nodes comes first, and nothing should.
+
+**`created` is read out of the id, never stored.** UUIDv7 carries its creation
+time in its first 48 bits, so the tool computes it on the way out. There is no
+`created:` field in any node, and none is wanted: it would be a second copy of a
+number already in the filename, free to drift from it.
+
+**Any uuid is accepted as well formed, not only the v7 the tool mints.** A v4 is
+a plausible id this tool never issued, which makes it honestly *absent* rather
+than refused — and checking for v7 specifically would tie the validator to a
+minting scheme that is deliberately free to change.
+
+There is no fallback for a name that is not an id. Nothing but the tool writes
+into `nodes/`, and every name it mints is one — so a file named otherwise means
+the space is broken, and returning a row without a creation time would hide
+that.
+
+## Reading
+
+**Scalars are read under YAML 1.2 core** — null, bool, int, float, string, and
+nothing else. The default schema turns `2027-01-01` into a date, which would be
+the tool deciding what a field it has never heard of means. The reader is held
+to it from the start, before anything writes such a value.
+
+**Splitting frontmatter is a regex and one `parse` call.** `@std/front-matter`
+was dropped for this: its `extract()` accepts no options, so there is no way to
+hold the parser to the core schema through it.
+
+### A node that will not parse
+
+The tool is the only writer of frontmatter, but it is not the only writer of the
+file: a person opens one in an editor, and git resolves a merge inside one.
+Frontmatter gets mangled that way, and the tool has to read what it did not
+write.
+
+A command **naming that node exits `1`** — the caller asked about that node and
+the tool cannot honour it. Any command that sweeps the collection instead
+**skips it, names it on stderr, and exits `0`**: one damaged file must not make
+a space unfindable, and reporting is not the same as failing.
+
+Nothing attempts repair. Detecting damage systematically is a later concern.
+
+## Writing
+
+**Writes are atomic**: a temporary file in the same directory, then a rename. An
+interrupted rewrite would corrupt the one thing the tool is custodian of. Rename
+is atomic on every filesystem that matters; write-in-place is not.
+
+**Serialisation is canonical** — frontmatter keys alphabetical, `flowLevel: 1`
+so a sequence stays on one line. The tool is the only writer, so canonical
+output costs nothing and keeps diffs minimal.
+
+**A key with nothing in it is removed, not emptied**, so a node whose last
+value was dropped serialises back to `---\n---\n\n` — byte for byte what a
+node with nothing said about it looks like. Why that matters is
+[`parked.md`](parked.md)'s, with the labels that first exercise it.

@@ -11,7 +11,7 @@ argument.
 **The specification states the rule. The design states the reason, and never
 restates the rule.**
 
-So [the spec](../spec/batch-1.md) says the id is the filename;
+So [the spec](../spec/storage.md) says the id is the filename;
 [location](location.md) says why a name outlives a path and never mentions
 filenames at all. If a mechanic turns up in both, one of the copies is wrong,
 and the two will drift.

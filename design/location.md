@@ -16,14 +16,20 @@ So a node needs a **name**, and a name is not a location.
 - A path says *where to look* — a fact that expires the moment anything moves.
 - A name says *which one* — and survives all of it.
 
-Both exist, and both are needed: material has to be opened somehow. What the
-claim forbids is narrow — **nothing stored refers to a node by path.** A
-reference is always a name; a path is computed from it when something needs to
-be reached, and then thrown away.
+Both exist, and both are needed: material has to be opened somehow. A path is
+computed from a name at the moment something must be opened, and thrown away
+after.
 
-The asymmetry is the way to see it. A name goes in and a path may come out;
-nothing goes the other way. There is no way to address material by where it
-sits, only by what it is called.
+**Thrown away only holds if it never gets out.** A path that is handed to
+someone does not stay a computed intermediate — it is written into a note,
+passed to another program, remembered across a conversation, and from then on it
+is a stored reference by location, which is the one thing the claim forbids.
+Whoever holds it will act on it eventually, and will be acting on where the
+material used to be.
+
+So the asymmetry runs one way and all the way down. A name goes in; a path is a
+step in the machinery and never a value anyone else holds. There is no way to
+address material by where it sits, only by what it is called.
 
 **A name is assigned once and never changes.** Not renamed when the material is
 reorganised, not reissued when it moves, not reused when it is retired. A name
