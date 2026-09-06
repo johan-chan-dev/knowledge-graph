@@ -146,9 +146,19 @@ Print the node — frontmatter and body — or with `--path` only its relative p
 Looks in `nodes/`, then `meta/nodes/`. Since the id is the filename this is two
 file opens, not a search.
 
-Exit `2` if neither exists. Not an error: the tool is reporting that it has no
-answer, which becomes a distinction that matters once other spaces can be
-mounted.
+**An id that is not a uuid is refused, exit `1`** — `not an id: a — expected a
+uuid`. The tool could never have minted that as a filename, so it did not look
+and find nothing; it was asked something it cannot answer.
+
+**An id that is well formed but not here is absent, exit `2`.** Not an error:
+the tool is reporting that it has no answer, which is a different thing for a
+caller to act on. Refused means *fix the argument*; absent means *the node is
+not here* — it may have been removed, or this may be the wrong space.
+
+Any uuid is accepted as well formed, not only the v7 the tool mints. A v4 is a
+plausible id this tool never issued, which makes it honestly absent — and
+checking for v7 specifically would tie the validator to a minting scheme that is
+deliberately free to change.
 
 ### `list [--meta] [--path]`
 
@@ -196,12 +206,15 @@ arrives with the first thing worth reading.
 | | |
 |---|---|
 | `0` | ok |
-| `1` | refused — a rule would have been broken; nothing was written |
-| `2` | no answer — the thing asked for is absent |
+| `1` | refused — an argument breaks a rule, or a rule would have been; nothing was written |
+| `2` | no answer — the thing asked for is well formed and not here |
 | `4` | usage or internal error |
 
-`1` and `2` are different on purpose. Refusal means the tool declined; absence
-means it looked and there was nothing there.
+`1` and `2` are different on purpose. Refusal means the tool declined — the
+request was malformed, or honouring it would break a rule. Absence means it
+looked and there was nothing there. A caller can act on the difference; a single
+failure code would leave it guessing whether to correct its input or accept the
+answer.
 
 ## Built with
 

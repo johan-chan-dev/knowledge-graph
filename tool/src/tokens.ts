@@ -8,3 +8,10 @@ export function isId(s: string): boolean {
 export function isV7(s: string): boolean {
   return isId(s) && uuidVersion(s) === 7;
 }
+
+/** A label is a lowercase hyphenated token — see design/grouping.md. */
+const LABEL = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+export function isLabel(s: string): boolean {
+  return LABEL.test(s);
+}

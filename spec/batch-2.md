@@ -63,9 +63,19 @@ is not an error — what was asked for is the end state, and refusing would make
 the command awkward to call from a script that does not track what is already
 there.
 
-Exit `1` on a name that is not a valid token, before anything is written. Exit
-`2` if the node does not exist. `label <id>` with no names is a usage error
-rather than a silent no-op: nothing was asked for.
+**Validation precedes lookup**, so a refused call cannot have touched the node.
+The order is visible when two things are wrong at once: `kg label a B_ad`
+reports the bad label name, not the missing node.
+
+| | |
+|---|---|
+| a name that is not a valid token | refused, exit `1`, nothing written |
+| an id that is not a uuid | refused, exit `1` — `not an id: a — expected a uuid` |
+| an id that is well formed and not here | absent, exit `2` |
+| no names at all | usage error, exit `4` — nothing was asked for |
+
+The middle two are kept apart deliberately. `kg label a b` reads as two words of
+the same kind, and the message quotes back which one it took as the id.
 
 ### `list … [--with-label <name> | --with-labels <name>...]`
 
@@ -92,6 +102,10 @@ error rather than a quiet success:
 ```
 --with-label takes one name; use --with-labels for several
 ```
+
+Giving both at once is refused for the same reason — `use --with-label or
+--with-labels, not both`. There is no sensible reading to pick between, so
+picking one silently would be inventing an intent the caller did not express.
 
 That is one parse — collect the names following the flag — plus an arity check,
 and it means a caller producing the singular form for a single label is right

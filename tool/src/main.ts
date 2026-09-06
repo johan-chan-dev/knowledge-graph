@@ -1,6 +1,6 @@
 import { parseArgs } from "@std/cli/parse-args";
 import { exitCode, type Outcome, usage } from "./outcome.ts";
-import { init, list, newNode, show } from "./commands.ts";
+import { init, label, list, newNode, show } from "./commands.ts";
 
 /**
  * One table. Dispatch reads it, and so does help — so the two cannot drift.
@@ -21,10 +21,20 @@ const COMMANDS = {
     args: "<id>",
     flags: ["--path"] as const,
   },
+  label: {
+    summary: "add labels to a node, or remove them",
+    args: "<id> <name>…",
+    flags: ["--remove"] as const,
+  },
   list: {
     summary: "enumerate nodes",
     args: "",
-    flags: ["--meta", "--path"] as const,
+    flags: [
+      "--with-label <name>",
+      "--with-labels <name>…",
+      "--meta",
+      "--path",
+    ] as const,
   },
 } as const;
 
@@ -45,6 +55,41 @@ function help(): string {
   return lines.join("\n");
 }
 
+/**
+ * `--with-labels a b c` is one flag taking many names, which `parseArgs` does
+ * not do: it takes the first as the value and leaves the rest as positionals.
+ * Since `list` has no positional argument of its own, everything left over is a
+ * name.
+ *
+ * The two spellings differ in arity, not behaviour. `--with-label` takes
+ * exactly one and refuses more, so a flag's name is never wrong about what it
+ * accepts.
+ */
+type Variadic =
+  | { readonly kind: "names"; readonly names: string[] }
+  | { readonly kind: "usage"; readonly message: string };
+
+function variadic(
+  flags: { "with-label"?: string; "with-labels"?: string; _: (string | number)[] },
+): Variadic {
+  const singular = flags["with-label"];
+  const plural = flags["with-labels"];
+  if (singular !== undefined && plural !== undefined) {
+    return { kind: "usage", message: "use --with-label or --with-labels, not both" };
+  }
+  const first = singular ?? plural;
+  if (first === undefined) return { kind: "names", names: [] };
+
+  const rest = flags._.map(String);
+  if (singular !== undefined && rest.length > 0) {
+    return {
+      kind: "usage",
+      message: "--with-label takes one name; use --with-labels for several",
+    };
+  }
+  return { kind: "names", names: [first, ...rest] };
+}
+
 async function run(argv: string[]): Promise<Outcome> {
   const [name, ...rest] = argv;
   if (name === undefined || name === "--help" || name === "-h") {
@@ -56,7 +101,8 @@ async function run(argv: string[]): Promise<Outcome> {
 
   let unknownFlag: string | null = null;
   const flags = parseArgs(rest, {
-    boolean: ["meta", "path", "json", "help"],
+    boolean: ["meta", "path", "json", "help", "remove"],
+    string: ["with-label", "with-labels"],
     unknown: (arg) => {
       if (arg.startsWith("-")) unknownFlag = arg;
       return true;
@@ -77,8 +123,21 @@ async function run(argv: string[]): Promise<Outcome> {
       if (id === undefined) return usage("show needs an id");
       return await show(String(id), { path: flags.path, json: flags.json });
     }
-    case "list":
-      return await list({ meta: flags.meta, path: flags.path, json: flags.json });
+    case "label": {
+      const [id, ...names] = flags._.map(String);
+      if (id === undefined) return usage("label needs an id");
+      return await label(id, names, { remove: flags.remove });
+    }
+    case "list": {
+      const labels = variadic(flags);
+      if (labels.kind === "usage") return usage(labels.message);
+      return await list({
+        labels: labels.names,
+        meta: flags.meta,
+        path: flags.path,
+        json: flags.json,
+      });
+    }
   }
 }
 

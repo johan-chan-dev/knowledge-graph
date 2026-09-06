@@ -6,12 +6,16 @@
  * declined, absence means it looked and there was nothing there.
  */
 export type Outcome =
-  | { readonly kind: "ok"; readonly lines: string[] }
+  | { readonly kind: "ok"; readonly lines: string[]; readonly warnings: string[] }
   | { readonly kind: "refused"; readonly message: string }
   | { readonly kind: "absent"; readonly message: string }
   | { readonly kind: "usage"; readonly message: string };
 
-export const ok = (lines: string[] = []): Outcome => ({ kind: "ok", lines });
+export const ok = (lines: string[] = [], warnings: string[] = []): Outcome => ({
+  kind: "ok",
+  lines,
+  warnings,
+});
 export const refused = (message: string): Outcome => ({ kind: "refused", message });
 export const absent = (message: string): Outcome => ({ kind: "absent", message });
 export const usage = (message: string): Outcome => ({ kind: "usage", message });
