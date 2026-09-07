@@ -1,7 +1,7 @@
 import { absent, lines, ok, type Outcome, refused } from "./outcome.ts";
 import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
-import { isId, measure, read, write } from "./node.ts";
+import { bytes, isId, measure, read, write } from "./node.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -75,13 +75,34 @@ export async function node(cwd: string, id: string): Promise<Outcome> {
   }
 }
 
-export async function nodeWrite(
+/**
+ * `new` and `write` are different operations, not one with an optional id:
+ * creating changes what the collection contains and replacing does not. The
+ * shared half is deciding what content the call was given.
+ */
+export async function nodeNew(
   cwd: string,
-  id: string | null,
   stdin: Stdin,
   allowEmpty: boolean,
 ): Promise<Outcome> {
-  if (id !== null && !isId(id)) return refused(`not an id: ${id} — expected a uuid`);
+  const content = contentFrom(stdin, allowEmpty);
+  if (content.kind === "refused") return content.outcome;
+
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+
+  const result = await write(resolved.space, null, content.text);
+  if (result.kind !== "written") return refused(`could not create a node`);
+  return lines([result.id], `wrote ${bytes(content.text)} bytes`);
+}
+
+export async function nodeWrite(
+  cwd: string,
+  id: string,
+  stdin: Stdin,
+  allowEmpty: boolean,
+): Promise<Outcome> {
+  if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
 
   const content = contentFrom(stdin, allowEmpty);
   if (content.kind === "refused") return content.outcome;
@@ -95,13 +116,11 @@ export async function nodeWrite(
       return absent(`no such node: ${id} in ${resolved.space.name}`);
     case "malformed":
       return refused(`cannot read ${id}: no frontmatter block`);
-    case "written": {
-      const wrote = `wrote ${new TextEncoder().encode(content.text).length} bytes`;
-      const note = result.replaced === null
-        ? wrote
-        : `${wrote}, replacing ${result.replaced}`;
-      return lines([result.id], note);
-    }
+    case "written":
+      return lines(
+        [result.id],
+        `wrote ${bytes(content.text)} bytes, replacing ${result.replaced}`,
+      );
   }
 }
 

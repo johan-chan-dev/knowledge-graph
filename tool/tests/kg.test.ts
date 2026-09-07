@@ -44,7 +44,7 @@ const message = (outcome: Outcome) => outcome.kind === "ok" ? "" : outcome.messa
 
 Deno.test("outside a space, every command says so and exits 2", async () => {
   const { kg } = await space();
-  for (const argv of [["space"], ["nodes"]]) {
+  for (const argv of [["space", "show"], ["nodes", "list"]]) {
     const outcome = await kg(...argv);
     assertEquals(exitCode(outcome), 2, argv.join(" "));
     assertEquals(message(outcome), "no space here — run: kg space init");
@@ -72,7 +72,7 @@ Deno.test("a repository holds one space or none", async () => {
 Deno.test("the readout names the directory the space sits in", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
-  const outcome = await kg("space");
+  const outcome = await kg("space", "show");
   // The space stores no name of its own — it is read off the directory.
   assertMatch(stdout(outcome), new RegExp(`^${dir.split("/").pop()}\n`));
 });
@@ -82,7 +82,7 @@ Deno.test("the readout names the directory the space sits in", async () => {
 Deno.test("a string that is not a uuid is refused, never looked up", async () => {
   const { kg } = await space();
   // No space here at all: refusing before lookup is what makes this exit 1.
-  const outcome = await kg("node", "abc");
+  const outcome = await kg("node", "abc", "read");
   assertEquals(exitCode(outcome), 1);
   assertEquals(message(outcome), "not an id: abc — expected a uuid");
 });
@@ -90,7 +90,7 @@ Deno.test("a string that is not a uuid is refused, never looked up", async () =>
 Deno.test("a well-formed id that is not here is absent, and names the space", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
-  const outcome = await kg("node", "00000000-0000-7000-8000-000000000000");
+  const outcome = await kg("node", "00000000-0000-7000-8000-000000000000", "read");
   assertEquals(exitCode(outcome), 2);
   assertStringIncludes(message(outcome), `in ${dir.split("/").pop()}`);
 });
@@ -99,7 +99,7 @@ Deno.test("any uuid is well formed, not only the v7 the tool mints", async () =>
   const { kg } = await space();
   await kg("space", "init");
   // A v4 is a plausible id this tool never issued — honestly absent, not refused.
-  const outcome = await kg("node", crypto.randomUUID());
+  const outcome = await kg("node", crypto.randomUUID(), "read");
   assertEquals(exitCode(outcome), 2);
 });
 
@@ -110,37 +110,37 @@ Deno.test("write, read back byte for byte, and find it in the collection", async
   await kg("space", "init");
 
   const text = "Keeping the id in the filename\nmakes a rename impossible.\n";
-  const written = await pipe(dir, ["node", "write"], text);
+  const written = await pipe(dir, ["node", "new"], text);
   assertEquals(written.code, 0);
   const id = written.out.trim();
   assertMatch(id, /^[0-9a-f-]{36}$/);
   assertStringIncludes(written.err, "wrote 58 bytes");
 
-  const read = await kg("node", id);
+  const read = await kg("node", id, "read");
   assertEquals(stdout(read), text, "content must round-trip exactly");
 
-  const listed = await kg("nodes");
+  const listed = await kg("nodes", "list");
   assertEquals(stdout(listed), `${id}\n`);
 });
 
 Deno.test("replacing keeps the id and reports what it displaced", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
-  const id = (await pipe(dir, ["node", "write"], "first draft\n")).out.trim();
+  const id = (await pipe(dir, ["node", "new"], "first draft\n")).out.trim();
 
-  const again = await pipe(dir, ["node", "write", id], "second\n");
+  const again = await pipe(dir, ["node", id, "write"], "second\n");
   assertEquals(again.out.trim(), id, "the id it wrote comes back");
   assertStringIncludes(again.err, "wrote 7 bytes, replacing 12");
-  assertEquals(stdout(await kg("node", id)), "second\n");
+  assertEquals(stdout(await kg("node", id, "read")), "second\n");
 });
 
 Deno.test("write refuses an id that is not here rather than creating it", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
   const absent = "00000000-0000-7000-8000-000000000000";
-  const result = await pipe(dir, ["node", "write", absent], "content\n");
+  const result = await pipe(dir, ["node", absent, "write"], "content\n");
   assertEquals(result.code, 2);
-  assertEquals(stdout(await kg("nodes")), "", "nothing was created");
+  assertEquals(stdout(await kg("nodes", "list")), "", "nothing was created");
 });
 
 Deno.test("ids sort into creation order, to the millisecond", async () => {
@@ -148,10 +148,10 @@ Deno.test("ids sort into creation order, to the millisecond", async () => {
   await kg("space", "init");
   const made: string[] = [];
   for (let n = 0; n < 3; n++) {
-    made.push((await pipe(dir, ["node", "write"], `node ${n}\n`)).out.trim());
+    made.push((await pipe(dir, ["node", "new"], `node ${n}\n`)).out.trim());
     await new Promise((resolve) => setTimeout(resolve, 2));
   }
-  assertEquals(stdout(await kg("nodes")), made.join("\n") + "\n");
+  assertEquals(stdout(await kg("nodes", "list")), made.join("\n") + "\n");
 });
 
 // ── empty stdin ──────────────────────────────────────────────────────────────
@@ -159,34 +159,38 @@ Deno.test("ids sort into creation order, to the millisecond", async () => {
 Deno.test("an empty stdin refuses, and says how to mean it", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
-  const result = await pipe(dir, ["node", "write"], "");
+  const result = await pipe(dir, ["node", "new"], "");
   assertEquals(result.code, 1);
   assertStringIncludes(result.err, "pass --allow-empty for an empty node");
-  assertEquals(stdout(await kg("nodes")), "", "nothing was created");
+  assertEquals(stdout(await kg("nodes", "list")), "", "nothing was created");
 });
 
 Deno.test("an empty stdin cannot destroy a node's content by accident", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
-  const id = (await pipe(dir, ["node", "write"], "worth keeping\n")).out.trim();
+  const id = (await pipe(dir, ["node", "new"], "worth keeping\n")).out.trim();
 
-  const result = await pipe(dir, ["node", "write", id], "");
+  const result = await pipe(dir, ["node", id, "write"], "");
   assertEquals(result.code, 1);
-  assertEquals(stdout(await kg("node", id)), "worth keeping\n", "content survives");
+  assertEquals(
+    stdout(await kg("node", id, "read")),
+    "worth keeping\n",
+    "content survives",
+  );
 });
 
 Deno.test("--allow-empty is the escape hatch, for both create and replace", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
 
-  const made = await pipe(dir, ["node", "write", "--allow-empty"], "");
+  const made = await pipe(dir, ["node", "new", "--allow-empty"], "");
   assertEquals(made.code, 0);
   assertEquals(stdout(await kg("node", made.out.trim())), "");
 
-  const id = (await pipe(dir, ["node", "write"], "something\n")).out.trim();
-  const emptied = await pipe(dir, ["node", "write", id, "--allow-empty"], "");
+  const id = (await pipe(dir, ["node", "new"], "something\n")).out.trim();
+  const emptied = await pipe(dir, ["node", id, "write", "--allow-empty"], "");
   assertEquals(emptied.code, 0);
-  assertEquals(stdout(await kg("node", id)), "");
+  assertEquals(stdout(await kg("node", id, "read")), "");
 });
 
 // ── usage ────────────────────────────────────────────────────────────────────
@@ -194,15 +198,20 @@ Deno.test("--allow-empty is the escape hatch, for both create and replace", asyn
 Deno.test("asking for help succeeds; being wrong does not", async () => {
   const help = await run(["--help"]);
   assertEquals(exitCode(help), 0, "help answers on stdout and succeeds");
-  assertStringIncludes(stdout(help), "A bare scope reads");
+  assertStringIncludes(stdout(help), "names its scope, then what it does");
 
-  for (const argv of [["--nope"], ["nope"], ["node"], ["nodes", "extra"]]) {
+  for (
+    const argv of [["--nope"], ["nope"], ["node"], ["nodes"], ["nodes", "extra"], [
+      "space",
+    ]]
+  ) {
     assertEquals(exitCode(await run(argv)), 4, argv.join(" "));
   }
 });
 
-Deno.test("node takes one id — prose does not concatenate", async () => {
-  const outcome = await run(["node", "a", "b"]);
-  assertEquals(exitCode(outcome), 4);
-  assertStringIncludes(message(outcome), "prose does not concatenate");
+Deno.test("a scope needs an action, and an id needs one after it", async () => {
+  assertStringIncludes(message(await run(["node", "a", "b"])), "needs an action");
+  assertStringIncludes(message(await run(["space"])), "needs an action");
+  assertStringIncludes(message(await run(["node"])), "needs an id, or new");
+  assertStringIncludes(message(await run(["nodes"])), "takes one action");
 });

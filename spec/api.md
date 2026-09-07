@@ -8,25 +8,45 @@ built is in [`parked.md`](parked.md).
 ## Shape
 
 ```
-kg [-C <dir>] <scope> [action] [arguments] [--flags]
+kg [-C <dir>] <scope> [<id>] <action> [arguments] [--flags]
 ```
 
-**A bare scope reads. A scope with an action writes.** The first word says what
-the operation can touch before saying what it does — so `node` tells you one
-node is in play, and `nodes` tells you the collection is.
+**Every command names its scope, then what it does to it.** Nothing is bare —
+reading takes a verb like everything else, because a bare noun phrase reads as
+a thing rather than an instruction and stops parsing unambiguously the moment a
+third scope exists.
 
-Reading has no action because *no verb* is the honest name for fetching.
+**A scope names what the operation can touch, and never overstates or
+understates it.** That is the whole test, and it decides every name here:
 
-| scope | | |
-|---|---|---|
-| `space` | the one you are in | singular — you are inside it |
-| `nodes` | the collection | plural — you enumerate it |
-| `node` | one of them | singular — named by its id |
+| scope | touches |
+|---|---|
+| `space` | the space |
+| `nodes` | the collection — membership changes here |
+| `node <id>` | that node |
+
+So `nodes list` rather than `node list`: enumerating touches the collection, and
+a singular scope would claim otherwise. The redundancy of *nodes, list* is the
+price, and it is cheaper than a name that lies.
+
+**An id narrows the scope; it is never an argument to a verb.** `node <id>` is
+*this node*, addressed before anything is asked of it — which puts the id beside
+the noun it identifies rather than between a verb and what the verb acts on. The
+chain extends without new rules: a node's properties are `node <id> <property>
+<action>`, and any space-wide collection is `<plural> list`.
+
+`node` is the one scope with two shapes, because you cannot address what does
+not exist yet:
+
+```
+kg node new           no id — there isn't one
+kg node <id> …        an id — act on that one
+```
 
 ## space
 
 ```
-kg space              what and where this space is
+kg space show         what and where this space is
 kg space init         create one
 ```
 
@@ -48,7 +68,7 @@ unambiguous prior state — so `init` establishes that rather than assuming it.
 **A space stores no name of its own** — its name is the name of the directory
 holding it, read when anyone needs it. It never refers to itself.
 
-Bare `kg space` is the orientation call, and `space init` ends by printing the
+`kg space show` is the orientation call, and `space init` ends by printing the
 same readout: init's job is to leave you oriented, and the orientation call
 already exists.
 
@@ -65,7 +85,7 @@ ambiguous.
 ## nodes
 
 ```
-kg nodes              every id, in creation order
+kg nodes list         every id, in creation order
 ```
 
 **Parses nothing.** The id is the filename, so enumerating is a directory read.
@@ -80,30 +100,35 @@ answer, and a *no nodes yet* line would land in every script that counts lines.
 ## node
 
 ```
-kg node <id>              the content
-kg node write             create one — stdin is its content → prints the new id
-kg node write <id>        replace that node's content entirely
+kg node new               create one — stdin is its content → prints the new id
+kg node <id> read         the content
+kg node <id> write        stdin replaces the content
 ```
 
-**The prose is the node.** `kg node <id>` returns it and nothing else — no
-frontmatter, no id header, no separator. It is the only command whose stdout is
-data rather than a report, which is what lets it be piped into anything.
+**The prose is the node.** `read` returns it and nothing else — no properties,
+no id header, no separator. It is the only command whose stdout is data rather
+than a report, which is what lets it be piped into anything.
 
-**Ids are minted, never supplied.** `write` with no id creates and hands the id
-back. `write <id>` on an id that is not here **refuses rather than creating** —
-a caller cannot invent an id, so an unknown one means the node is gone or this
-is the wrong space, and creating it instead would turn a typo into a node.
+**`new` and `write` are different operations, not one with an optional id.**
+Creating changes what the collection contains; replacing does not. They sit in
+different shapes of the scope for that reason, and the distinction is visible in
+the command rather than inferred from whether an argument was supplied.
+
+**Ids are minted, never supplied.** `new` hands the id back. `<id> write` on an
+id that is not here **refuses rather than creating** — a caller cannot invent an
+id, so an unknown one means the node is gone or this is the wrong space, and
+creating it instead would turn a typo into a node.
 
 **Content arrives on stdin**, so it costs one call and no intermediate file:
 
 ```bash
-kg node write <<'EOF'
+kg node new <<'EOF'
 Keeping the id in the filename makes a rename impossible by construction.
 EOF
 ```
 
-**An empty stdin refuses.** `cmd | kg node write` where `cmd` failed and
-`kg node write </dev/null` are byte-identical requests meaning opposite things
+**An empty stdin refuses.** `cmd | kg node new` where `cmd` failed and
+`kg node new </dev/null` are byte-identical requests meaning opposite things
 — the shell erases the difference before the tool sees it — so the tool asks
 which was meant rather than guessing:
 
@@ -130,12 +155,12 @@ consumes is mixed with a message meant for a person.
 
 | | stdout | stderr |
 |---|---|---|
-| `space` | the readout | — |
+| `space show` | the readout | — |
 | `space init` | the readout | `initialised a git repository at …` *(only when it did)* |
-| `nodes` | one id per line | — |
-| `node <id>` | the content, byte for byte | `128 lines, 4.2 KB` |
-| `node write` | the new id | `wrote 74 bytes` |
-| `node write <id>` | that id | `wrote 74 bytes, replacing 210` |
+| `nodes list` | one id per line | — |
+| `node <id> read` | the content, byte for byte | `128 lines, 4.2 KB` |
+| `node new` | the new id | `wrote 74 bytes` |
+| `node <id> write` | that id | `wrote 74 bytes, replacing 210` |
 
 **Every operation reports its own magnitude on stderr.** Read says what you got,
 write says what you displaced. The read line is how a caller knows whether it
@@ -152,11 +177,17 @@ nodes live, how one is serialised, what divides its frontmatter from its prose �
 all of it is the tool's business, which is what lets any of it change without
 breaking a caller.
 
-**A space has a location; a node does not.** `kg space` reports where the space
+**A space has a location; a node does not.** `kg space show` reports where it
 is because a person navigates there — it is a repository, and git, an editor and
 a shell all need it. Inside it nothing is addressable but by id.
 
 **Ids in, ids out.** An id is the only handle on a node.
+
+**Names are long, because the caller is an agent.** `--properties` rather than
+`--props`, `--allow-empty` rather than `-e`. A flag is typed by a model far more
+often than by a person, and a model pays nothing for length while an abbreviation
+costs it a guess. Terseness is a convenience for hands, and there are hardly any
+here.
 
 **Validation precedes lookup**, so a refused call cannot have touched anything.
 
@@ -201,7 +232,7 @@ contract.
 **No query language.** Expressive enough for the hardest view is a larger thing
 than the practices it would serve.
 
-**`find` is not `nodes`.** Filtering narrows a known set; `find` would locate an
+**`find` is not `nodes list`.** Filtering narrows a known set; `find` would locate an
 unknown one. The name is kept free for retrieval, which is a different operation
 and an open question.
 

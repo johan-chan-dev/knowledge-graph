@@ -1,47 +1,44 @@
 import { parseArgs } from "@std/cli/parse-args";
 import { exitCode, lines, type Outcome, usage } from "./outcome.ts";
-import { node, nodes, nodeWrite, space, spaceInit, type Stdin } from "./commands.ts";
+import {
+  node,
+  nodeNew,
+  nodes,
+  nodeWrite,
+  space,
+  spaceInit,
+  type Stdin,
+} from "./commands.ts";
 
-/** One table. Dispatch reads it, and so does help — so the two cannot drift. */
-const SCOPES = {
-  space: {
-    summary: "what and where this space is",
-    actions: { init: "create one" },
-  },
-  nodes: {
-    summary: "every id, in creation order",
-    actions: {},
-  },
-  node: {
-    summary: "<id> — the content",
-    actions: { write: "[<id>] — stdin is the content" },
-  },
-} as const;
-
-type Scope = keyof typeof SCOPES;
-const isScope = (s: string): s is Scope => s in SCOPES;
+/** One table. Dispatch reads it, and so does help — so the two cannot drift.
+ *
+ * A scope names what the operation can touch and never overstates it, which is
+ * why enumerating is `nodes list` and not `node list`. An id narrows the scope
+ * rather than arguing a verb, so it sits beside the noun it identifies. */
+const FORMS = [
+  ["space show", "what and where this space is"],
+  ["space init", "create one"],
+  ["nodes list", "every id, in creation order"],
+  ["node new", "create one — stdin is its content"],
+  ["node <id> read", "the content"],
+  ["node <id> write", "stdin replaces the content"],
+] as const;
 
 function help(): string {
-  const forms: [string, string][] = [];
-  for (const [scope, spec] of Object.entries(SCOPES)) {
-    forms.push([`kg ${scope}`, spec.summary]);
-    for (const [action, summary] of Object.entries(spec.actions)) {
-      forms.push([`kg ${scope} ${action}`, summary]);
-    }
-  }
-  const width = Math.max(...forms.map(([form]) => form.length));
-  const out = ["kg — knowledge graph files", "", "Scopes:"];
-  for (const [form, summary] of forms) out.push(`  ${form.padEnd(width)}   ${summary}`);
-  out.push(
+  const width = Math.max(...FORMS.map(([form]) => form.length));
+  return [
+    "kg — knowledge graph files",
     "",
-    "A bare scope reads. A scope with an action writes.",
+    "Commands:",
+    ...FORMS.map(([form, summary]) => `  kg ${form.padEnd(width)}   ${summary}`),
+    "",
+    "Every command names its scope, then what it does to it.",
     "",
     "Global:",
     "  -C <dir>        run as if from there",
-    "  --allow-empty   let node write store nothing",
+    "  --allow-empty   let a write store nothing",
     "  --help",
-  );
-  return out.join("\n");
+  ].join("\n");
 }
 
 async function stdin(): Promise<Stdin> {
@@ -77,31 +74,45 @@ export async function run(argv: string[]): Promise<Outcome> {
   // `-C` is git's: run this as if from there, resolved before anything else.
   const cwd = flags.C ?? Deno.cwd();
   const [scope, ...rest] = flags._.map(String);
-
   if (scope === undefined) return usage(help());
-  if (!isScope(scope)) return usage(`unknown scope: ${scope}\n\n${help()}`);
 
   switch (scope) {
     case "space": {
-      const [action] = rest;
-      if (action === undefined) return await space(cwd);
+      const [action, ...extra] = rest;
+      if (extra.length > 0) return usage(`space ${action} takes no arguments`);
+      if (action === "show") return await space(cwd);
       if (action === "init") return await spaceInit(cwd);
-      return usage(`unknown action: space ${action}\n\n${help()}`);
+      return usage(`space needs an action: show, init\n\n${help()}`);
     }
+
     case "nodes": {
-      if (rest.length > 0) return usage(`nodes takes no arguments\n\n${help()}`);
+      const [action, ...extra] = rest;
+      if (action !== "list" || extra.length > 0) {
+        return usage(`nodes takes one action: list\n\n${help()}`);
+      }
       return await nodes(cwd);
     }
+
+    // `node` is the one scope with two shapes: you cannot address what does not
+    // exist yet, so `new` stands where an id otherwise would.
     case "node": {
-      const [first, ...more] = rest;
-      if (first === "write") {
-        if (more.length > 1) return usage("node write takes at most one id");
-        return await nodeWrite(cwd, more[0] ?? null, await stdin(), flags["allow-empty"]);
+      const [first, ...rest2] = rest;
+      if (first === undefined) return usage(`node needs an id, or new\n\n${help()}`);
+      if (first === "new") {
+        if (rest2.length > 0) return usage("node new takes no arguments");
+        return await nodeNew(cwd, await stdin(), flags["allow-empty"]);
       }
-      if (first === undefined) return usage("node needs an id\n\n" + help());
-      if (more.length > 0) return usage("node takes one id — prose does not concatenate");
-      return await node(cwd, first);
+      const [action, ...extra] = rest2;
+      if (extra.length > 0) return usage(`node <id> ${action} takes no arguments`);
+      if (action === "read") return await node(cwd, first);
+      if (action === "write") {
+        return await nodeWrite(cwd, first, await stdin(), flags["allow-empty"]);
+      }
+      return usage(`node <id> needs an action: read, write\n\n${help()}`);
     }
+
+    default:
+      return usage(`unknown scope: ${scope}\n\n${help()}`);
   }
 }
 

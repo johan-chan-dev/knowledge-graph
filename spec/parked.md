@@ -7,8 +7,8 @@ use. [`api.md`](api.md) is what the tool actually offers.
 ## Partial reads
 
 ```
-kg node <id> --lines A-B        a slice
-kg node <id> --number           line numbers in the margin
+kg node <id> read --lines A-B        a slice
+kg node <id> read --number           line numbers in the margin
 ```
 
 stderr becomes `lines 40-60 of 128` — which is how a caller knows where it is in
@@ -20,8 +20,8 @@ hand is where an off-by-one comes from.
 ## Partial writes, and the token that guards them
 
 ```
-kg node append   <id>                               at the end
-kg node replace  <id> --lines A-B --expect <hash>   a slice
+kg node <id> append                               at the end
+kg node <id> replace --lines A-B --expect <hash>   a slice
 ```
 
 **An operation that depends on positions must say what it expects.** Line
@@ -84,10 +84,24 @@ and neither is true until labels arrive.
 ## Labels
 
 ```
-kg labels <id>...                    read
-kg labels add    <id> <name>...      add
-kg labels remove <id> <name>...      remove
+kg node <id> read --properties       the node's properties, rendered
+kg node <id> labels add    <name>...
+kg node <id> labels remove <name>...
+kg labels list                       every label in use, across the space
 ```
+
+**Reading properties is a flip of `read`, not a command of its own.** stdout is
+one half of a node or the other, never both — so `--properties` swaps which,
+and stderr stays about the operation either way. A separate `labels read` would
+be a third way to ask a question `read` already answers.
+
+**The output is rendered, not the stored block.** `labels: auth, pattern`, not
+the frontmatter — printing the block would leak the format and invite parsing
+it, where a rendering is the tool answering rather than showing its file.
+
+**Writing is per-property where reading is whole.** You add a label, not "a
+property", so `labels add` names what it touches while `read --properties`
+returns everything a node has.
 
 A label is a **lowercase hyphenated token** — `[a-z0-9]+(-[a-z0-9]+)*`. The tool
 validates the shape and never the meaning.
@@ -101,17 +115,17 @@ nobody ever writes `is_x: false`.
 **Idempotent.** Adding one already present, or removing one absent, is the end
 state that was asked for.
 
-**Removing the last label removes the key**, leaving exactly what `node write`
+**Removing the last label removes the key**, leaving exactly what `node new`
 writes with no labels. A node that once had labels must be indistinguishable
 from one that never did; `labels: []` would be a residue of history.
 
 ## Filtering the collection
 
 ```
-kg nodes --with-label     <name>           carries it              (exactly one)
-kg nodes --with-labels    <name>...        carries all of them
-kg nodes --without-label  <name>
-kg nodes --without-labels <name>...        carries none of them
+kg nodes list --with-label     <name>      carries it              (exactly one)
+kg nodes list --with-labels    <name>...   carries all of them
+kg nodes list --without-label  <name>
+kg nodes list --without-labels <name>...   carries none of them
 ```
 
 **Filtering opens every file**, where bare `nodes` is a directory read — so this
