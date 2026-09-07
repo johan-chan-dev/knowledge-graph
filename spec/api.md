@@ -102,8 +102,25 @@ Keeping the id in the filename makes a rename impossible by construction.
 EOF
 ```
 
-With stdin at a terminal the node is created empty. That is the hand-creation
-case, not the normal one.
+**An empty stdin refuses.** `cmd | kg node write` where `cmd` failed and
+`kg node write </dev/null` are byte-identical requests meaning opposite things
+— the shell erases the difference before the tool sees it — so the tool asks
+which was meant rather than guessing:
+
+```
+no content on stdin — pipe content in, or pass --allow-empty for an empty node
+```
+
+Stdin at a terminal is the same end state and refuses the same way, so the tool
+never hangs waiting on one and never quietly mints something nobody asked for.
+
+**It matters most when replacing.** Accepting an empty stdin there turns a
+silent upstream failure into a node's content destroyed and reported as success;
+creating an empty node by accident is only litter. So both refuse, and
+`--allow-empty` is the escape hatch for either.
+
+`--allow-empty` resolves an ambiguous *call*. The tool acquires no opinion about
+content — it will store nothing, once you have said that is what you meant.
 
 ## Across every command
 
@@ -128,17 +145,6 @@ agent that meant to extend a node catches itself having shrunk it.
 **Every write returns the id of the node it wrote.** Creating is the case where
 that id is new information; the rest is the same rule applied uniformly, which
 costs one line and removes every special case.
-
-**`--json` is format, never a selector.** Same content, structured. The stderr
-advisories stay prose under it — they are confirmations rather than answers, and
-moving them into the object would make the flag select.
-
-```
-space  →  { "name": …, "root": …, "branch": …, "nodes": 47 }
-nodes  →  [ { "id": …, "created": … }, … ]
-node   →  { "id": …, "content": … }
-write  →  { "id": … }
-```
 
 **Every read and every write goes through the tool.** No command hands back a
 filesystem location, and nothing outside the tool has cause to know one. Where

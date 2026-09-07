@@ -1,2 +1,2 @@
-# built by `deno task compile`
-kg
+# `deno task compile` writes here
+build/
