@@ -81,64 +81,46 @@ content in an escaped string is strictly worse than handing it over byte for
 byte. JSON earns its place when a value can contain a newline or a shape nests,
 and neither is true until labels arrive.
 
+## Properties that hold a list
+
+```
+kg node <id> add    <name> <value>...      elements into its list
+kg node <id> remove <name> <value>...      elements out of it
+kg nodes list --contains <name>=<value>    the list includes it
+```
+
+**`set`/`unset` are about the property; `add`/`remove` are about its contents.**
+The shape follows from the verb rather than from how many values were passed, so
+`set labels auth` is a scalar and `add labels auth` is a one-element list — the
+same principle as a flag's name stating its arity.
+
+**`add` on a property that is a scalar refuses** — `cannot add to labels: not a
+list`. Promoting `auth` to `[auth, pattern]` silently would be the tool deciding
+what was meant.
+
+**`remove` taking the last element removes the key**, leaving exactly what a node
+that never had it looks like. A property emptied must be indistinguishable from
+one never set; `labels: []` would be a residue of history.
+
+**Filtering a list needs its own predicate.** `--where labels=auth` would have to
+mean *equals* for a scalar and *contains* for a list — one operator, two
+meanings. `--contains` says what it does.
+
 ## Labels
 
-```
-kg node <id> read --properties       the node's properties, rendered
-kg node <id> labels add    <name>...
-kg node <id> labels remove <name>...
-kg labels list                       every label in use, across the space
-```
+**Labels may not need to be a word the tool knows.** A label is a property named
+`labels` whose value is a list, and every operation labels wanted falls out of
+lists: `labels add auth` is `add labels auth`, `--with-label auth` is `--contains
+labels=auth`, and removing the last one removing the key is the list rule.
 
-**Reading properties is a flip of `read`, not a command of its own.** stdout is
-one half of a node or the other, never both — so `--properties` swaps which,
-and stderr stays about the operation either way. A separate `labels read` would
-be a third way to ask a question `read` already answers.
+What remains that is genuinely *about labels* is the token shape on their
+**values** — `[a-z0-9]+(-[a-z0-9]+)*`, so a word two people must arrive at
+independently cannot need quoting. Whether the substrate enforces that, or a
+practice does, is the open question: a tool that validates `labels` specially
+knows the word `labels`, which is the thing slot discipline says it should not.
 
-**The output is rendered, not the stored block.** `labels: auth, pattern`, not
-the frontmatter — printing the block would leak the format and invite parsing
-it, where a rendering is the tool answering rather than showing its file.
-
-**Writing is per-property where reading is whole.** You add a label, not "a
-property", so `labels add` names what it touches while `read --properties`
-returns everything a node has.
-
-A label is a **lowercase hyphenated token** — `[a-z0-9]+(-[a-z0-9]+)*`. The tool
-validates the shape and never the meaning.
-
-**Labels are the only classification the tool has.** A node's nature, a
-practice's kinds, ordinary grouping — all of it is labels, and the tool
-understands none of the values. There is no node type, no classifying directory,
-and no `is_x: true`, which would be a label wearing a property's clothes since
-nobody ever writes `is_x: false`.
-
-**Idempotent.** Adding one already present, or removing one absent, is the end
-state that was asked for.
-
-**Removing the last label removes the key**, leaving exactly what `node new`
-writes with no labels. A node that once had labels must be indistinguishable
-from one that never did; `labels: []` would be a residue of history.
-
-## Filtering the collection
-
-```
-kg nodes list --with-label     <name>      carries it              (exactly one)
-kg nodes list --with-labels    <name>...   carries all of them
-kg nodes list --without-label  <name>
-kg nodes list --without-labels <name>...   carries none of them
-```
-
-**Filtering opens every file**, where bare `nodes` is a directory read — so this
-is where the reader first runs over a whole space.
-
-**Names are positional after the flag**, never a flag value. That works only
-because `nodes` has no positional argument of its own, so everything up to the
-next flag is a name.
-
-**A flag's name states its arity.** `--with-label` takes exactly one and refuses
-a second, naming the flag that was wanted. Violating a name is a usage error
-rather than a quiet success. Giving both spellings at once is refused too —
-there is no sensible reading to pick between.
+A vocabulary view — every label in use across the space, with counts — is the
+other piece, and it waits on the same answer.
 
 ## Node lifecycle beyond creation
 
@@ -151,5 +133,6 @@ moment they do. Building it now means building it twice.
 ## Further out
 
 Relations. Dependencies between spaces — `mount`, `unmount`, `obtain`, and the
-manifest that declares them. Integrity checking. Arbitrary frontmatter fields
-(`set` / `unset`) and whatever policy decides which are legitimate.
+manifest that declares them. Integrity checking. Whatever policy decides which
+properties are legitimate — a practice-blind tool cannot know a field is a
+forgery, and the guard for that lives above this layer.

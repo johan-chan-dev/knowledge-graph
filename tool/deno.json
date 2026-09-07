@@ -8,6 +8,7 @@
     "compile": "deno compile --allow-read --allow-write --allow-run --output build/kg src/main.ts"
   },
   "imports": {
+    "@std/yaml": "jsr:@std/yaml@^1",
     "@std/uuid": "jsr:@std/uuid@^1",
     "@std/cli": "jsr:@std/cli@^1",
     "@std/path": "jsr:@std/path@^1",

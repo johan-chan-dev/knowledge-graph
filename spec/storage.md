@@ -71,6 +71,11 @@ nothing else. The default schema turns `2027-01-01` into a date, which would be
 the tool deciding what a field it has never heard of means. The reader is held
 to it from the start, before anything writes such a value.
 
+**A property's value is stored as a string, always.** The serialiser quotes
+only what would otherwise change type on the way back — `hello world` stays
+bare, `'42'` and `'2027-01-01'` keep their quotes. Those quotes are the tool
+*preserving* that it was handed text, not deciding what the text means.
+
 **Splitting frontmatter is a regex and one `parse` call.** `@std/front-matter`
 was dropped for this: its `extract()` accepts no options, so there is no way to
 hold the parser to the core schema through it.
@@ -96,7 +101,8 @@ interrupted rewrite would corrupt the one thing the tool is custodian of. Rename
 is atomic on every filesystem that matters; write-in-place is not.
 
 **Serialisation is canonical** — frontmatter keys alphabetical, `flowLevel: 1`
-so a sequence stays on one line. The tool is the only writer, so canonical
+so a sequence stays on one line. A property write is read-modify-write over the
+whole block: every other key survives it, and so does the content. The tool is the only writer, so canonical
 output costs nothing and keeps diffs minimal.
 
 **A key with nothing in it is removed, not emptied**, so a node whose last

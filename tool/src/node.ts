@@ -1,4 +1,5 @@
 import { join } from "@std/path";
+import { parse as parseYaml, stringify as toYaml } from "@std/yaml";
 import { validate as isUuid } from "@std/uuid";
 import { generate as mint } from "@std/uuid/v7";
 import type { Space } from "./space.ts";
@@ -20,6 +21,40 @@ export { mint };
 const fileOf = (space: Space, id: string): string => join(space.nodes, `${id}.md`);
 
 type Split = { readonly frontmatter: string; readonly content: string };
+
+/** A property's value is stored as a string, always. The serialiser quotes only
+ * what would otherwise change type on the way back, so those quotes preserve
+ * that the tool was handed text rather than decide what the text means. */
+export type Properties = Record<string, string>;
+
+/** A lowercase hyphenated token. Anything needing quoting or escaping is a name
+ * that will eventually be typed wrong and fail by silently matching nothing. */
+const TOKEN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const isName = (s: string): boolean => TOKEN.test(s);
+
+/** Scalars are read under YAML 1.2 core — the default schema turns
+ * `2027-01-01` into a date, which would be the tool deciding what a field it
+ * has never heard of means. */
+function readProperties(frontmatter: string): Properties | null {
+  if (frontmatter.trim() === "") return {};
+  let parsed: unknown;
+  try {
+    parsed = parseYaml(frontmatter, { schema: "core" });
+  } catch {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const out: Properties = {};
+  for (const [name, value] of Object.entries(parsed)) out[name] = String(value);
+  return out;
+}
+
+/** Keys alphabetical, `flowLevel: 1` so a sequence stays on one line. The tool
+ * is the only writer, so canonical output costs nothing and keeps diffs minimal. */
+const writeProperties = (properties: Properties): string =>
+  Object.keys(properties).length === 0
+    ? ""
+    : toYaml(properties, { sortKeys: true, flowLevel: 1, lineWidth: -1 });
 
 function split(raw: string): Split | null {
   const match = OPEN.exec(raw);
@@ -110,4 +145,59 @@ export function measure(content: string): string {
     ? `${(size / 1024).toFixed(1)} KB`
     : `${(size / 1024 / 1024).toFixed(1)} MB`;
   return `${count} ${count === 1 ? "line" : "lines"}, ${human}`;
+}
+
+export type Props =
+  | { readonly kind: "read"; readonly properties: Properties }
+  | { readonly kind: "absent" }
+  | { readonly kind: "malformed" }
+  | { readonly kind: "unparseable" };
+
+export async function properties(space: Space, id: string): Promise<Props> {
+  let raw: string;
+  try {
+    raw = await Deno.readTextFile(fileOf(space, id));
+  } catch {
+    return { kind: "absent" };
+  }
+  const parts = split(raw);
+  if (parts === null) return { kind: "malformed" };
+  const found = readProperties(parts.frontmatter);
+  return found === null ? { kind: "unparseable" } : { kind: "read", properties: found };
+}
+
+/**
+ * Read-modify-write over the whole block: every other property survives, and so
+ * does the content. `null` removes the key, which is how a property emptied
+ * becomes indistinguishable from one never set.
+ */
+export type Amended =
+  | { readonly kind: "amended"; readonly had: boolean }
+  | { readonly kind: "absent" }
+  | { readonly kind: "malformed" }
+  | { readonly kind: "unparseable" };
+
+export async function amend(
+  space: Space,
+  id: string,
+  name: string,
+  value: string | null,
+): Promise<Amended> {
+  let raw: string;
+  try {
+    raw = await Deno.readTextFile(fileOf(space, id));
+  } catch {
+    return { kind: "absent" };
+  }
+  const parts = split(raw);
+  if (parts === null) return { kind: "malformed" };
+  const found = readProperties(parts.frontmatter);
+  if (found === null) return { kind: "unparseable" };
+
+  const had = name in found;
+  if (value === null) delete found[name];
+  else found[name] = value;
+
+  await atomically(fileOf(space, id), join_(writeProperties(found), parts.content));
+  return { kind: "amended", had };
 }

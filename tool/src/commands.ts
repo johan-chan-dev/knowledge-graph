@@ -1,7 +1,7 @@
 import { absent, lines, ok, type Outcome, refused } from "./outcome.ts";
 import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
-import { bytes, isId, measure, read, write } from "./node.ts";
+import { amend, bytes, isId, isName, measure, properties, read, write } from "./node.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -49,13 +49,92 @@ export async function spaceInit(cwd: string): Promise<Outcome> {
   }
 }
 
-export async function nodes(cwd: string): Promise<Outcome> {
+/** Three predicates and no more. No comparison operators, no `or`, and no
+ * negated values — `--without a=1` has two defensible readings, so it would
+ * need a rule nobody remembers. */
+export type Filter = {
+  /** `name` alone means merely present; with a value, equal to it. */
+  readonly where: readonly { name: string; value: string | null }[];
+  readonly without: readonly string[];
+};
+
+export const unfiltered = (filter: Filter): boolean =>
+  filter.where.length === 0 && filter.without.length === 0;
+
+export async function nodes(cwd: string, filter: Filter): Promise<Outcome> {
+  for (const { name } of filter.where) {
+    if (!isName(name)) {
+      return refused(
+        `not a property name: ${name} — expected a lowercase hyphenated token`,
+      );
+    }
+  }
+  for (const name of filter.without) {
+    if (!isName(name)) {
+      return refused(
+        `not a property name: ${name} — expected a lowercase hyphenated token`,
+      );
+    }
+  }
+
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  return lines(await ids(resolved.space));
+
+  const found = await ids(resolved.space);
+  // Bare, this parses nothing: the id is the filename. Filtered, it opens every
+  // file, which is where the tool first runs over a whole space.
+  if (unfiltered(filter)) return lines(found);
+
+  const kept: string[] = [];
+  const damaged: string[] = [];
+  for (const id of found) {
+    const props = await properties(resolved.space, id);
+    if (props.kind !== "read") {
+      // One damaged file must not make a space unfindable, and reporting is not
+      // the same as failing.
+      damaged.push(
+        `skipped ${id}: ${
+          props.kind === "malformed"
+            ? "no frontmatter block"
+            : "properties are not valid yaml"
+        }`,
+      );
+      continue;
+    }
+    if (matches(props.properties, filter)) kept.push(id);
+  }
+  return lines(kept, ...damaged);
 }
 
-export async function node(cwd: string, id: string): Promise<Outcome> {
+/** The tool compares strings and understands nothing — it does not know what
+ * `decided-by` names, only whether the text matches. */
+function matches(properties: Record<string, string>, filter: Filter): boolean {
+  for (const { name, value } of filter.where) {
+    if (!(name in properties)) return false;
+    if (value !== null && properties[name] !== value) return false;
+  }
+  for (const name of filter.without) {
+    if (name in properties) return false;
+  }
+  return true;
+}
+
+/** A refusal shared by every command that names a node whose file will not
+ * read — the caller asked about that node, so the tool cannot honour it. */
+function unreadable(id: string, kind: "malformed" | "unparseable"): Outcome {
+  return refused(
+    kind === "malformed"
+      ? `cannot read ${id}: no frontmatter block`
+      : `cannot read ${id}: properties are not valid yaml`,
+  );
+}
+
+export async function node(
+  cwd: string,
+  id: string,
+  asProperties: boolean,
+): Promise<Outcome> {
+  if (asProperties) return await nodeProperties(cwd, id);
   // Validation precedes lookup, so a refused call cannot have touched anything.
   if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
 
@@ -67,7 +146,7 @@ export async function node(cwd: string, id: string): Promise<Outcome> {
     case "absent":
       return absent(`no such node: ${id} in ${resolved.space.name}`);
     case "malformed":
-      return refused(`cannot read ${id}: no frontmatter block`);
+      return unreadable(id, "malformed");
     case "read":
       // stdout is the content, byte for byte — the only command whose output
       // is data rather than a report.
@@ -115,7 +194,7 @@ export async function nodeWrite(
     case "absent":
       return absent(`no such node: ${id} in ${resolved.space.name}`);
     case "malformed":
-      return refused(`cannot read ${id}: no frontmatter block`);
+      return unreadable(id, "malformed");
     case "written":
       return lines(
         [result.id],
@@ -158,4 +237,64 @@ function contentFrom(stdin: Stdin, allowEmpty: boolean): Content {
     };
   }
   return { kind: "content", text };
+}
+
+/** stdout is one half of a node or the other, never both. Rendered rather than
+ * the stored block: printing the frontmatter would leak the format and invite
+ * parsing it. */
+async function nodeProperties(cwd: string, id: string): Promise<Outcome> {
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+
+  const found = await properties(resolved.space, id);
+  switch (found.kind) {
+    case "absent":
+      return absent(`no such node: ${id} in ${resolved.space.name}`);
+    case "malformed":
+    case "unparseable":
+      return unreadable(id, found.kind);
+    case "read": {
+      const names = Object.keys(found.properties).sort();
+      return lines(
+        names.map((name) => `${name}: ${found.properties[name]}`),
+        `${names.length} ${names.length === 1 ? "property" : "properties"}`,
+      );
+    }
+  }
+}
+
+/** `set` and `unset` are about the property. The value is stored as given — the
+ * tool writes back the text it was handed and never decides what it means. */
+export async function nodeSet(
+  cwd: string,
+  id: string,
+  name: string,
+  value: string | null,
+): Promise<Outcome> {
+  if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
+  if (!isName(name)) {
+    return refused(
+      `not a property name: ${name} — expected a lowercase hyphenated token`,
+    );
+  }
+
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+
+  const result = await amend(resolved.space, id, name, value);
+  switch (result.kind) {
+    case "absent":
+      return absent(`no such node: ${id} in ${resolved.space.name}`);
+    case "malformed":
+    case "unparseable":
+      return unreadable(id, result.kind);
+    case "amended":
+      // Removing a property that is absent is the end state that was asked for.
+      return lines(
+        [id],
+        value === null
+          ? (result.had ? `unset ${name}` : `${name} was not set`)
+          : `set ${name}`,
+      );
+  }
 }

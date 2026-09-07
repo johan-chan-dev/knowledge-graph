@@ -4,6 +4,7 @@ import {
   node,
   nodeNew,
   nodes,
+  nodeSet,
   nodeWrite,
   space,
   spaceInit,
@@ -19,9 +20,14 @@ const FORMS = [
   ["space show", "what and where this space is"],
   ["space init", "create one"],
   ["nodes list", "every id, in creation order"],
+  ["nodes list --where <name>[=<value>]", "…that carry it"],
+  ["nodes list --without <name>", "…that do not"],
   ["node new", "create one — stdin is its content"],
   ["node <id> read", "the content"],
+  ["node <id> read --properties", "the properties instead"],
   ["node <id> write", "stdin replaces the content"],
+  ["node <id> set <name> <value>", "write one property"],
+  ["node <id> unset <name>", "remove one"],
 ] as const;
 
 function help(): string {
@@ -37,6 +43,7 @@ function help(): string {
     "Global:",
     "  -C <dir>        run as if from there",
     "  --allow-empty   let a write store nothing",
+    "  --properties    read a node's properties instead of its content",
     "  --help",
   ].join("\n");
 }
@@ -58,8 +65,9 @@ async function stdin(): Promise<Stdin> {
 export async function run(argv: string[]): Promise<Outcome> {
   let unknownFlag: string | null = null;
   const flags = parseArgs(argv, {
-    boolean: ["help", "allow-empty"],
-    string: ["C"],
+    boolean: ["help", "allow-empty", "properties"],
+    string: ["C", "where", "without"],
+    collect: ["where", "without"],
     unknown: (arg) => {
       if (arg.startsWith("-")) unknownFlag = arg;
       return true;
@@ -73,6 +81,19 @@ export async function run(argv: string[]): Promise<Outcome> {
 
   // `-C` is git's: run this as if from there, resolved before anything else.
   const cwd = flags.C ?? Deno.cwd();
+
+  /** `collect` yields undefined for a flag that was never passed, one value for
+   * a flag passed once, and an array beyond that. */
+  const many = (value: unknown): string[] =>
+    value === undefined ? [] : Array.isArray(value) ? value.map(String) : [String(value)];
+
+  /** `--where name` is merely present; `--where name=value` is equal to it. */
+  const split = (clause: string) => {
+    const at = clause.indexOf("=");
+    return at === -1
+      ? { name: clause, value: null }
+      : { name: clause.slice(0, at), value: clause.slice(at + 1) };
+  };
   const [scope, ...rest] = flags._.map(String);
   if (scope === undefined) return usage(help());
 
@@ -90,7 +111,10 @@ export async function run(argv: string[]): Promise<Outcome> {
       if (action !== "list" || extra.length > 0) {
         return usage(`nodes takes one action: list\n\n${help()}`);
       }
-      return await nodes(cwd);
+      return await nodes(cwd, {
+        where: many(flags.where).map(split),
+        without: many(flags.without),
+      });
     }
 
     // `node` is the one scope with two shapes: you cannot address what does not
@@ -103,12 +127,29 @@ export async function run(argv: string[]): Promise<Outcome> {
         return await nodeNew(cwd, await stdin(), flags["allow-empty"]);
       }
       const [action, ...extra] = rest2;
-      if (extra.length > 0) return usage(`node <id> ${action} takes no arguments`);
-      if (action === "read") return await node(cwd, first);
+      if (extra.length > 0 && action !== "set" && action !== "unset") {
+        return usage(`node <id> ${action} takes no arguments`);
+      }
+      if (action === "read") return await node(cwd, first, flags.properties);
       if (action === "write") {
         return await nodeWrite(cwd, first, await stdin(), flags["allow-empty"]);
       }
-      return usage(`node <id> needs an action: read, write\n\n${help()}`);
+      if (action === "set") {
+        const [name, ...value] = extra;
+        if (name === undefined || value.length === 0) {
+          return usage("node <id> set needs a name and a value");
+        }
+        return await nodeSet(cwd, first, name, value.join(" "));
+      }
+      if (action === "unset") {
+        const [name, ...rest3] = extra;
+        if (name === undefined) return usage("node <id> unset needs a name");
+        if (rest3.length > 0) return usage("node <id> unset takes one name");
+        return await nodeSet(cwd, first, name, null);
+      }
+      return usage(
+        `node <id> needs an action: read, write, set, unset\n\n${help()}`,
+      );
     }
 
     default:

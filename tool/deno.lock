@@ -8,7 +8,8 @@
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "jsr:@std/internal@^1.0.14": "1.0.14",
     "jsr:@std/path@1": "1.1.6",
-    "jsr:@std/uuid@1": "1.1.1"
+    "jsr:@std/uuid@1": "1.1.1",
+    "jsr:@std/yaml@1": "1.2.0"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -41,6 +42,9 @@
         "jsr:@std/bytes",
         "jsr:@std/crypto"
       ]
+    },
+    "@std/yaml@1.2.0": {
+      "integrity": "20beb41e4983ba3437dbefac62b14061ab058e8a187596f19d28ff9035f6e6cf"
     }
   },
   "workspace": {
@@ -48,7 +52,8 @@
       "jsr:@std/assert@1",
       "jsr:@std/cli@1",
       "jsr:@std/path@1",
-      "jsr:@std/uuid@1"
+      "jsr:@std/uuid@1",
+      "jsr:@std/yaml@1"
     ]
   }
 }

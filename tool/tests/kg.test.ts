@@ -215,3 +215,172 @@ Deno.test("a scope needs an action, and an id needs one after it", async () => {
   assertStringIncludes(message(await run(["node"])), "needs an id, or new");
   assertStringIncludes(message(await run(["nodes"])), "takes one action");
 });
+
+// ── properties ───────────────────────────────────────────────────────────────
+
+/** Every property test needs a node with content, so it can check the content
+ * survived — which is the batch-1 path that had no way to be tested. */
+async function seeded(text = "worth keeping\n") {
+  const made = await space();
+  await made.kg("space", "init");
+  const id = (await pipe(made.dir, ["node", "new"], text)).out.trim();
+  return { ...made, id };
+}
+
+Deno.test("set writes a property and leaves the content alone", async () => {
+  const { kg, id } = await seeded();
+  const set = await kg("node", id, "set", "kind", "decision");
+  assertEquals(exitCode(set), 0);
+  assertEquals(stdout(set), `${id}\n`, "a write returns the id it wrote");
+
+  assertEquals(stdout(await kg("node", id, "read", "--properties")), "kind: decision\n");
+  assertEquals(stdout(await kg("node", id, "read")), "worth keeping\n");
+});
+
+Deno.test("write replaces the content and leaves the properties alone", async () => {
+  const { dir, kg, id } = await seeded();
+  await kg("node", id, "set", "kind", "decision");
+
+  await pipe(dir, ["node", id, "write"], "rewritten\n");
+  assertEquals(stdout(await kg("node", id, "read")), "rewritten\n");
+  // The batch-1 preserve step, observable for the first time.
+  assertEquals(stdout(await kg("node", id, "read", "--properties")), "kind: decision\n");
+});
+
+Deno.test("properties are stored as given and never retyped", async () => {
+  const { kg, id } = await seeded();
+  await kg("node", id, "set", "valid-until", "2027-01-01");
+  await kg("node", id, "set", "count", "42");
+  // Under the default YAML schema the first would come back a Date and the
+  // second a number, which would be the tool deciding what a field it has
+  // never heard of means.
+  assertEquals(
+    stdout(await kg("node", id, "read", "--properties")),
+    "count: 42\nvalid-until: 2027-01-01\n",
+  );
+});
+
+Deno.test("properties come back in a stable order, whatever order they went in", async () => {
+  const { kg, id } = await seeded();
+  for (const name of ["zulu", "alpha", "mike"]) await kg("node", id, "set", name, "x");
+  assertEquals(
+    stdout(await kg("node", id, "read", "--properties")),
+    "alpha: x\nmike: x\nzulu: x\n",
+  );
+});
+
+Deno.test("unset removes one, is idempotent, and says which it was", async () => {
+  const { kg, id } = await seeded();
+  await kg("node", id, "set", "kind", "decision");
+  await kg("node", id, "set", "other", "keep");
+
+  const first = await kg("node", id, "unset", "kind");
+  assert(first.kind === "ok" && first.notes.join().includes("unset kind"));
+
+  const again = await kg("node", id, "unset", "kind");
+  assertEquals(exitCode(again), 0, "removing what is absent is the end state asked for");
+  assert(again.kind === "ok" && again.notes.join().includes("was not set"));
+
+  assertEquals(stdout(await kg("node", id, "read", "--properties")), "other: keep\n");
+});
+
+Deno.test("a node with no properties prints nothing", async () => {
+  const { kg, id } = await seeded();
+  const outcome = await kg("node", id, "read", "--properties");
+  assertEquals(exitCode(outcome), 0);
+  assertEquals(stdout(outcome), "");
+});
+
+Deno.test("a property name must be a lowercase hyphenated token", async () => {
+  const { kg, id } = await seeded();
+  for (const name of ["Valid_Until", "valid until", "trailing-", "with.dot"]) {
+    const outcome = await kg("node", id, "set", name, "x");
+    assertEquals(exitCode(outcome), 1, name);
+    assertStringIncludes(message(outcome), "expected a lowercase hyphenated token");
+  }
+  // A leading dash never reaches validation — the parser reads it as a flag,
+  // which is why a name shaped like one is unusable rather than merely refused.
+  assertEquals(exitCode(await kg("node", id, "set", "-leading", "x")), 4);
+  assertEquals(
+    stdout(await kg("node", id, "read", "--properties")),
+    "",
+    "nothing written",
+  );
+});
+
+// ── filtering ────────────────────────────────────────────────────────────────
+
+/** Three nodes: two decisions, one of them dated; one note. */
+async function seeded3() {
+  const made = await space();
+  await made.kg("space", "init");
+  const ids: string[] = [];
+  for (
+    const [kind, dated] of [["decision", true], ["decision", false], [
+      "note",
+      false,
+    ]] as const
+  ) {
+    const id = (await pipe(made.dir, ["node", "new"], `${kind}\n`)).out.trim();
+    await made.kg("node", id, "set", "kind", kind);
+    if (dated) await made.kg("node", id, "set", "valid-until", "2027-01-01");
+    ids.push(id);
+  }
+  return { ...made, ids };
+}
+
+const rows = (outcome: Outcome) => stdout(outcome).split("\n").filter(Boolean);
+
+Deno.test("three predicates: equals, present, absent", async () => {
+  const { kg, ids } = await seeded3();
+  assertEquals(rows(await kg("nodes", "list")).length, 3);
+  assertEquals(rows(await kg("nodes", "list", "--where", "kind=decision")), [
+    ids[0],
+    ids[1],
+  ]);
+  assertEquals(rows(await kg("nodes", "list", "--where", "valid-until")), [ids[0]]);
+  assertEquals(rows(await kg("nodes", "list", "--without", "valid-until")), [
+    ids[1],
+    ids[2],
+  ]);
+});
+
+Deno.test("filters are ANDed, and match nothing rather than erroring", async () => {
+  const { kg, ids } = await seeded3();
+  assertEquals(
+    rows(
+      await kg("nodes", "list", "--where", "kind=decision", "--without", "valid-until"),
+    ),
+    [ids[1]],
+  );
+  // A read command reports what it found rather than judging what it was asked.
+  const none = await kg("nodes", "list", "--where", "kind=nope");
+  assertEquals(exitCode(none), 0);
+  assertEquals(stdout(none), "");
+});
+
+Deno.test("a filter name is validated before any file is opened", async () => {
+  const { kg } = await seeded3();
+  const outcome = await kg("nodes", "list", "--where", "Bad_Name=x");
+  assertEquals(exitCode(outcome), 1);
+  assertStringIncludes(message(outcome), "expected a lowercase hyphenated token");
+});
+
+Deno.test("one damaged node does not make a space unfindable", async () => {
+  const { dir, kg, ids } = await seeded3();
+  await Deno.writeTextFile(`${dir}/.kg/nodes/${ids[2]}.md`, "no fence here at all\n");
+
+  const outcome = await kg("nodes", "list", "--where", "kind=decision");
+  assertEquals(exitCode(outcome), 0, "reporting is not the same as failing");
+  assertEquals(rows(outcome), [ids[0], ids[1]]);
+  assert(outcome.kind === "ok" && outcome.notes.join().includes(`skipped ${ids[2]}`));
+
+  // Asked about that node specifically, the tool cannot honour it.
+  assertEquals(exitCode(await kg("node", ids[2], "read")), 1);
+});
+
+Deno.test("a bare listing still parses nothing, damaged or not", async () => {
+  const { dir, kg, ids } = await seeded3();
+  await Deno.writeTextFile(`${dir}/.kg/nodes/${ids[2]}.md`, "no fence here at all\n");
+  assertEquals(rows(await kg("nodes", "list")).length, 3, "the id is the filename");
+});

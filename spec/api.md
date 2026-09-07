@@ -85,10 +85,31 @@ ambiguous.
 ## nodes
 
 ```
-kg nodes list         every id, in creation order
+kg nodes list                              every id, in creation order
+kg nodes list --where   <name>[=<value>]   the property equals, or merely exists
+kg nodes list --without <name>             the property is absent
 ```
 
-**Parses nothing.** The id is the filename, so enumerating is a directory read.
+**Bare, it parses nothing.** The id is the filename, so enumerating is a
+directory read. **Filtered, it opens every file** — which is where the tool
+first runs over a whole space.
+
+Both flags repeat and all of them are ANDed: `--where a=1 --where b --without c`
+is one conjunction.
+
+**Three predicates, and the boundary stops there.** No comparison operators, no
+`or`, and no negated values — `--without retired=2027-01-01` has two defensible
+readings (does it match a node with no `retired` at all?) so it would need a rule
+nobody remembers. Absence and inequality are different questions, and `--without
+<name>` answers the one with a single answer.
+
+**The tool compares strings and understands nothing.** It does not know what
+`decided-by` names, only whether the text matches. That is the slot discipline
+applied to reading.
+
+**A node that will not parse is skipped and named on stderr**, and the listing
+still exits `0`. One damaged file must not make a space unfindable, and
+reporting is not the same as failing.
 
 **No cap.** The space is the scope; one too large to enumerate is saying
 something about how the material is organised, and hiding that would hide the
@@ -100,9 +121,12 @@ answer, and a *no nodes yet* line would land in every script that counts lines.
 ## node
 
 ```
-kg node new               create one — stdin is its content → prints the new id
-kg node <id> read         the content
-kg node <id> write        stdin replaces the content
+kg node new                          create one — stdin is its content
+kg node <id> read                    the content
+kg node <id> read --properties       the properties instead
+kg node <id> write                   stdin replaces the content
+kg node <id> set   <name> <value>    write one property
+kg node <id> unset <name>            remove one
 ```
 
 **The prose is the node.** `read` returns it and nothing else — no properties,
@@ -147,6 +171,38 @@ creating an empty node by accident is only litter. So both refuse, and
 `--allow-empty` resolves an ambiguous *call*. The tool acquires no opinion about
 content — it will store nothing, once you have said that is what you meant.
 
+### Properties
+
+**stdout is one half of a node or the other, never both.** `--properties` swaps
+which; stderr stays about the operation either way. There is no third command
+for reading properties, because `read` already answers that question.
+
+```
+$ kg node 01997a3e-… read --properties
+decided-by: 01997b12-…
+valid-until: 2027-01-01
+```
+
+**Rendered, not the stored block.** Printing the frontmatter would leak the
+format and invite parsing it; a rendering is the tool answering rather than
+showing its file. A node with no properties prints nothing and exits `0`.
+
+**`set` and `unset` are about the property; the value is stored as given.** The
+tool writes back the text it was handed and compares text on the way out — it
+never decides that `42` is a number, for the same reason the reader is pinned to
+YAML 1.2 core.
+
+**A property name is a lowercase hyphenated token** — `[a-z0-9]+(-[a-z0-9]+)*`.
+Anything needing quoting or escaping is a name that will eventually be typed
+wrong and fail by silently matching nothing.
+
+**`unset` is idempotent.** Removing a property that is absent is the end state
+that was asked for.
+
+**Everything else about a node is untouched.** `set` rewrites one key; the
+content and every other property survive it, and so does the reverse — `write`
+replaces content and leaves properties alone.
+
 ## Across every command
 
 **stdout is the answer. stderr is everything else** — advisories, warnings,
@@ -159,6 +215,9 @@ consumes is mixed with a message meant for a person.
 | `space init` | the readout | `initialised a git repository at …` *(only when it did)* |
 | `nodes list` | one id per line | — |
 | `node <id> read` | the content, byte for byte | `128 lines, 4.2 KB` |
+| `node <id> read --properties` | one `name: value` per line | `3 properties` |
+| `node <id> set` | that id | `set valid-until` |
+| `node <id> unset` | that id | `unset valid-until`, or `valid-until was not set` |
 | `node new` | the new id | `wrote 74 bytes` |
 | `node <id> write` | that id | `wrote 74 bytes, replacing 210` |
 
@@ -215,6 +274,8 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | id is not a uuid | `not an id: abc — expected a uuid` | `1` |
 | id not here | `no such node: 01997a3e-… in knowledge-graph` | `2` |
 | no frontmatter fence | `cannot read 01997a3e-…: no frontmatter block` | `1` |
+| properties will not parse | `cannot read 01997a3e-…: properties are not valid yaml` | `1` |
+| bad property name | `not a property name: Valid_Until — expected a lowercase hyphenated token` | `1` |
 
 **The absent message names the space**, because *wrong space* is one of the two
 real causes and the caller cannot see which from the id alone.
