@@ -14,7 +14,8 @@ its rules move to the spec and its durable argument, if it has one, moves up to
 
 | | |
 |---|---|
-| [lists](lists.md) | a property that holds several values |
+| [lists](lists.md) | filtering a list by value |
+| [search](search.md) | the body, and presence tests over properties |
 | [labels](labels.md) | why they may never be a word the tool knows |
 | [partial-edits](partial-edits.md) | reading and writing part of a node, and the token that guards it |
 | [structured-output](structured-output.md) | `--json`, and why nothing needs it yet |

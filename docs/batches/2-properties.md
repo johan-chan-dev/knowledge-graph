@@ -64,6 +64,12 @@ Comparison is a coherent addition when something needs it, and the operator can
 carry the type without the storage taking a side — see
 [`design/parked/comparison.md`](../design/parked/comparison.md).
 
+**And it did not hold.** [Batch 3](3-lists.md) removes two of the three: the
+bare `--where <name>` was a presence test wearing a comparison word, and
+`--without` had no caller. What survives is `--where <name>=<value>`, the only
+predicate that never moved while the family reversed five times around it — see
+[search](../design/parked/search.md).
+
 **Whether a value has a type.** It does not. Text in, text out, compared as
 text. The serialiser quotes only what would otherwise change type coming back,
 so `'42'` and `'2027-01-01'` keep their quotes while `hello world` stays bare —
