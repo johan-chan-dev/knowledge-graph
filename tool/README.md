@@ -15,22 +15,29 @@ binary rather than the source, so a stale one would test the wrong program.
 
 ## Tests
 
-One file per subject, mirroring [`../docs/spec/api.md`](../docs/spec/api.md) —
-`space`, `nodes`, `node`, `properties`, `usage` — plus `helpers.ts` for the
-throwaway spaces and the stdin pipe.
+**Colocated where a test is about a module**, which is what the Deno style
+guide asks for and what `denoland/std` does throughout: `src/frontmatter.ts`
+next to `src/frontmatter_test.ts`.
 
-`batches.test.ts` is the exception and is organised by batch, because it asks a
-different question: not *is this behaviour right* but *does that batch's loop
-still close*. It runs the compiled binary; everything else calls the command
-function in process.
+Everything under `tests/` drives the command line rather than a function —
+`space`, `nodes`, `node`, `properties`, `usage` through the dispatch entry, and
+`tests/batches/` through the compiled binary. That split is deployctl's and
+fresh's shape: module tests beside their module, a `tests/` tree for the ones
+that need the program.
 
-**Deno rather than Bun** because Bun strips types rather than checking them, and
-compile-time checking of the refusal paths is the reason to be in TypeScript at
-all.
+`tests/batches/` holds one file per batch, numbered to match
+[`../docs/batches/`](../docs/batches/), so a failing loop names the document
+whose transcript needs revisiting. `binary_test.ts` is the one that is about no
+batch: that `deno compile` produces the same program the source does.
 
-**`@std/cli/parse-args` has no notion of subcommands** — it will take the first
-positional after a string flag as that flag's value.
+**No `unit/` or `integration/` directory.** Nothing in userland Deno names
+directories by test level, and the level is visible anyway from what a file
+imports. Where a harder guarantee is wanted, the Deno-native lever is
+`Deno.test({ permissions: … })` rather than a folder.
 
-The specification is [`../docs/spec/`](../docs/spec/); the reasoning behind it
-is [`../docs/design/`](../docs/design/), and how it got here is
-[`../docs/batches/`](../docs/batches/).
+`helpers.ts` and `batches/spawn.ts` carry no `_test` in their names, so
+`deno test` does not collect them.
+
+---
+
+[docs](../docs/README.md) · [spec](../docs/spec/) · [design](../docs/design/) · [batches](../docs/batches/)

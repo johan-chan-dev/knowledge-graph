@@ -46,7 +46,7 @@ notes
 
 Make a space, put material in it, find it again, read it back, replace it —
 and no file was opened by hand. **Backed by `batch 1 — a space, and nodes in
-it`** in [`tool/tests/batches.test.ts`](../../tool/tests/batches.test.ts): if the surface
+it`** in [`tool/tests/batches/1_test.ts`](../../tool/tests/batches/1_test.ts): if the surface
 moves, that test fails before this page goes stale.
 
 Two things to notice. `kg node new` prints only the id, because the id is the

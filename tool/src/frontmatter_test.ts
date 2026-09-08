@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import * as frontmatter from "../../src/frontmatter.ts";
+import * as frontmatter from "./frontmatter.ts";
 
 // What a node file is made of — reachable with a string, expensive to reach
 // through a filesystem and a command line.

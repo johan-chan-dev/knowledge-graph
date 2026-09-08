@@ -42,7 +42,7 @@ not a property value: contains a control character — a value is a single line
 ```
 
 **Backed by** `batch 3 — a property can hold a list` in
-[`tool/tests/batches.test.ts`](../../tool/tests/batches.test.ts), alongside the
+[`tool/tests/batches/3_test.ts`](../../tool/tests/batches/3_test.ts), alongside the
 two batches before it.
 
 ## What building it forced

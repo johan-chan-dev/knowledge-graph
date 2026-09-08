@@ -21,9 +21,9 @@ Each document opens with a transcript of the loop that batch closes — what you
 type, and what comes back. A batch that cannot be illustrated in a dozen lines
 is too big.
 
-**Each illustration is backed by a test named for its batch**, in
-[`tool/tests/batches.test.ts`](../../tool/tests/batches.test.ts). The *done
-when* is not a sentence, it is something that passes or does not:
+**Each illustration is backed by its own test file** — one per batch, in
+[`tool/tests/batches/`](../../tool/tests/batches/), numbered to match. The
+*done when* is not a sentence, it is something that passes or does not:
 
 ```
 $ deno task verify

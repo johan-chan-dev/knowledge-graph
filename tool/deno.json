@@ -4,8 +4,9 @@
   "exports": "./src/main.ts",
   "tasks": {
     "check": "deno check src/main.ts",
-    "test": "deno task compile && deno test --allow-read --allow-write --allow-run",
-    "verify": "deno task compile && deno test --allow-read --allow-write --allow-run tests/batches.test.ts",
+    "test": "deno task compile && deno test --allow-read --allow-write --allow-run --parallel src tests",
+    "verify": "deno task compile && deno test --allow-read --allow-write --allow-run --parallel tests/batches",
+    "ok": "deno fmt --check && deno lint && deno task check && deno task test",
     "compile": "deno compile --allow-read --allow-write --allow-run --output build/kg src/main.ts"
   },
   "imports": {
