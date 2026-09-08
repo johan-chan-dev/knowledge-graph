@@ -130,6 +130,81 @@ identity is never withdrawn rests on relations, and relations do not exist yet �
 so deletion is honest while nothing can reference a node, and becomes wrong the
 moment they do. Building it now means building it twice.
 
+## Comparison and ordering
+
+`--where score>0.7`, and `--order-by score`.
+
+**The operator carries the type, not the storage.** `--where a=b` compares text;
+`--where a>b` compares numbers, and a value that is not numeric simply does not
+match. The file stays untyped — `set` still stores text and `read --properties`
+still returns it — so two callers can disagree about whether `score` is a number
+without the node taking a side. That is mechanically different from typing the
+property, and it keeps the tool ignorant of what `score` means.
+
+**This is not the road to a query language.** `=`, `>`, `<`, `>=`, `<=`,
+present and absent are bounded and mechanical. What `layers.md` declined was
+`or`, grouping, path expressions and entailment — the things that make a
+language. Conflating the two was a slippery-slope argument, and the slope is not
+there.
+
+**It waits on a practice.** Confidence scoring decides what corroboration is
+worth and how staleness decays; that is meaning, and it lives above this layer.
+The substrate's job is to narrow before the practice reads — `--where
+confidence<0.4` hands back a candidate set, and deciding what `confidence`
+should be is not its business.
+
+## A query language, if exploration outgrows the filters
+
+**Adopt openCypher's syntax rather than invent** — the same borrowing labels
+made from Neo4j. It waits on relations: `MATCH (n:Decision) WHERE n.score > 0.7`
+is a filter `--where` already covers, and the pattern syntax that justifies
+Cypher has nothing to traverse until edges exist.
+
+**Hand-write the subset.** Researched 2026-09-08, measured on this machine with
+`deno compile`:
+
+| route | binary | third-party deps |
+|---|---|---|
+| baseline (`console.log(1)`) | 64 MB | 0 |
+| hand-written subset | **64 MB** | **0** |
+| vendor Neo4j's generated parser + `npm:antlr4` | 73 MB | 1 |
+| `@neo4j-cypher/language-support` as a dependency | 147 MB | 3 |
+
+Recursive descent over `MATCH`/`WHERE`/`RETURN` is roughly 600–900 lines and
+yields an AST already shaped for the executor, rather than a 500-node ANTLR tree
+to lower. The ANTLR route earns its cost only if the tool must accept Cypher
+somebody else wrote — spec conformance, hostile input, a compatibility claim.
+
+**Parsing is the cheap half either way.** The expensive half is a planner and a
+store that can traverse. Neo4j is fast because of index-free adjacency —
+fixed-size records, `address = id × record_size`, memory-mapped. Over markdown
+files, `(a)-[*1..3]->(b)` across 10k nodes reads most of them repeatedly.
+
+### What the search found, so it is not re-run from memory
+
+- **JSR has nothing.** No Cypher, openCypher, GQL or ANTLR package exists there.
+- **`@neo4j/cypher-builder` is a builder, not a parser** — 192 exports, all AST
+  constructors, no `parse`. Confirmed by inspection.
+- **`libcypher-parser`** (C, Apache-2.0) is usable in principle but not here:
+  no WASM build, and its only bindings are `nan` addons, which Deno cannot load
+  — Deno supports Node-API only. Same for `cypher-parser` and `cypher.js`.
+- **`@dortdb/lang-cypher`** (ISC) works under Deno and returns a plain JSON AST,
+  the nicest output shape tested — but it is a four-star single-author project.
+- **Kùzu is archived** by its authors, 2025-10-10.
+
+**On staleness, measured rather than assumed.** `libcypher-parser`'s last
+functional commit is 2021-11-10, and openCypher has moved since: `1.0.0-M19`
+(2022-09-14) accepted **CIP2021-08-10 operator precedence** and CIP2021-07-07
+grouping keys, refactored pattern predicates and quantifiers, fixed
+`UnaryAddSubtractExpression`, and removed octal literals and list-to-boolean
+coercion. The `2024.x` line (2025-04 onward) then restructured the grammar
+toward ISO/IEC 39075 GQL, adding GPM and `SHORTEST`. So a 2021 parser predates
+the formal precedence rules — a specific gap, not a vibe.
+
+Neo4j's own Cypher-25 grammar lives in `neo4j/cypher-language-support` under
+`packages/language-support/src/antlr-grammar/`, Apache-2.0, actively committed.
+openCypher's own repository ships ISO-style BNF, not ANTLR.
+
 ## Further out
 
 Relations. Dependencies between spaces — `mount`, `unmount`, `obtain`, and the
