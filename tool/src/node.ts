@@ -5,11 +5,14 @@ import { generate as mint } from "@std/uuid/v7";
 import type { Space } from "./space.ts";
 
 /**
- * A node is a frontmatter block and a body. The block is written even when it
+ * A node is a frontmatter block and a body. LF only — `space init` writes a
+ * `.gitattributes` that stops git converting, and nothing else writes here, so
+ * tolerating CRLF would only half-handle a file that cannot occur.
+ * The block is written even when it
  * holds nothing, so a node is always well-formed and the reader can stay
  * strict. The id is the filename and appears nowhere inside.
  */
-const OPEN = /^---[ \t]*\r?\n([\s\S]*?)---[ \t]*(?:\r?\n([\s\S]*))?$/;
+const OPEN = /^---[ \t]*\n([\s\S]*?)---[ \t]*(?:\n([\s\S]*))?$/;
 
 /** Any uuid is well formed, not only the v7 this tool mints — a v4 is a
  * plausible id it never issued, which makes it honestly absent rather than

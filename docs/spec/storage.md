@@ -7,8 +7,19 @@ surface; this is what sits underneath it.
 
 ```
 <repo>/.kg/
+├── .gitattributes
 └── nodes/{id}.md
 ```
+
+**`.gitattributes` says `* -text`**, written by `space init`. The tool writes LF
+and is the only writer, so git must not convert in either direction — a checkout
+on Windows leaves a space byte-identical. A nearer rule beats the enclosing
+project's, so a space living beside application code imposes nothing on it and
+inherits nothing from it.
+
+`text eol=lf` would also produce LF, by normalising on commit — which is git
+editing content the tool is custodian of. Nodes are **LF only**, and a file with
+CRLF does not parse rather than being half-handled.
 
 **At the repository root.** A space sits at `.kg/` in a repository's root, so
 `space init` finds the root rather than using the working directory — run it
@@ -87,10 +98,14 @@ hold the parser to the core schema through it.
 
 ### A node that will not parse
 
-The tool is the only writer of frontmatter, but it is not the only writer of the
-file: a person opens one in an editor, and git resolves a merge inside one.
-Frontmatter gets mangled that way, and the tool has to read what it did not
-write.
+**The graph is not written or repaired by hand.** Nothing about it is meant to
+be legible without the tool, and every node it holds it wrote itself — which is
+what lets the reader stay strict, and what makes the line-ending guard above
+sufficient rather than merely helpful.
+
+But the tool is not the only writer of the *file*. Git resolves a merge inside
+one, and can leave conflict markers in a node the tool owns. So it has to be
+able to read what it did not write, and say so.
 
 A command **naming that node exits `1`** — the caller asked about that node and
 the tool cannot honour it. Any command that sweeps the collection instead

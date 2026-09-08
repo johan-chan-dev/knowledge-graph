@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertMatch, assertStringIncludes } from "@std/assert";
 import { exitCode } from "../src/outcome.ts";
-import { message, space, stdout } from "./helpers.ts";
+import { message, rows, seeded, space, stdout } from "./helpers.ts";
 
 // kg space · kg space init
 
@@ -37,4 +37,39 @@ Deno.test("the readout names the directory the space sits in", async () => {
   const outcome = await kg("space");
   // The space stores no name of its own — it is read off the directory.
   assertMatch(stdout(outcome), new RegExp(`^${dir.split("/").pop()}\n`));
+});
+
+Deno.test("init guards the space against line-ending conversion", async () => {
+  const { dir, kg } = await space();
+  await kg("space", "init");
+
+  // The tool writes LF and is the only writer; git must not convert either way.
+  assertEquals(
+    await Deno.readTextFile(`${dir}/.kg/.gitattributes`).then((t) =>
+      t.split("\n").filter((l) => l && !l.startsWith("#"))
+    ),
+    ["* -text"],
+  );
+
+  // And a nearer rule beats the enclosing project's, so the guard holds inside
+  // a repository with its own opinion.
+  await Deno.writeTextFile(`${dir}/.gitattributes`, "* text=auto eol=crlf\n");
+  const attr = await new Deno.Command("git", {
+    args: ["-C", dir, "check-attr", "text", "--", ".kg/nodes/x.md"],
+    stdout: "piped",
+  }).output();
+  assertStringIncludes(new TextDecoder().decode(attr.stdout), "text: unset");
+});
+
+Deno.test("a node with CRLF does not parse, rather than half-parsing", async () => {
+  const { dir, kg } = await seeded();
+  const id = (await kg("nodes", "list")).kind === "ok"
+    ? rows(await kg("nodes", "list"))[0]
+    : "";
+  await Deno.writeTextFile(
+    `${dir}/.kg/nodes/${id}.md`,
+    "---\r\nkind: decision\r\n---\r\n\r\none\r\ntwo\r\n",
+  );
+  // Tolerating it produced a stray \r on read and mixed line endings on write.
+  assertEquals(exitCode(await kg("node", id)), 1);
 });

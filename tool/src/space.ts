@@ -12,6 +12,22 @@ export type Space = {
   readonly nodes: string;
 };
 
+/**
+ * The tool writes LF and is the only writer. `-text` stops git converting in
+ * either direction, so a checkout on Windows leaves a space byte-identical —
+ * and a nearer rule beats the enclosing project's, so a space living beside
+ * application code imposes nothing on it and inherits nothing from it.
+ *
+ * `text eol=lf` would also give LF, by normalising on commit — which is git
+ * editing content the tool is custodian of.
+ */
+const GITATTRIBUTES = [
+  "# Written by `kg space init`. The tool writes LF and is the only writer;",
+  "# git must not convert in either direction.",
+  "* -text",
+  "",
+].join("\n");
+
 const at = (root: string): Space => ({
   root,
   name: basename(root),
@@ -54,6 +70,7 @@ export async function init(cwd: string): Promise<Init> {
   // One space or none: a repository holds one, and `init` never adopts one.
   if (await isDir(space.nodes)) return { kind: "exists", space };
   await Deno.mkdir(space.nodes, { recursive: true });
+  await Deno.writeTextFile(join(root, ".kg", ".gitattributes"), GITATTRIBUTES);
   return { kind: "made", space, madeRepo };
 }
 
