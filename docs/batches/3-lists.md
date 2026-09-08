@@ -45,7 +45,7 @@ not a property value: contains a control character — a value is a single line
 ```
 
 **Done when** `batch 3 — a property can hold a list` passes in
-[`tool/tests/kg.test.ts`](../../tool/tests/kg.test.ts), alongside the two
+[`tool/tests/batches.test.ts`](../../tool/tests/batches.test.ts), alongside the two
 batches before it.
 
 ## Why this and not partial edits

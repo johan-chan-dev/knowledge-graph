@@ -3,7 +3,15 @@
 Deno and TypeScript, compiled to a binary. **No third-party packages** — the
 imports in `deno.json` are the whole dependency list.
 
-`deno task check` · `deno task test` · `deno task compile`
+| | |
+|---|---|
+| `deno task check` | typecheck |
+| `deno task test` | compile, then everything |
+| `deno task verify` | compile, then the batch loops against the binary |
+| `deno task compile` | `build/kg` |
+
+`test` and `verify` compile first on purpose: `tests/batches.test.ts` runs the
+binary rather than the source, so a stale one would test the wrong program.
 
 **Deno rather than Bun** because Bun strips types rather than checking them, and
 compile-time checking of the refusal paths is the reason to be in TypeScript at

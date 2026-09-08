@@ -41,7 +41,7 @@ $ kg nodes list --where kind=decision --without valid-until
 ```
 
 Annotate a node, then find it again by its annotation. **Backed by `batch 2 —
-nodes carry properties`** in [`tool/tests/kg.test.ts`](../../tool/tests/kg.test.ts).
+nodes carry properties`** in [`tool/tests/batches.test.ts`](../../tool/tests/batches.test.ts).
 
 `set kind` and `replaced kind` are the same command twice — the second says the
 property already existed, which is the one thing about a `set` you cannot know

@@ -21,13 +21,27 @@ Each document opens with a transcript of the loop that batch closes — what you
 type, and what comes back. A batch that cannot be illustrated in a dozen lines
 is too big.
 
-**Each illustration is backed by a test named for its batch.** The *done when*
-is not a sentence, it is something that passes or does not:
+**Each illustration is backed by a test named for its batch**, in
+[`tool/tests/batches.test.ts`](../../tool/tests/batches.test.ts). The *done
+when* is not a sentence, it is something that passes or does not:
 
 ```
-batch 1 — a space, and nodes in it
-batch 2 — nodes carry properties
+$ deno task verify
+batch 1 — a space, and nodes in it ... ok
+batch 2 — nodes carry properties ... ok
 ```
+
+**Against the compiled binary, not the source.** Everything else runs the
+command function in process, which is fast and precise but blind to whatever
+`deno compile` changes — embedded permissions, the entry path. These
+transcripts were generated from the binary, so testing anything else would
+leave the documented behaviour and the tested behaviour as two different
+programs.
+
+It is also why these can be organised by batch where the rest cannot. A subject
+test describes current behaviour and would rot if filed under the batch that
+introduced it; a batch test asks whether that batch's loop still closes, and if
+it stops closing the transcript needs revisiting anyway.
 
 So a transcript here cannot rot quietly. Change the surface and the test fails
 first, and whoever fixes it is pointed at the page to correct. That is the same
