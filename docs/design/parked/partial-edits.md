@@ -3,8 +3,8 @@
 ## Partial reads
 
 ```
-kg node <id> read --lines A-B        a slice
-kg node <id> read --number           line numbers in the margin
+kg node <id> --lines A-B        a slice
+kg node <id> --number           line numbers in the margin
 ```
 
 stderr becomes `lines 40-60 of 128` — which is how a caller knows where it is in

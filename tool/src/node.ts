@@ -134,18 +134,7 @@ async function atomically(path: string, text: string): Promise<void> {
   }
 }
 
-export const bytes = (s: string): number => new TextEncoder().encode(s).length;
-
-export function measure(content: string): string {
-  const count = content === "" ? 0 : content.replace(/\n$/, "").split("\n").length;
-  const size = bytes(content);
-  const human = size < 1024
-    ? `${size} bytes`
-    : size < 1024 * 1024
-    ? `${(size / 1024).toFixed(1)} KB`
-    : `${(size / 1024 / 1024).toFixed(1)} MB`;
-  return `${count} ${count === 1 ? "line" : "lines"}, ${human}`;
-}
+const bytes = (s: string): number => new TextEncoder().encode(s).length;
 
 export type Props =
   | { readonly kind: "read"; readonly properties: Properties }

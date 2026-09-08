@@ -25,21 +25,19 @@ $ id=$(kg node new <<'EOF')
 > Modules own their schema. A shared one couples every module to every
 > other module's release.
 > EOF
-wrote 93 bytes
+01a0804b-38b7-751c-9847-ad2a253cc25f
 
-$ kg node "$id" read
+$ kg node "$id"
 Modules own their schema. A shared one couples every module to every
 other module's release.
-2 lines, 93 bytes
 
 $ kg nodes list
-01a0801d-42fa-7ea4-9025-b693306f23fb
+01a0804b-38b7-751c-9847-ad2a253cc25f
 
 $ printf 'Modules own their schema.\n' | kg node "$id" write
-01a0801d-42fa-7ea4-9025-b693306f23fb
-wrote 26 bytes, replacing 93
+replaced 93 bytes
 
-$ kg space show
+$ kg space
 notes
   root     /Users/you/notes
   branch   (no commit yet)
@@ -51,9 +49,9 @@ and no file was opened by hand. **Backed by `batch 1 — a space, and nodes in
 it`** in [`tool/tests/kg.test.ts`](../../tool/tests/kg.test.ts): if the surface
 moves, that test fails before this page goes stale.
 
-Note which lines are on stderr — every advisory (`wrote 93 bytes`,
-`2 lines, 93 bytes`, the git notice) — and which are the answer. `kg node "$id"
-read` pipes the content byte for byte while still reporting its size.
+Two things to notice. `kg node new` prints only the id, because the id is the
+only thing you could not have worked out — you sent the bytes yourself. And the
+replace prints nothing at all on stdout, saying only what it displaced.
 
 ## What building it forced
 

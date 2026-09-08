@@ -9,13 +9,16 @@ built is in [`design/parked/`](../design/parked/), and how it got here is in
 ## Shape
 
 ```
-kg [-C <dir>] <scope> [<id>] <action> [arguments] [--flags]
+kg [-C <dir>] <scope> [<id>] [action] [arguments] [--flags]
 ```
 
-**Every command names its scope, then what it does to it.** Nothing is bare —
-reading takes a verb like everything else, because a bare noun phrase reads as
-a thing rather than an instruction and stops parsing unambiguously the moment a
-third scope exists.
+**Reading a single resource is implicit. Everything else names its action.**
+
+A single resource has exactly one thing to fetch, so a verb would add nothing —
+`kg node <id>` cannot mean anything but *that node*. A collection has many
+read-shaped operations, so one has to be named: you do not read a collection,
+you list it, and later you may query or count it. Every write names itself,
+always.
 
 **A scope names what the operation can touch, and never overstates or
 understates it.** That is the whole test, and it decides every name here:
@@ -27,14 +30,13 @@ understates it.** That is the whole test, and it decides every name here:
 | `node <id>` | that node |
 
 So `nodes list` rather than `node list`: enumerating touches the collection, and
-a singular scope would claim otherwise. The redundancy of *nodes, list* is the
-price, and it is cheaper than a name that lies.
+a singular scope would claim otherwise.
 
 **An id narrows the scope; it is never an argument to a verb.** `node <id>` is
 *this node*, addressed before anything is asked of it — which puts the id beside
 the noun it identifies rather than between a verb and what the verb acts on. The
 chain extends without new rules: a node's properties are `node <id> <property>
-<action>`, and any space-wide collection is `<plural> list`.
+<action>`, and any space-wide collection is `<plural> <action>`.
 
 `node` is the one scope with two shapes, because you cannot address what does
 not exist yet:
@@ -47,7 +49,7 @@ kg node <id> …        an id — act on that one
 ## space
 
 ```
-kg space show         what and where this space is
+kg space              what and where this space is
 kg space init         create one
 ```
 
@@ -69,7 +71,7 @@ unambiguous prior state — so `init` establishes that rather than assuming it.
 **A space stores no name of its own** — its name is the name of the directory
 holding it, read when anyone needs it. It never refers to itself.
 
-`kg space show` is the orientation call, and `space init` ends by printing the
+`kg space` is the orientation call, and `space init` ends by printing the
 same readout: init's job is to leave you oriented, and the orientation call
 already exists.
 
@@ -123,15 +125,15 @@ answer, and a *no nodes yet* line would land in every script that counts lines.
 
 ```
 kg node new                          create one — stdin is its content
-kg node <id> read                    the content
-kg node <id> read --properties       the properties instead
+kg node <id>                         the content
+kg node <id> --properties            the properties instead
 kg node <id> write                   stdin replaces the content
 kg node <id> set   <name> <value>    write one property
 kg node <id> unset <name>            remove one
 ```
 
-**The prose is the node.** `read` returns it and nothing else — no properties,
-no id header, no separator. It is the only command whose stdout is data rather
+**The prose is the node.** `kg node <id>` returns it and nothing else — no
+properties inline, no id header, no separator. It is the only command whose stdout is data rather
 than a report, which is what lets it be piped into anything.
 
 **`new` and `write` are different operations, not one with an optional id.**
@@ -139,8 +141,9 @@ Creating changes what the collection contains; replacing does not. They sit in
 different shapes of the scope for that reason, and the distinction is visible in
 the command rather than inferred from whether an argument was supplied.
 
-**Ids are minted, never supplied.** `new` hands the id back. `<id> write` on an
-id that is not here **refuses rather than creating** — a caller cannot invent an
+**Ids are minted, never supplied.** `new` hands the id back — the one thing a
+caller could not have worked out. `<id> write` on an id that is not here
+**refuses rather than creating** — a caller cannot invent an
 id, so an unknown one means the node is gone or this is the wrong space, and
 creating it instead would turn a typo into a node.
 
@@ -175,11 +178,16 @@ content — it will store nothing, once you have said that is what you meant.
 ### Properties
 
 **stdout is one half of a node or the other, never both.** `--properties` swaps
-which; stderr stays about the operation either way. There is no third command
-for reading properties, because `read` already answers that question.
+which. There is no third command for reading properties, because `kg node <id>`
+already answers that question.
+
+**Reading the content puts the properties on stderr**, rendered identically —
+the same lines, byte for byte, only the channel differs. An agent reading a node
+wants to know how it is classified, and a consumer that discards stderr loses
+nothing it needed.
 
 ```
-$ kg node 01997a3e-… read --properties
+$ kg node 01997a3e-… --properties
 decided-by: 01997b12-…
 valid-until: 2027-01-01
 ```
@@ -192,6 +200,11 @@ showing its file. A node with no properties prints nothing and exits `0`.
 tool writes back the text it was handed and compares text on the way out — it
 never decides that `42` is a number, for the same reason the reader is pinned to
 YAML 1.2 core.
+
+**`set` takes exactly one value** and refuses a second, naming quoting as the
+fix. Joining several would collide with a list operation, where several values
+mean several elements — the shape has to follow from the verb rather than from
+how many arguments arrived.
 
 **A property name is a lowercase hyphenated token** — `[a-z0-9]+(-[a-z0-9]+)*`.
 Anything needing quoting or escaping is a name that will eventually be typed
@@ -223,26 +236,31 @@ replaces content and leaves properties alone.
 refusals. A command's stdout is always safe to pipe, and nothing a script
 consumes is mixed with a message meant for a person.
 
+**stderr reports what the caller could not have worked out.** A count of the
+bytes you just sent, or the lines you were just handed, is telling you something
+twice — and a channel that repeats what you already know is one you learn to
+stop reading, which then costs you the lines that matter.
+
 | | stdout | stderr |
 |---|---|---|
-| `space show` | the readout | — |
+| `space` | the readout | — |
 | `space init` | the readout | `initialised a git repository at …` *(only when it did)* |
-| `nodes list` | one id per line | — |
-| `node <id> read` | the content, byte for byte | `128 lines, 4.2 KB` |
-| `node <id> read --properties` | one `name: value` per line | `3 properties` |
-| `node <id> set` | that id | `set valid-until` |
-| `node <id> unset` | that id | `unset valid-until`, or `valid-until was not set` |
-| `node new` | the new id | `wrote 74 bytes` |
-| `node <id> write` | that id | `wrote 74 bytes, replacing 210` |
+| `nodes list` | one id per line | `skipped <id>: …` for a node that will not parse |
+| `node new` | the new id | — |
+| `node <id>` | the content, byte for byte | its properties, rendered |
+| `node <id> --properties` | one `name: value` per line | — |
+| `node <id> write` | — | `replaced 210 bytes` |
+| `node <id> set` | — | `set kind`, or `replaced kind` |
+| `node <id> unset` | — | `unset kind`, or `kind was not set` |
 
-**Every operation reports its own magnitude on stderr.** Read says what you got,
-write says what you displaced. The read line is how a caller knows whether it
-received a whole node or part of one; the write line's second number is how an
-agent that meant to extend a node catches itself having shrunk it.
+**A targeted write prints nothing.** Only `new` returns an id, because only
+there is the id new information; echoing back one the caller just supplied is
+noise. Exit `0` says it worked, the way `git add` does.
 
-**Every write returns the id of the node it wrote.** Creating is the case where
-that id is new information; the rest is the same rule applied uniformly, which
-costs one line and removes every special case.
+**What a write reports is what changed, not what you asked for.** `replaced 210
+bytes` carries the size you displaced; `replaced kind` says the property already
+existed. Both are facts you could not have had in advance, and they are what
+catches a write that meant to extend and shrank instead.
 
 **Every read and every write goes through the tool.** No command hands back a
 filesystem location, and nothing outside the tool has cause to know one. Where
@@ -250,7 +268,7 @@ nodes live, how one is serialised, what divides its frontmatter from its prose �
 all of it is the tool's business, which is what lets any of it change without
 breaking a caller.
 
-**A space has a location; a node does not.** `kg space show` reports where it
+**A space has a location; a node does not.** `kg space` reports where it
 is because a person navigates there — it is a repository, and git, an editor and
 a shell all need it. Inside it nothing is addressable but by id.
 
@@ -291,6 +309,7 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | properties will not parse | `cannot read 01997a3e-…: properties are not valid yaml` | `1` |
 | bad property name | `not a property name: Valid_Until — expected a lowercase hyphenated token` | `1` |
 | bad property value | `not a property value: contains a control character — a value is a single line` | `1` |
+| two values to `set` | `node <id> set takes one value — quote it if it contains spaces` | `4` |
 
 **The absent message names the space**, because *wrong space* is one of the two
 real causes and the caller cannot see which from the id alone.

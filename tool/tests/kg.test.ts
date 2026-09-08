@@ -44,7 +44,7 @@ const message = (outcome: Outcome) => outcome.kind === "ok" ? "" : outcome.messa
 
 Deno.test("outside a space, every command says so and exits 2", async () => {
   const { kg } = await space();
-  for (const argv of [["space", "show"], ["nodes", "list"]]) {
+  for (const argv of [["space"], ["nodes", "list"]]) {
     const outcome = await kg(...argv);
     assertEquals(exitCode(outcome), 2, argv.join(" "));
     assertEquals(message(outcome), "no space here — run: kg space init");
@@ -72,7 +72,7 @@ Deno.test("a repository holds one space or none", async () => {
 Deno.test("the readout names the directory the space sits in", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
-  const outcome = await kg("space", "show");
+  const outcome = await kg("space");
   // The space stores no name of its own — it is read off the directory.
   assertMatch(stdout(outcome), new RegExp(`^${dir.split("/").pop()}\n`));
 });
@@ -82,7 +82,7 @@ Deno.test("the readout names the directory the space sits in", async () => {
 Deno.test("a string that is not a uuid is refused, never looked up", async () => {
   const { kg } = await space();
   // No space here at all: refusing before lookup is what makes this exit 1.
-  const outcome = await kg("node", "abc", "read");
+  const outcome = await kg("node", "abc");
   assertEquals(exitCode(outcome), 1);
   assertEquals(message(outcome), "not an id: abc — expected a uuid");
 });
@@ -90,7 +90,7 @@ Deno.test("a string that is not a uuid is refused, never looked up", async () =>
 Deno.test("a well-formed id that is not here is absent, and names the space", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
-  const outcome = await kg("node", "00000000-0000-7000-8000-000000000000", "read");
+  const outcome = await kg("node", "00000000-0000-7000-8000-000000000000");
   assertEquals(exitCode(outcome), 2);
   assertStringIncludes(message(outcome), `in ${dir.split("/").pop()}`);
 });
@@ -99,7 +99,7 @@ Deno.test("any uuid is well formed, not only the v7 the tool mints", async () =>
   const { kg } = await space();
   await kg("space", "init");
   // A v4 is a plausible id this tool never issued — honestly absent, not refused.
-  const outcome = await kg("node", crypto.randomUUID(), "read");
+  const outcome = await kg("node", crypto.randomUUID());
   assertEquals(exitCode(outcome), 2);
 });
 
@@ -114,24 +114,24 @@ Deno.test("write, read back byte for byte, and find it in the collection", async
   assertEquals(written.code, 0);
   const id = written.out.trim();
   assertMatch(id, /^[0-9a-f-]{36}$/);
-  assertStringIncludes(written.err, "wrote 58 bytes");
+  assertEquals(written.err, "", "the id is on stdout; nothing else needed saying");
 
-  const read = await kg("node", id, "read");
+  const read = await kg("node", id);
   assertEquals(stdout(read), text, "content must round-trip exactly");
 
   const listed = await kg("nodes", "list");
   assertEquals(stdout(listed), `${id}\n`);
 });
 
-Deno.test("replacing keeps the id and reports what it displaced", async () => {
+Deno.test("a targeted write says only what it displaced", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
   const id = (await pipe(dir, ["node", "new"], "first draft\n")).out.trim();
 
   const again = await pipe(dir, ["node", id, "write"], "second\n");
-  assertEquals(again.out.trim(), id, "the id it wrote comes back");
-  assertStringIncludes(again.err, "wrote 7 bytes, replacing 12");
-  assertEquals(stdout(await kg("node", id, "read")), "second\n");
+  assertEquals(again.out, "", "the caller supplied the id; echoing it is noise");
+  assertStringIncludes(again.err, "replaced 12 bytes");
+  assertEquals(stdout(await kg("node", id)), "second\n");
 });
 
 Deno.test("write refuses an id that is not here rather than creating it", async () => {
@@ -173,7 +173,7 @@ Deno.test("an empty stdin cannot destroy a node's content by accident", async ()
   const result = await pipe(dir, ["node", id, "write"], "");
   assertEquals(result.code, 1);
   assertEquals(
-    stdout(await kg("node", id, "read")),
+    stdout(await kg("node", id)),
     "worth keeping\n",
     "content survives",
   );
@@ -190,7 +190,7 @@ Deno.test("--allow-empty is the escape hatch, for both create and replace", asyn
   const id = (await pipe(dir, ["node", "new"], "something\n")).out.trim();
   const emptied = await pipe(dir, ["node", id, "write", "--allow-empty"], "");
   assertEquals(emptied.code, 0);
-  assertEquals(stdout(await kg("node", id, "read")), "");
+  assertEquals(stdout(await kg("node", id)), "");
 });
 
 // ── usage ────────────────────────────────────────────────────────────────────
@@ -198,20 +198,22 @@ Deno.test("--allow-empty is the escape hatch, for both create and replace", asyn
 Deno.test("asking for help succeeds; being wrong does not", async () => {
   const help = await run(["--help"]);
   assertEquals(exitCode(help), 0, "help answers on stdout and succeeds");
-  assertStringIncludes(stdout(help), "names its scope, then what it does");
+  assertStringIncludes(stdout(help), "Reading a single resource is implicit");
 
-  for (
-    const argv of [["--nope"], ["nope"], ["node"], ["nodes"], ["nodes", "extra"], [
-      "space",
-    ]]
-  ) {
+  for (const argv of [["--nope"], ["nope"], ["node"], ["nodes"], ["nodes", "extra"]]) {
     assertEquals(exitCode(await run(argv)), 4, argv.join(" "));
   }
 });
 
-Deno.test("a scope needs an action, and an id needs one after it", async () => {
-  assertStringIncludes(message(await run(["node", "a", "b"])), "needs an action");
-  assertStringIncludes(message(await run(["space"])), "needs an action");
+Deno.test("a single resource reads bare; a collection names its action", async () => {
+  // `space` and `node <id>` are the two that read without a verb.
+  const { kg } = await space();
+  assertEquals(exitCode(await kg("space")), 2, "reads and reports, never usage");
+  assertStringIncludes(
+    message(await run(["-C", "/nonexistent", "space"])),
+    "not a directory",
+  );
+  assertStringIncludes(message(await run(["node", "a", "b"])), "takes one action");
   assertStringIncludes(message(await run(["node"])), "needs an id, or new");
   assertStringIncludes(message(await run(["nodes"])), "takes one action");
 });
@@ -231,10 +233,11 @@ Deno.test("set writes a property and leaves the content alone", async () => {
   const { kg, id } = await seeded();
   const set = await kg("node", id, "set", "kind", "decision");
   assertEquals(exitCode(set), 0);
-  assertEquals(stdout(set), `${id}\n`, "a write returns the id it wrote");
+  assertEquals(stdout(set), "", "a targeted write prints nothing");
+  assert(set.kind === "ok" && set.notes.join().includes("set kind"));
 
-  assertEquals(stdout(await kg("node", id, "read", "--properties")), "kind: decision\n");
-  assertEquals(stdout(await kg("node", id, "read")), "worth keeping\n");
+  assertEquals(stdout(await kg("node", id, "--properties")), "kind: decision\n");
+  assertEquals(stdout(await kg("node", id)), "worth keeping\n");
 });
 
 Deno.test("write replaces the content and leaves the properties alone", async () => {
@@ -242,9 +245,9 @@ Deno.test("write replaces the content and leaves the properties alone", async ()
   await kg("node", id, "set", "kind", "decision");
 
   await pipe(dir, ["node", id, "write"], "rewritten\n");
-  assertEquals(stdout(await kg("node", id, "read")), "rewritten\n");
+  assertEquals(stdout(await kg("node", id)), "rewritten\n");
   // The batch-1 preserve step, observable for the first time.
-  assertEquals(stdout(await kg("node", id, "read", "--properties")), "kind: decision\n");
+  assertEquals(stdout(await kg("node", id, "--properties")), "kind: decision\n");
 });
 
 Deno.test("properties are stored as given and never retyped", async () => {
@@ -255,7 +258,7 @@ Deno.test("properties are stored as given and never retyped", async () => {
   // second a number, which would be the tool deciding what a field it has
   // never heard of means.
   assertEquals(
-    stdout(await kg("node", id, "read", "--properties")),
+    stdout(await kg("node", id, "--properties")),
     "count: 42\nvalid-until: 2027-01-01\n",
   );
 });
@@ -264,7 +267,7 @@ Deno.test("properties come back in a stable order, whatever order they went in",
   const { kg, id } = await seeded();
   for (const name of ["zulu", "alpha", "mike"]) await kg("node", id, "set", name, "x");
   assertEquals(
-    stdout(await kg("node", id, "read", "--properties")),
+    stdout(await kg("node", id, "--properties")),
     "alpha: x\nmike: x\nzulu: x\n",
   );
 });
@@ -281,12 +284,12 @@ Deno.test("unset removes one, is idempotent, and says which it was", async () =>
   assertEquals(exitCode(again), 0, "removing what is absent is the end state asked for");
   assert(again.kind === "ok" && again.notes.join().includes("was not set"));
 
-  assertEquals(stdout(await kg("node", id, "read", "--properties")), "other: keep\n");
+  assertEquals(stdout(await kg("node", id, "--properties")), "other: keep\n");
 });
 
 Deno.test("a node with no properties prints nothing", async () => {
   const { kg, id } = await seeded();
-  const outcome = await kg("node", id, "read", "--properties");
+  const outcome = await kg("node", id, "--properties");
   assertEquals(exitCode(outcome), 0);
   assertEquals(stdout(outcome), "");
 });
@@ -302,7 +305,7 @@ Deno.test("a property name must be a lowercase hyphenated token", async () => {
   // which is why a name shaped like one is unusable rather than merely refused.
   assertEquals(exitCode(await kg("node", id, "set", "-leading", "x")), 4);
   assertEquals(
-    stdout(await kg("node", id, "read", "--properties")),
+    stdout(await kg("node", id, "--properties")),
     "",
     "nothing written",
   );
@@ -376,7 +379,7 @@ Deno.test("one damaged node does not make a space unfindable", async () => {
   assert(outcome.kind === "ok" && outcome.notes.join().includes(`skipped ${ids[2]}`));
 
   // Asked about that node specifically, the tool cannot honour it.
-  assertEquals(exitCode(await kg("node", ids[2], "read")), 1);
+  assertEquals(exitCode(await kg("node", ids[2])), 1);
 });
 
 Deno.test("a bare listing still parses nothing, damaged or not", async () => {
@@ -402,19 +405,16 @@ Deno.test("batch 1 — a space, and nodes in it", async () => {
     "to every other module's release.\n";
   const created = await pipe(dir, ["node", "new"], text);
   const id = created.out.trim();
-  assertStringIncludes(
-    created.err,
-    `wrote ${new TextEncoder().encode(text).length} bytes`,
-  );
+  assertEquals(created.err, "", "the id is the only thing the caller did not know");
 
-  assertEquals(stdout(await kg("node", id, "read")), text, "byte for byte");
+  assertEquals(stdout(await kg("node", id)), text, "byte for byte");
   assertEquals(stdout(await kg("nodes", "list")), `${id}\n`);
 
   const rewritten = await pipe(dir, ["node", id, "write"], "Modules own their schema.\n");
-  assertEquals(rewritten.out.trim(), id);
-  assertStringIncludes(rewritten.err, "replacing");
+  assertEquals(rewritten.out, "", "a targeted write prints nothing");
+  assertStringIncludes(rewritten.err, "replaced");
 
-  assertStringIncludes(stdout(await kg("space", "show")), "nodes    1");
+  assertStringIncludes(stdout(await kg("space")), "nodes    1");
 });
 
 Deno.test("batch 2 — nodes carry properties", async () => {
@@ -433,12 +433,12 @@ Deno.test("batch 2 — nodes carry properties", async () => {
   await kg("node", second, "set", "kind", "decision");
 
   assertEquals(
-    stdout(await kg("node", authority, "read", "--properties")),
+    stdout(await kg("node", authority, "--properties")),
     "kind: authority\nvalid-until: 2027-01-01\n",
   );
   // The other half of the node is untouched by any of it.
   assertEquals(
-    stdout(await kg("node", authority, "read")),
+    stdout(await kg("node", authority)),
     "OWASP is authoritative until 2027.\n",
   );
 
@@ -453,4 +453,59 @@ Deno.test("batch 2 — nodes carry properties", async () => {
     ),
     [decision, second],
   );
+});
+
+// ── the batch 2 corrections ──────────────────────────────────────────────────
+
+Deno.test("the same argument gets the same verdict, whichever half was asked for", async () => {
+  const { kg } = await seeded();
+  for (const argv of [["node", "zzz"], ["node", "zzz", "--properties"]]) {
+    const outcome = await kg(...argv);
+    assertEquals(exitCode(outcome), 1, argv.join(" "));
+    assertEquals(message(outcome), "not an id: zzz — expected a uuid");
+  }
+});
+
+Deno.test("reading the content puts the properties on stderr, rendered the same", async () => {
+  const { kg, id } = await seeded();
+  await kg("node", id, "set", "kind", "decision");
+  await kg("node", id, "set", "valid-until", "2027-01-01");
+
+  const onStdout = stdout(await kg("node", id, "--properties"));
+  const read = await kg("node", id);
+  assert(read.kind === "ok");
+  assertEquals(
+    read.notes.join("\n") + "\n",
+    onStdout,
+    "byte for byte, only the channel differs",
+  );
+  assertEquals(read.stdout, "worth keeping\n", "and stdout is still only the content");
+});
+
+Deno.test("a node with no properties says nothing on either channel", async () => {
+  const { kg, id } = await seeded();
+  const read = await kg("node", id);
+  assert(read.kind === "ok" && read.notes.length === 0);
+  assertEquals(stdout(await kg("node", id, "--properties")), "");
+});
+
+Deno.test("set says whether it created or replaced", async () => {
+  const { kg, id } = await seeded();
+  const first = await kg("node", id, "set", "kind", "decision");
+  assert(first.kind === "ok" && first.notes.join() === "set kind");
+
+  const again = await kg("node", id, "set", "kind", "authority");
+  assert(again.kind === "ok" && again.notes.join() === "replaced kind");
+});
+
+Deno.test("set takes exactly one value", async () => {
+  const { kg, id } = await seeded();
+  const outcome = await kg("node", id, "set", "title", "one", "two", "three");
+  assertEquals(exitCode(outcome), 4);
+  assertStringIncludes(message(outcome), "quote it if it contains spaces");
+  assertEquals(stdout(await kg("node", id, "--properties")), "", "nothing written");
+
+  // Quoted, it is one value and lands whole.
+  await kg("node", id, "set", "title", "one two three");
+  assertEquals(stdout(await kg("node", id, "--properties")), "title: one two three\n");
 });

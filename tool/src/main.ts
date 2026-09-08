@@ -1,5 +1,5 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { exitCode, lines, type Outcome, usage } from "./outcome.ts";
+import { exitCode, lines, type Outcome, refused, usage } from "./outcome.ts";
 import {
   node,
   nodeNew,
@@ -17,14 +17,14 @@ import {
  * why enumerating is `nodes list` and not `node list`. An id narrows the scope
  * rather than arguing a verb, so it sits beside the noun it identifies. */
 const FORMS = [
-  ["space show", "what and where this space is"],
+  ["space", "what and where this space is"],
   ["space init", "create one"],
   ["nodes list", "every id, in creation order"],
   ["nodes list --where <name>[=<value>]", "…that carry it"],
   ["nodes list --without <name>", "…that do not"],
   ["node new", "create one — stdin is its content"],
-  ["node <id> read", "the content"],
-  ["node <id> read --properties", "the properties instead"],
+  ["node <id>", "the content, with its properties on stderr"],
+  ["node <id> --properties", "the properties instead"],
   ["node <id> write", "stdin replaces the content"],
   ["node <id> set <name> <value>", "write one property"],
   ["node <id> unset <name>", "remove one"],
@@ -38,7 +38,7 @@ function help(): string {
     "Commands:",
     ...FORMS.map(([form, summary]) => `  kg ${form.padEnd(width)}   ${summary}`),
     "",
-    "Every command names its scope, then what it does to it.",
+    "Reading a single resource is implicit. Everything else names its action.",
     "",
     "Global:",
     "  -C <dir>        run as if from there",
@@ -81,6 +81,11 @@ export async function run(argv: string[]): Promise<Outcome> {
 
   // `-C` is git's: run this as if from there, resolved before anything else.
   const cwd = flags.C ?? Deno.cwd();
+  // Without this the throw from a missing cwd is caught downstream as a missing
+  // git binary, and the tool reports the wrong thing entirely.
+  if (flags.C !== undefined && !isDirectory(flags.C)) {
+    return refused(`not a directory: ${flags.C}`);
+  }
 
   /** `collect` yields undefined for a flag that was never passed, one value for
    * a flag passed once, and an array beyond that. */
@@ -101,9 +106,10 @@ export async function run(argv: string[]): Promise<Outcome> {
     case "space": {
       const [action, ...extra] = rest;
       if (extra.length > 0) return usage(`space ${action} takes no arguments`);
-      if (action === "show") return await space(cwd);
+      // A single resource reads bare: there is nothing else `kg space` means.
+      if (action === undefined) return await space(cwd);
       if (action === "init") return await spaceInit(cwd);
-      return usage(`space needs an action: show, init\n\n${help()}`);
+      return usage(`space takes one action: init\n\n${help()}`);
     }
 
     case "nodes": {
@@ -130,7 +136,7 @@ export async function run(argv: string[]): Promise<Outcome> {
       if (extra.length > 0 && action !== "set" && action !== "unset") {
         return usage(`node <id> ${action} takes no arguments`);
       }
-      if (action === "read") return await node(cwd, first, flags.properties);
+      if (action === undefined) return await node(cwd, first, flags.properties);
       if (action === "write") {
         return await nodeWrite(cwd, first, await stdin(), flags["allow-empty"]);
       }
@@ -139,7 +145,12 @@ export async function run(argv: string[]): Promise<Outcome> {
         if (name === undefined || value.length === 0) {
           return usage("node <id> set needs a name and a value");
         }
-        return await nodeSet(cwd, first, name, value.join(" "));
+        // Exactly one value. Joining several would collide with a list
+        // operation, where several values mean several elements.
+        if (value.length > 1) {
+          return usage("node <id> set takes one value — quote it if it contains spaces");
+        }
+        return await nodeSet(cwd, first, name, value[0]);
       }
       if (action === "unset") {
         const [name, ...rest3] = extra;
@@ -148,7 +159,7 @@ export async function run(argv: string[]): Promise<Outcome> {
         return await nodeSet(cwd, first, name, null);
       }
       return usage(
-        `node <id> needs an action: read, write, set, unset\n\n${help()}`,
+        `node <id> takes one action: write, set, unset\n\n${help()}`,
       );
     }
 
@@ -168,4 +179,12 @@ if (import.meta.main) {
     console.error(outcome.message);
   }
   Deno.exit(exitCode(outcome));
+}
+
+function isDirectory(path: string): boolean {
+  try {
+    return Deno.statSync(path).isDirectory;
+  } catch {
+    return false;
+  }
 }

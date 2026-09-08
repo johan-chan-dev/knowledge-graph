@@ -4,7 +4,7 @@
 
 **The operator carries the type, not the storage.** `--where a=b` compares text;
 `--where a>b` compares numbers, and a value that is not numeric simply does not
-match. The file stays untyped — `set` still stores text and `read --properties`
+match. The file stays untyped — `set` still stores text and `--properties`
 still returns it — so two callers can disagree about whether `score` is a number
 without the node taking a side. That is mechanically different from typing the
 property, and it keeps the tool ignorant of what `score` means.

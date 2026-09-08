@@ -14,39 +14,43 @@ will ever record about a node lives there.
 
 ```console
 $ kg node "$a" set kind decision
-01a0801d-42fa-7ea4-9025-b693306f23fb
 set kind
 
 $ kg node "$b" set kind authority
 $ kg node "$b" set valid-until 2027-01-01
 
-$ kg node "$b" read --properties
+$ kg node "$b" set kind authority
+replaced kind
+
+$ kg node "$b" --properties
 kind: authority
 valid-until: 2027-01-01
-2 properties
 
-$ kg node "$b" read
+$ kg node "$b"
 OWASP is authoritative on session handling until 2027.
-1 line, 55 bytes
+kind: authority
+valid-until: 2027-01-01
 
 $ kg nodes list --where kind=decision
-01a0801d-42fa-7ea4-9025-b693306f23fb
-01a0801d-6795-7e19-87c9-b543e6a7f553
-
-$ kg nodes list --where valid-until
-01a0801d-675e-7c6e-8609-26d75ec5dfc3
+01a0804b-8e77-7517-a8fc-e14d530cc9a5
+01a0804b-8f17-7a54-a862-c92ec3d8a03e
 
 $ kg nodes list --where kind=decision --without valid-until
-01a0801d-42fa-7ea4-9025-b693306f23fb
-01a0801d-6795-7e19-87c9-b543e6a7f553
+01a0804b-8e77-7517-a8fc-e14d530cc9a5
+01a0804b-8f17-7a54-a862-c92ec3d8a03e
 ```
 
 Annotate a node, then find it again by its annotation. **Backed by `batch 2 —
 nodes carry properties`** in [`tool/tests/kg.test.ts`](../../tool/tests/kg.test.ts).
 
-The two `read` calls are the point: stdout carries one half of a node or the
-other, never both. And the tool has no idea what `kind` or `valid-until` mean —
-it compared text.
+`set kind` and `replaced kind` are the same command twice — the second says the
+property already existed, which is the one thing about a `set` you cannot know
+in advance.
+
+The two reads are the point. `--properties` puts them on stdout, pipeable,
+without the body; reading the content puts the same lines on stderr, byte for
+byte. stdout carries one half of a node or the other, never both. And the tool
+has no idea what `kind` or `valid-until` mean — it compared text.
 
 ## What building it forced
 
@@ -67,9 +71,16 @@ and those quotes preserve that the tool was handed text rather than decide what
 the text means.
 
 **Which half of a node stdout carries.** One or the other, never both.
-`--properties` swaps which, and stderr stays about the operation either way. A
-separate command for reading properties would have been a third way to ask a
-question `read` already answers.
+`--properties` swaps which; reading the content puts the same lines on stderr,
+where they inform without obliging. A separate command for reading properties
+would have been a third way to ask a question `kg node <id>` already answers.
+
+**What an advisory is for.** stderr reports what the caller could not have
+worked out. Counting the bytes you just sent, or the lines you were just
+handed, tells you something twice — and a channel that repeats what you already
+know is one you learn to stop reading, which then costs you the lines that
+matter. So `set` says whether it replaced, a write says what it displaced, and
+neither says how much you gave it.
 
 ## What it settled
 

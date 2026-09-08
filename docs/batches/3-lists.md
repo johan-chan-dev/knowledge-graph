@@ -13,10 +13,9 @@ Not built. This is the target, and the test that has to pass for it to be done.
 
 ```console
 $ kg node "$a" add labels auth pattern
-01a0801d-42fa-7ea4-9025-b693306f23fb
 added 2 to labels
 
-$ kg node "$a" read --properties
+$ kg node "$a" --properties
 kind: decision
 labels: auth, pattern
 2 properties
@@ -25,11 +24,9 @@ $ kg nodes list --contains labels auth
 01a0801d-42fa-7ea4-9025-b693306f23fb
 
 $ kg node "$a" remove labels auth
-01a0801d-42fa-7ea4-9025-b693306f23fb
 removed 1 from labels
 
 $ kg node "$a" remove labels pattern
-01a0801d-42fa-7ea4-9025-b693306f23fb
 removed 1 from labels, labels is now unset
 ```
 

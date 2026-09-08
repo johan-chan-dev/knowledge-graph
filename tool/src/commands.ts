@@ -1,7 +1,7 @@
 import { absent, lines, ok, type Outcome, refused } from "./outcome.ts";
 import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
-import { amend, bytes, isId, isName, measure, properties, read, write } from "./node.ts";
+import { amend, isId, isName, properties, read, write } from "./node.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -134,31 +134,38 @@ export async function node(
   id: string,
   asProperties: boolean,
 ): Promise<Outcome> {
-  if (asProperties) return await nodeProperties(cwd, id);
-  // Validation precedes lookup, so a refused call cannot have touched anything.
+  // Validation precedes lookup, so a refused call cannot have touched anything
+  // — and the same argument gets the same verdict whichever half was asked for.
   if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
 
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
-  const result = await read(resolved.space, id);
-  switch (result.kind) {
+  const found = await properties(resolved.space, id);
+  switch (found.kind) {
     case "absent":
       return absent(`no such node: ${id} in ${resolved.space.name}`);
     case "malformed":
-      return unreadable(id, "malformed");
-    case "read":
-      // stdout is the content, byte for byte — the only command whose output
-      // is data rather than a report.
-      return ok(result.content, measure(result.content));
+    case "unparseable":
+      return unreadable(id, found.kind);
   }
+
+  // stdout is one half of a node or the other, never both. `--properties` swaps
+  // which; the rendering is the same either way.
+  const rendered = render(found.properties);
+  if (asProperties) return lines(rendered);
+
+  const content = await read(resolved.space, id);
+  if (content.kind !== "read") return unreadable(id, "malformed");
+  // Reading the content puts the properties on stderr — an agent wants to know
+  // how a node is classified, and a consumer discarding stderr loses nothing it
+  // needed.
+  return ok(content.content, ...rendered);
 }
 
-/**
- * `new` and `write` are different operations, not one with an optional id:
- * creating changes what the collection contains and replacing does not. The
- * shared half is deciding what content the call was given.
- */
+const render = (properties: Record<string, string>): string[] =>
+  Object.keys(properties).sort().map((name) => `${name}: ${properties[name]}`);
+
 export async function nodeNew(
   cwd: string,
   stdin: Stdin,
@@ -172,7 +179,8 @@ export async function nodeNew(
 
   const result = await write(resolved.space, null, content.text);
   if (result.kind !== "written") return refused(`could not create a node`);
-  return lines([result.id], `wrote ${bytes(content.text)} bytes`);
+  // The id is the one thing the caller could not have worked out.
+  return lines([result.id]);
 }
 
 export async function nodeWrite(
@@ -196,10 +204,9 @@ export async function nodeWrite(
     case "malformed":
       return unreadable(id, "malformed");
     case "written":
-      return lines(
-        [result.id],
-        `wrote ${bytes(content.text)} bytes, replacing ${result.replaced}`,
-      );
+      // Nothing on stdout: the caller supplied the id. What it could not know
+      // is the size it displaced.
+      return ok("", `replaced ${result.replaced} bytes`);
   }
 }
 
@@ -239,30 +246,6 @@ function contentFrom(stdin: Stdin, allowEmpty: boolean): Content {
   return { kind: "content", text };
 }
 
-/** stdout is one half of a node or the other, never both. Rendered rather than
- * the stored block: printing the frontmatter would leak the format and invite
- * parsing it. */
-async function nodeProperties(cwd: string, id: string): Promise<Outcome> {
-  const resolved = await resolve(cwd);
-  if (resolved.kind === "stop") return resolved.outcome;
-
-  const found = await properties(resolved.space, id);
-  switch (found.kind) {
-    case "absent":
-      return absent(`no such node: ${id} in ${resolved.space.name}`);
-    case "malformed":
-    case "unparseable":
-      return unreadable(id, found.kind);
-    case "read": {
-      const names = Object.keys(found.properties).sort();
-      return lines(
-        names.map((name) => `${name}: ${found.properties[name]}`),
-        `${names.length} ${names.length === 1 ? "property" : "properties"}`,
-      );
-    }
-  }
-}
-
 /** `set` and `unset` are about the property. The value is stored as given — the
  * tool writes back the text it was handed and never decides what it means. */
 export async function nodeSet(
@@ -289,12 +272,13 @@ export async function nodeSet(
     case "unparseable":
       return unreadable(id, result.kind);
     case "amended":
+      // Whether it existed is the part the caller could not have known.
       // Removing a property that is absent is the end state that was asked for.
-      return lines(
-        [id],
+      return ok(
+        "",
         value === null
           ? (result.had ? `unset ${name}` : `${name} was not set`)
-          : `set ${name}`,
+          : (result.had ? `replaced ${name}` : `set ${name}`),
       );
   }
 }
