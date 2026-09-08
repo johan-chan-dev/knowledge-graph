@@ -24,7 +24,7 @@ const FORMS = [
   ["nodes list", "every id, in creation order"],
   ["nodes list --where <name>=<value>", "…whose property equals that"],
   ["node new", "create one — stdin is its content"],
-  ["node <id>", "the content, with its properties on stderr"],
+  ["node <id>", "the content, properties on stderr"],
   ["node <id> --properties", "the properties instead"],
   ["node <id> write", "stdin replaces the content"],
   ["node <id> set <name> <value>", "write one property"],
@@ -45,7 +45,6 @@ function help(): string {
     "",
     "Global:",
     "  -C <dir>        run as if from there",
-    "  --properties    read a node's properties instead of its content",
     "  --help",
   ].join("\n");
 }

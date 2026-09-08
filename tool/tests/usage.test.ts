@@ -27,3 +27,18 @@ Deno.test("a single resource reads bare; a collection names its action", async (
   assertStringIncludes(message(await run(["node"])), "needs an id, or new");
   assertStringIncludes(message(await run(["nodes"])), "takes one action");
 });
+
+Deno.test("a flag under Global is not one that belongs to a command", async () => {
+  const help = stdout(await run(["--help"]));
+  const [commands, global] = help.split("Global:");
+
+  const inCommands = new Set(commands.match(/--[a-z-]+/g) ?? []);
+  const asGlobal = global.match(/--[a-z-]+/g) ?? [];
+
+  // `--properties` was listed in both: correctly beside `kg node <id>`, and
+  // wrongly as global, which claimed every command accepts it.
+  for (const flag of asGlobal) {
+    assertEquals(inCommands.has(flag), false, `${flag} is command-specific, not global`);
+  }
+  assertEquals(asGlobal, ["--help"], "and -C, which the regex does not match");
+});
