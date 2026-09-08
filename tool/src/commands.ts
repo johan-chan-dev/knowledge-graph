@@ -1,7 +1,9 @@
 import { absent, lines, ok, type Outcome, refused } from "./outcome.ts";
 import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
-import { amend, isId, isName, properties, read, write } from "./node.ts";
+import * as frontmatter from "./frontmatter.ts";
+import type { Properties } from "./frontmatter.ts";
+import { amend, isId, read, write } from "./node.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -49,28 +51,19 @@ export async function spaceInit(cwd: string): Promise<Outcome> {
   }
 }
 
-/** Three predicates and no more. No comparison operators, no `or`, and no
- * negated values — `--without a=1` has two defensible readings, so it would
- * need a rule nobody remembers. */
-export type Filter = {
-  /** `name` alone means merely present; with a value, equal to it. */
-  readonly where: readonly { name: string; value: string | null }[];
-  readonly without: readonly string[];
-};
-
-export const unfiltered = (filter: Filter): boolean =>
-  filter.where.length === 0 && filter.without.length === 0;
+/**
+ * One predicate: does this property equal this value.
+ *
+ * `--where <name>` with no comparison used to mean *present*, which was a
+ * presence test wearing a comparison word — two questions sharing a name
+ * because they happened to share an argument shape. Presence and absence are
+ * parked; see `design/parked/search.md`.
+ */
+export type Filter = readonly { name: string; value: string }[];
 
 export async function nodes(cwd: string, filter: Filter): Promise<Outcome> {
-  for (const { name } of filter.where) {
-    if (!isName(name)) {
-      return refused(
-        `not a property name: ${name} — expected a lowercase hyphenated token`,
-      );
-    }
-  }
-  for (const name of filter.without) {
-    if (!isName(name)) {
+  for (const { name } of filter) {
+    if (!frontmatter.isName(name)) {
       return refused(
         `not a property name: ${name} — expected a lowercase hyphenated token`,
       );
@@ -83,38 +76,34 @@ export async function nodes(cwd: string, filter: Filter): Promise<Outcome> {
   const found = await ids(resolved.space);
   // Bare, this parses nothing: the id is the filename. Filtered, it opens every
   // file, which is where the tool first runs over a whole space.
-  if (unfiltered(filter)) return lines(found);
+  if (filter.length === 0) return lines(found);
 
   const kept: string[] = [];
   const damaged: string[] = [];
   for (const id of found) {
-    const props = await properties(resolved.space, id);
-    if (props.kind !== "read") {
+    const node = await read(resolved.space, id);
+    if (node.kind !== "read") {
       // One damaged file must not make a space unfindable, and reporting is not
       // the same as failing.
       damaged.push(
         `skipped ${id}: ${
-          props.kind === "malformed"
-            ? "no frontmatter block"
-            : "properties are not valid yaml"
+          node.kind === "malformed" ? "no frontmatter block" : "unreadable properties"
         }`,
       );
       continue;
     }
-    if (matches(props.properties, filter)) kept.push(id);
+    if (matches(node.properties, filter)) kept.push(id);
   }
   return lines(kept, ...damaged);
 }
 
 /** The tool compares strings and understands nothing — it does not know what
- * `decided-by` names, only whether the text matches. */
-function matches(properties: Record<string, string>, filter: Filter): boolean {
-  for (const { name, value } of filter.where) {
-    if (!(name in properties)) return false;
-    if (value !== null && properties[name] !== value) return false;
-  }
-  for (const name of filter.without) {
-    if (name in properties) return false;
+ * `decided-by` names, only whether the text matches. A list is not filterable
+ * by value yet, so it simply does not equal anything. */
+function matches(properties: Properties, filter: Filter): boolean {
+  for (const { name, value } of filter) {
+    const held = properties[name];
+    if (typeof held !== "string" || held !== value) return false;
   }
   return true;
 }
@@ -125,9 +114,17 @@ function unreadable(id: string, kind: "malformed" | "unparseable"): Outcome {
   return refused(
     kind === "malformed"
       ? `cannot read ${id}: no frontmatter block`
-      : `cannot read ${id}: properties are not valid yaml`,
+      : `cannot read ${id}: its properties are neither values nor lists`,
   );
 }
+
+/** Properties are rendered as YAML, which is what distinguishes a list from a
+ * scalar that merely looks like one: the serialiser quotes exactly what would
+ * otherwise change meaning coming back. */
+const render = (properties: Properties): string[] => {
+  const text = frontmatter.write(properties);
+  return text === "" ? [] : text.trimEnd().split("\n");
+};
 
 export async function node(
   cwd: string,
@@ -141,7 +138,7 @@ export async function node(
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
-  const found = await properties(resolved.space, id);
+  const found = await read(resolved.space, id);
   switch (found.kind) {
     case "absent":
       return absent(`no such node: ${id} in ${resolved.space.name}`);
@@ -150,21 +147,10 @@ export async function node(
       return unreadable(id, found.kind);
   }
 
-  // stdout is one half of a node or the other, never both. `--properties` swaps
-  // which; the rendering is the same either way.
+  // stdout is one half of a node or the other, never both.
   const rendered = render(found.properties);
-  if (asProperties) return lines(rendered);
-
-  const content = await read(resolved.space, id);
-  if (content.kind !== "read") return unreadable(id, "malformed");
-  // Reading the content puts the properties on stderr — an agent wants to know
-  // how a node is classified, and a consumer discarding stderr loses nothing it
-  // needed.
-  return ok(content.content, ...rendered);
+  return asProperties ? lines(rendered) : ok(found.content, ...rendered);
 }
-
-const render = (properties: Record<string, string>): string[] =>
-  Object.keys(properties).sort().map((name) => `${name}: ${properties[name]}`);
 
 export async function nodeNew(
   cwd: string,
@@ -200,7 +186,10 @@ export async function nodeWrite(
     case "absent":
       return absent(`no such node: ${id} in ${resolved.space.name}`);
     case "malformed":
-      return unreadable(id, "malformed");
+    case "unparseable":
+      // Replacing the content preserves the properties, so a block that will
+      // not read is a block this cannot safely write back.
+      return unreadable(id, result.kind);
     case "written":
       // Nothing on stdout: the caller supplied the id. What it could not know
       // is the size it displaced.
@@ -242,39 +231,130 @@ function contentFrom(stdin: Stdin): Content {
   return { kind: "content", text };
 }
 
-/** `set` and `unset` are about the property. The value is stored as given — the
- * tool writes back the text it was handed and never decides what it means. */
+/** `set` and `unset` are about the property; `add` and `remove` are about its
+ * contents. The shape follows from the verb rather than from how many values
+ * arrived, so `set x a` is a scalar and `add x a` is a one-element list. */
 export async function nodeSet(
   cwd: string,
   id: string,
   name: string,
   value: string | null,
 ): Promise<Outcome> {
+  const bad = check(id, name, value === null ? [] : [value]);
+  if (bad !== null) return bad;
+
+  return await change(cwd, id, (properties) => {
+    const had = name in properties;
+    if (value === null) {
+      delete properties[name];
+      return had ? `unset ${name}` : `${name} was not set`;
+    }
+    properties[name] = value;
+    return had ? `replaced ${name}` : `set ${name}`;
+  });
+}
+
+/** Idempotent: adding one already present, or removing one absent, is the end
+ * state that was asked for. The count reported is the effective one — you know
+ * how many you passed; what you could not know is how many were already there. */
+export async function nodeAdd(
+  cwd: string,
+  id: string,
+  name: string,
+  values: string[],
+): Promise<Outcome> {
+  const bad = check(id, name, values);
+  if (bad !== null) return bad;
+
+  return await change(cwd, id, (properties) => {
+    const existing = properties[name];
+    if (existing !== undefined && !frontmatter.isList(existing)) {
+      // Promoting a scalar silently would be the tool deciding what was meant.
+      return { refuse: `cannot add to ${name}: not a list` };
+    }
+    const list = existing ?? [];
+    const fresh = values.filter((value) => !list.includes(value));
+    if (fresh.length === 0) return null;
+    properties[name] = [...list, ...fresh];
+    return `added ${fresh.length} to ${name}`;
+  });
+}
+
+export async function nodeRemove(
+  cwd: string,
+  id: string,
+  name: string,
+  values: string[],
+): Promise<Outcome> {
+  const bad = check(id, name, values);
+  if (bad !== null) return bad;
+
+  return await change(cwd, id, (properties) => {
+    const existing = properties[name];
+    if (existing === undefined) return null;
+    if (!frontmatter.isList(existing)) {
+      return { refuse: `cannot remove from ${name}: not a list` };
+    }
+    const kept = existing.filter((value) => !values.includes(value));
+    if (kept.length === existing.length) return null;
+    const gone = existing.length - kept.length;
+    // A property emptied must be indistinguishable from one never set.
+    if (kept.length === 0) {
+      delete properties[name];
+      return `removed ${gone} from ${name}, ${name} is now unset`;
+    }
+    properties[name] = kept;
+    return `removed ${gone} from ${name}`;
+  });
+}
+
+/** Arguments first, before a file is opened. */
+function check(id: string, name: string, values: string[]): Outcome | null {
   if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
-  if (!isName(name)) {
+  if (!frontmatter.isName(name)) {
     return refused(
       `not a property name: ${name} — expected a lowercase hyphenated token`,
     );
   }
+  for (const value of values) {
+    if (!frontmatter.isValue(value)) {
+      return refused(
+        "not a property value: contains a control character — a value is a single line",
+      );
+    }
+  }
+  return null;
+}
 
+/** The shared half of every property write: resolve, amend, report. `null` from
+ * the callback means nothing changed, and nothing changed is worth no words. */
+async function change(
+  cwd: string,
+  id: string,
+  edit: (properties: Properties) => string | null | { refuse: string },
+): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
-  const result = await amend(resolved.space, id, name, value);
+  const said: (string | null)[] = [];
+  const result = await amend(resolved.space, id, (properties) => {
+    const outcome = edit(properties);
+    if (outcome !== null && typeof outcome === "object") return outcome.refuse;
+    said.push(outcome);
+  });
+
   switch (result.kind) {
     case "absent":
       return absent(`no such node: ${id} in ${resolved.space.name}`);
     case "malformed":
     case "unparseable":
       return unreadable(id, result.kind);
-    case "amended":
-      // Whether it existed is the part the caller could not have known.
-      // Removing a property that is absent is the end state that was asked for.
-      return ok(
-        "",
-        value === null
-          ? (result.had ? `unset ${name}` : `${name} was not set`)
-          : (result.had ? `replaced ${name}` : `set ${name}`),
-      );
+    case "refused":
+      return refused(result.message);
+    case "amended": {
+      const note = said[0];
+      // Nothing changed is worth no words.
+      return note == null ? ok("") : ok("", note);
+    }
   }
 }

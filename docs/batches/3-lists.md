@@ -3,9 +3,9 @@
 **Done when** a property can carry several values, and you can add and remove
 them one at a time.
 
-Planned. This is what it will do, and what building it has to answer.
+Shipped. The commands are in [`spec/api.md`](../spec/api.md).
 
-## What it should look like
+## What it looks like
 
 ```console
 $ kg node "$a" add labels auth pattern
@@ -26,7 +26,7 @@ removed 1 from labels, labels is now unset
 
 The second `add` says nothing: `auth` was already there, so nothing changed and
 there is nothing the caller could not have worked out. The counts are the
-**effective** ones for the same reason — you know how many you passed.
+**effective** ones for the same reason.
 
 And the refusals, which are half of what this batch decides:
 
@@ -34,16 +34,29 @@ And the refusals, which are half of what this batch decides:
 $ kg node "$a" add kind authority
 cannot add to kind: not a list
 
+$ kg nodes list --where valid-until
+--where needs a comparison — use --where <name>=<value>
+
 $ kg node "$a" set note "$(printf 'one\ntwo')"
 not a property value: contains a control character — a value is a single line
-
-$ kg nodes list --where valid-until
---where needs a comparison — use --where valid-until=<value>
 ```
 
-**Done when** `batch 3 — a property can hold a list` passes in
+**Backed by** `batch 3 — a property can hold a list` in
 [`tool/tests/batches.test.ts`](../../tool/tests/batches.test.ts), alongside the
 two batches before it.
+
+## What building it forced
+
+**Separating what a node file *is* from where it lives.**
+[`frontmatter.ts`](../../tool/src/frontmatter.ts) is pure — the fence, the value
+rules, the YAML round-trip — and `node.ts` is the I/O over it. Widening a value
+to hold a list is the change that made the split worth doing, because every case
+it introduces is cheap to reach with a string and expensive to reach through a
+filesystem and a command line. Nine unit tests, seven milliseconds.
+
+**That replacing content has to read the properties.** `write` preserves them,
+so a block that will not read is a block it cannot safely write back — a failure
+mode that did not exist while the reader could flatten anything into a string.
 
 ## What it adds
 

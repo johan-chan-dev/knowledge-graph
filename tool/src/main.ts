@@ -2,7 +2,9 @@ import { parseArgs } from "@std/cli/parse-args";
 import { exitCode, lines, type Outcome, refused, usage } from "./outcome.ts";
 import {
   node,
+  nodeAdd,
   nodeNew,
+  nodeRemove,
   nodes,
   nodeSet,
   nodeWrite,
@@ -20,14 +22,15 @@ const FORMS = [
   ["space", "what and where this space is"],
   ["space init", "create one"],
   ["nodes list", "every id, in creation order"],
-  ["nodes list --where <name>[=<value>]", "…that carry it"],
-  ["nodes list --without <name>", "…that do not"],
+  ["nodes list --where <name>=<value>", "…whose property equals that"],
   ["node new", "create one — stdin is its content"],
   ["node <id>", "the content, with its properties on stderr"],
   ["node <id> --properties", "the properties instead"],
   ["node <id> write", "stdin replaces the content"],
   ["node <id> set <name> <value>", "write one property"],
   ["node <id> unset <name>", "remove one"],
+  ["node <id> add <name> <value>...", "values into a property's list"],
+  ["node <id> remove <name> <value>...", "values out of it"],
 ] as const;
 
 function help(): string {
@@ -65,8 +68,8 @@ export async function run(argv: string[]): Promise<Outcome> {
   let unknownFlag: string | null = null;
   const flags = parseArgs(argv, {
     boolean: ["help", "properties"],
-    string: ["C", "where", "without"],
-    collect: ["where", "without"],
+    string: ["C", "where"],
+    collect: ["where"],
     unknown: (arg) => {
       if (arg.startsWith("-")) unknownFlag = arg;
       return true;
@@ -91,12 +94,11 @@ export async function run(argv: string[]): Promise<Outcome> {
   const many = (value: unknown): string[] =>
     value === undefined ? [] : Array.isArray(value) ? value.map(String) : [String(value)];
 
-  /** `--where name` is merely present; `--where name=value` is equal to it. */
-  const split = (clause: string) => {
-    const at = clause.indexOf("=");
-    return at === -1
-      ? { name: clause, value: null }
-      : { name: clause.slice(0, at), value: clause.slice(at + 1) };
+  /** `--where` always carries a comparison. The bare form was a presence test
+   * wearing a comparison word; presence is parked. */
+  const clause = (text: string) => {
+    const at = text.indexOf("=");
+    return at === -1 ? null : { name: text.slice(0, at), value: text.slice(at + 1) };
   };
   const [scope, ...rest] = flags._.map(String);
   if (scope === undefined) return usage(help());
@@ -116,10 +118,11 @@ export async function run(argv: string[]): Promise<Outcome> {
       if (action !== "list" || extra.length > 0) {
         return usage(`nodes takes one action: list\n\n${help()}`);
       }
-      return await nodes(cwd, {
-        where: many(flags.where).map(split),
-        without: many(flags.without),
-      });
+      const clauses = many(flags.where).map(clause);
+      if (clauses.includes(null)) {
+        return usage("--where needs a comparison — use --where <name>=<value>");
+      }
+      return await nodes(cwd, clauses as { name: string; value: string }[]);
     }
 
     // `node` is the one scope with two shapes: you cannot address what does not
@@ -132,7 +135,8 @@ export async function run(argv: string[]): Promise<Outcome> {
         return await nodeNew(cwd, await stdin());
       }
       const [action, ...extra] = rest2;
-      if (extra.length > 0 && action !== "set" && action !== "unset") {
+      const takesArguments = ["set", "unset", "add", "remove"].includes(action ?? "");
+      if (extra.length > 0 && !takesArguments) {
         return usage(`node <id> ${action} takes no arguments`);
       }
       if (action === undefined) return await node(cwd, first, flags.properties);
@@ -157,8 +161,17 @@ export async function run(argv: string[]): Promise<Outcome> {
         if (rest3.length > 0) return usage("node <id> unset takes one name");
         return await nodeSet(cwd, first, name, null);
       }
+      if (action === "add" || action === "remove") {
+        const [name, ...values] = extra;
+        if (name === undefined || values.length === 0) {
+          return usage(`node <id> ${action} needs a name and at least one value`);
+        }
+        return action === "add"
+          ? await nodeAdd(cwd, first, name, values)
+          : await nodeRemove(cwd, first, name, values);
+      }
       return usage(
-        `node <id> takes one action: write, set, unset\n\n${help()}`,
+        `node <id> takes one action: write, set, unset, add, remove\n\n${help()}`,
       );
     }
 

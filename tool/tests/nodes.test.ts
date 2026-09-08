@@ -4,27 +4,37 @@ import { message, rows, seeded3, stdout } from "./helpers.ts";
 
 // kg nodes list, and its filters
 
-Deno.test("three predicates: equals, present, absent", async () => {
+Deno.test("one predicate: does this property equal this value", async () => {
   const { kg, ids } = await seeded3();
   assertEquals(rows(await kg("nodes", "list")).length, 3);
   assertEquals(rows(await kg("nodes", "list", "--where", "kind=decision")), [
     ids[0],
     ids[1],
   ]);
-  assertEquals(rows(await kg("nodes", "list", "--where", "valid-until")), [ids[0]]);
-  assertEquals(rows(await kg("nodes", "list", "--without", "valid-until")), [
-    ids[1],
-    ids[2],
-  ]);
+  assertEquals(rows(await kg("nodes", "list", "--where", "kind=note")), [ids[2]]);
 });
 
-Deno.test("filters are ANDed, and match nothing rather than erroring", async () => {
+Deno.test("--where always carries a comparison; presence is parked", async () => {
+  const { kg } = await seeded3();
+  const bare = await kg("nodes", "list", "--where", "valid-until");
+  assertEquals(exitCode(bare), 4);
+  assertStringIncludes(message(bare), "needs a comparison");
+});
+
+Deno.test("filters conjoin, and match nothing rather than erroring", async () => {
   const { kg, ids } = await seeded3();
   assertEquals(
     rows(
-      await kg("nodes", "list", "--where", "kind=decision", "--without", "valid-until"),
+      await kg(
+        "nodes",
+        "list",
+        "--where",
+        "kind=decision",
+        "--where",
+        "valid-until=2027-01-01",
+      ),
     ),
-    [ids[1]],
+    [ids[0]],
   );
   // A read command reports what it found rather than judging what it was asked.
   const none = await kg("nodes", "list", "--where", "kind=nope");
@@ -32,6 +42,11 @@ Deno.test("filters are ANDed, and match nothing rather than erroring", async () 
   assertEquals(stdout(none), "");
 });
 
+Deno.test("a list does not equal anything, so --where simply does not match it", async () => {
+  const { kg, ids } = await seeded3();
+  await kg("node", ids[0], "add", "labels", "auth");
+  assertEquals(rows(await kg("nodes", "list", "--where", "labels=auth")), []);
+});
 Deno.test("a filter name is validated before any file is opened", async () => {
   const { kg } = await seeded3();
   const outcome = await kg("nodes", "list", "--where", "Bad_Name=x");

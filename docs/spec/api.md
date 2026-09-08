@@ -88,23 +88,25 @@ ambiguous.
 ## nodes
 
 ```
-kg nodes list                              every id, in creation order
-kg nodes list --where   <name>[=<value>]   the property equals, or merely exists
-kg nodes list --without <name>             the property is absent
+kg nodes list                            every id, in creation order
+kg nodes list --where <name>=<value>     the property equals that
 ```
 
 **Bare, it parses nothing.** The id is the filename, so enumerating is a
 directory read. **Filtered, it opens every file** — which is where the tool
 first runs over a whole space.
 
-Both flags repeat and all of them are ANDed: `--where a=1 --where b --without c`
-is one conjunction.
+`--where` repeats and the clauses are ANDed: `--where a=1 --where b=2` is one
+conjunction.
 
-**Three predicates, and the boundary stops there.** No comparison operators, no
-`or`, and no negated values — `--without retired=2027-01-01` has two defensible
-readings (does it match a node with no `retired` at all?) so it would need a rule
-nobody remembers. Absence and inequality are different questions, and `--without
-<name>` answers the one with a single answer.
+**`--where` always carries a comparison.** A bare `--where <name>` used to mean
+*present*, which was a presence test wearing a comparison word — two questions
+sharing a name because they happened to share an argument shape. Presence,
+absence and searching the body are one family and wait together; see
+[`design/parked/search.md`](../design/parked/search.md).
+
+**A list does not equal anything**, so `--where labels=auth` simply does not
+match a node whose `labels` is a list. Filtering a list by value is parked.
 
 **The tool compares strings and understands nothing.** It does not know what
 `decided-by` names, only whether the text matches. That is the slot discipline
@@ -128,8 +130,10 @@ kg node new                          create one — stdin is its content
 kg node <id>                         the content
 kg node <id> --properties            the properties instead
 kg node <id> write                   stdin replaces the content
-kg node <id> set   <name> <value>    write one property
-kg node <id> unset <name>            remove one
+kg node <id> set    <name> <value>   write one property
+kg node <id> unset  <name>           remove one
+kg node <id> add    <name> <value>...   values into a property's list
+kg node <id> remove <name> <value>...   values out of it
 ```
 
 **The prose is the node.** `kg node <id>` returns it and nothing else — no
@@ -203,9 +207,42 @@ never decides that `42` is a number, for the same reason the reader is pinned to
 YAML 1.2 core.
 
 **`set` takes exactly one value** and refuses a second, naming quoting as the
-fix. Joining several would collide with a list operation, where several values
-mean several elements — the shape has to follow from the verb rather than from
-how many arguments arrived.
+fix. Joining several would collide with `add`, where several values mean several
+elements.
+
+**`set`/`unset` are about the property; `add`/`remove` about its contents.** The
+shape follows from the verb rather than from how many arguments arrived, so `set
+x auth` is a scalar and `add x auth` is a one-element list, and neither has to
+be inferred.
+
+**`add` and `remove` refuse a scalar** — `cannot add to kind: not a list`.
+Promoting `auth` to `[auth, pattern]` would be the tool deciding what was meant.
+
+**Both are idempotent, and report the effective count.** Adding one already
+present changes nothing and says nothing; `add labels auth pattern` where `auth`
+is already there says `added 1 to labels`. You know how many you passed — what
+you could not know is how many were already there.
+
+**`remove` taking the last element removes the key**, leaving a node
+indistinguishable from one that never had the property.
+
+**A list keeps the order it was given.** Keys sort because a mapping is
+unordered by definition; a sequence is ordered by definition, so sorting one
+discards what the author supplied.
+
+**Properties are rendered as YAML.** That is what distinguishes a list from a
+scalar that merely looks like one, because the serialiser quotes exactly what
+would otherwise change meaning coming back:
+
+```
+count: '42'
+labels: [auth, pattern]
+looks: '[auth, pattern]'
+```
+
+Every rendering invented instead collided with a value that is already legal.
+YAML does not, because it was designed not to — and *printing frontmatter leaks
+the format* is a weak objection when the caller parses YAML natively.
 
 **A property name is a lowercase hyphenated token** — `[a-z0-9]+(-[a-z0-9]+)*`.
 Anything needing quoting or escaping is a name that will eventually be typed
@@ -253,6 +290,8 @@ stop reading, which then costs you the lines that matter.
 | `node <id> write` | — | `replaced 210 bytes` |
 | `node <id> set` | — | `set kind`, or `replaced kind` |
 | `node <id> unset` | — | `unset kind`, or `kind was not set` |
+| `node <id> add` | — | `added 1 to labels`, or nothing if nothing changed |
+| `node <id> remove` | — | `removed 1 from labels`, or `…, labels is now unset` |
 
 **A targeted write prints nothing.** Only `new` returns an id, because only
 there is the id new information; echoing back one the caller just supplied is
@@ -276,7 +315,7 @@ a shell all need it. Inside it nothing is addressable but by id.
 **Ids in, ids out.** An id is the only handle on a node.
 
 **Names are long, because the caller is an agent.** `--properties` rather than
-`--props`, `--without` rather than `-w`. A flag is typed by a model far more
+`--props`, and `--contain-properties` over `--cp` when it arrives. A flag is typed by a model far more
 often than by a person, and a model pays nothing for length while an abbreviation
 costs it a guess. Terseness is a convenience for hands, and there are hardly any
 here.
@@ -307,10 +346,12 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | id is not a uuid | `not an id: abc — expected a uuid` | `1` |
 | id not here | `no such node: 01997a3e-… in knowledge-graph` | `2` |
 | no frontmatter fence | `cannot read 01997a3e-…: no frontmatter block` | `1` |
-| properties will not parse | `cannot read 01997a3e-…: properties are not valid yaml` | `1` |
+| properties will not read | `cannot read 01997a3e-…: its properties are neither values nor lists` | `1` |
 | bad property name | `not a property name: Valid_Until — expected a lowercase hyphenated token` | `1` |
 | empty stdin | `no content on stdin — did the command before the pipe fail?` | `1` |
 | bad property value | `not a property value: contains a control character — a value is a single line` | `1` |
+| `add`/`remove` on a scalar | `cannot add to kind: not a list` | `1` |
+| a bare `--where` | `--where needs a comparison — use --where <name>=<value>` | `4` |
 | two values to `set` | `node <id> set takes one value — quote it if it contains spaces` | `4` |
 
 **The absent message names the space**, because *wrong space* is one of the two

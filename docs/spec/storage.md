@@ -87,6 +87,11 @@ list — no control characters. The rule is the output contract's, not the
 storage's: YAML would happily carry a newline as `"a\nb"`, but a rendering that
 prints one property per line could not carry it back.
 
+**A property holds one value or several.** Several is multiplicity on one
+dimension, not a container — `labels: [auth, pattern]` is the node saying two
+things on one dimension, the way `kind: decision` says one. Anything that is
+neither a value nor a list does not read at all.
+
 **A property's value is stored as a string, always.** The serialiser quotes
 only what would otherwise change type on the way back — `hello world` stays
 bare, `'42'` and `'2027-01-01'` keep their quotes. Those quotes are the tool

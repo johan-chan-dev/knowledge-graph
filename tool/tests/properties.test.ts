@@ -32,9 +32,11 @@ Deno.test("properties are stored as given and never retyped", async () => {
   // Under the default YAML schema the first would come back a Date and the
   // second a number, which would be the tool deciding what a field it has
   // never heard of means.
+  // Quoted, because bare `42` and `2027-01-01` would come back a number and a
+  // date. The quotes are the tool preserving that it was handed text.
   assertEquals(
     stdout(await kg("node", id, "--properties")),
-    "count: 42\nvalid-until: 2027-01-01\n",
+    "count: '42'\nvalid-until: '2027-01-01'\n",
   );
 });
 
