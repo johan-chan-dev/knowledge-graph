@@ -71,6 +71,11 @@ nothing else. The default schema turns `2027-01-01` into a date, which would be
 the tool deciding what a field it has never heard of means. The reader is held
 to it from the start, before anything writes such a value.
 
+**A value is a single line of printable text**, and so is each element of a
+list — no control characters. The rule is the output contract's, not the
+storage's: YAML would happily carry a newline as `"a\nb"`, but a rendering that
+prints one property per line could not carry it back.
+
 **A property's value is stored as a string, always.** The serialiser quotes
 only what would otherwise change type on the way back — `hello world` stays
 bare, `'42'` and `'2027-01-01'` keep their quotes. Those quotes are the tool
@@ -108,4 +113,9 @@ output costs nothing and keeps diffs minimal.
 **A key with nothing in it is removed, not emptied**, so a node whose last
 value was dropped serialises back to `---\n---\n\n` — byte for byte what a
 node with nothing said about it looks like. Why that matters is
-[`parked.md`](parked.md)'s, with the labels that first exercise it.
+[`design/parked/lists.md`](../design/parked/lists.md)'s, with the lists that
+first exercise it.
+
+---
+
+[docs](../README.md) · [spec](README.md) · [api](api.md) · storage · [git](git.md)

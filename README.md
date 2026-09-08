@@ -5,6 +5,11 @@ A Claude Code plugin for managing a knowledge graph inside a repository.
 **Early, and in daily use.** The surface still moves between minor versions; the
 origin repository is upgraded with it, which is what keeps the churn honest.
 
+**And it is being replaced.** The `kg` command is being reimplemented from
+scratch — see [`docs/`](docs/) for its design, specification and the batches it
+is arriving in. The plugin follows once the tool is right, and nothing described
+below constrains it.
+
 ## What it is for
 
 A repository where the reasoning matters as much as the artefacts — decisions,

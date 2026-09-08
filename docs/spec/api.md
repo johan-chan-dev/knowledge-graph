@@ -3,7 +3,8 @@
 What the tool offers, in one place. [`storage.md`](storage.md) is what sits
 underneath it and [`git.md`](git.md) is what it needs to exist;
 [`design/`](../design/) is why any of it is so. What has been decided but not
-built is in [`parked.md`](parked.md).
+built is in [`design/parked/`](../design/parked/), and how it got here is in
+[`batches/`](../batches/).
 
 ## Shape
 
@@ -196,6 +197,19 @@ YAML 1.2 core.
 Anything needing quoting or escaping is a name that will eventually be typed
 wrong and fail by silently matching nothing.
 
+**A value is a single line of printable text.** Refused: `U+0000`–`U+001F` and
+`U+007F` — newline, carriage return, tab and the other control characters.
+Everything else is legal, including spaces, punctuation, and `= & ? ;`, because
+a URL alone needs most of them.
+
+The restriction comes from the output contract rather than from storage: this
+prints one property per line, so a value spanning lines makes the output
+unreadable to anything, including a person. And a value wanting several lines is
+content, which is what the body is for.
+
+Tab is refused for a different reason — it renders identically to spaces, so two
+values that look the same would not match a filter.
+
 **`unset` is idempotent.** Removing a property that is absent is the end state
 that was asked for.
 
@@ -276,6 +290,7 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | no frontmatter fence | `cannot read 01997a3e-…: no frontmatter block` | `1` |
 | properties will not parse | `cannot read 01997a3e-…: properties are not valid yaml` | `1` |
 | bad property name | `not a property name: Valid_Until — expected a lowercase hyphenated token` | `1` |
+| bad property value | `not a property value: contains a control character — a value is a single line` | `1` |
 
 **The absent message names the space**, because *wrong space* is one of the two
 real causes and the caller cannot see which from the id alone.
@@ -305,3 +320,7 @@ command may depend on it existing.
 
 **No practice anything.** No kinds, no constructor questions, no queue, no
 rulings. Those belong to a practice tool composed over this surface.
+
+---
+
+[docs](../README.md) · [spec](README.md) · api · [storage](storage.md) · [git](git.md) · [parked](../design/parked/)

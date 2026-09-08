@@ -75,3 +75,7 @@ That is a real cost and it is charged against a reader who does not exist here.
 The material is written to be read through a tool, working alongside the person
 whose thinking it holds — so filenames carrying no meaning costs nothing that
 was on offer, and buys a reference that survives every rearrangement.
+
+---
+
+[docs](../README.md) · [design](README.md) · location · [vocabulary](vocabulary.md) · [parked](parked/)

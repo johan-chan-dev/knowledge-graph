@@ -50,3 +50,7 @@ it looks like a defect in the tool rather than a missing dependency.
 
 A packaged application should check for git at install time and offer to install
 it. That keeps one git on the machine — the user's — and adds nothing here.
+
+---
+
+[docs](../README.md) · [spec](README.md) · [api](api.md) · [storage](storage.md) · git

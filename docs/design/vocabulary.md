@@ -1,9 +1,12 @@
-# Grouping
+# Vocabulary
 
-**A word a node carries, and nothing more.** Grouping is open, and which nodes
-are in a group is never written down.
+**A word a node carries, and nothing more.** The words are open, and which nodes
+carry which word is never written down.
 
-## Open, because the groups arrive late
+A word groups. Carrying one is how a node says what it is about, and matching
+one is how it is found again.
+
+## Open, because the groupings arrive late
 
 Material clusters. Some of it turns out to be about authentication, some about a
 recurring pattern, some about a vendor's behaviour — and *which* clusters exist
@@ -24,7 +27,7 @@ The obvious implementation is a directory per subject, and it should be
 resisted, because grouping and containment settle at different times by
 different means.
 
-| | grouping | containment |
+| | a word | a folder |
 |---|---|---|
 | arrives by | noticing | deciding |
 | costs | nothing — overlapping, revisable | a boundary that has to be maintained |
@@ -54,18 +57,26 @@ deleted without notice, never something anything is allowed to depend on.
 
 ## Why the words are constrained
 
-A group's word is meant to be **typed and matched exactly**. It is not prose; it
-is a key that two people, or a person and an agent, have to arrive at
-independently and land on the same string.
+A word is meant to be **typed and matched exactly**. It is not prose; it is a
+key that two people, or a person and an agent, have to arrive at independently
+and land on the same string.
 
 Anything requiring quoting or escaping is a word that will eventually be typed
 wrong, and will fail by silently matching nothing rather than by complaining.
 That is the whole reason the form is restricted; the specific restriction is
 [the spec's](../spec/api.md).
 
-## What a group is not
+## What a word is not
 
 It carries no meaning the tool can act on. Nothing about a word decides what a
 node must contain, what it means, or whether it is any good — those are
 questions for whatever practice is being followed, and the tool has no access to
 one. A word is a string that some nodes have and others do not.
+
+Which is why the tool never learns any particular word. It carries them, indexes
+by them and finds by them; **which** words exist, and what any of them oblige,
+belongs to whoever is working.
+
+---
+
+[docs](../README.md) · [design](README.md) · [location](location.md) · vocabulary · [parked](parked/)

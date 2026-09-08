@@ -12,5 +12,6 @@ all.
 **`@std/cli/parse-args` has no notion of subcommands** — it will take the first
 positional after a string flag as that flag's value.
 
-The specification is [`../spec/`](../spec/); the reasoning behind it is
-[`../design/`](../design/).
+The specification is [`../docs/spec/`](../docs/spec/); the reasoning behind it
+is [`../docs/design/`](../docs/design/), and how it got here is
+[`../docs/batches/`](../docs/batches/).
