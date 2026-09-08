@@ -169,9 +169,8 @@ const render = (properties: Record<string, string>): string[] =>
 export async function nodeNew(
   cwd: string,
   stdin: Stdin,
-  allowEmpty: boolean,
 ): Promise<Outcome> {
-  const content = contentFrom(stdin, allowEmpty);
+  const content = contentFrom(stdin);
   if (content.kind === "refused") return content.outcome;
 
   const resolved = await resolve(cwd);
@@ -187,11 +186,10 @@ export async function nodeWrite(
   cwd: string,
   id: string,
   stdin: Stdin,
-  allowEmpty: boolean,
 ): Promise<Outcome> {
   if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
 
-  const content = contentFrom(stdin, allowEmpty);
+  const content = contentFrom(stdin);
   if (content.kind === "refused") return content.outcome;
 
   const resolved = await resolve(cwd);
@@ -222,25 +220,23 @@ type Content =
 /**
  * Decide what content a write is being given.
  *
- * `cmd | kg node write` where cmd failed and `kg node write </dev/null` are
+ * `cmd | kg node new` where cmd failed and `kg node new </dev/null` are
  * byte-identical requests meaning opposite things, and the shell has already
- * erased the difference. So an empty stdin refuses and asks which was meant.
+ * erased the difference. So an empty stdin refuses and names the likely cause.
  *
- * Refusing matters most when replacing: accepting there turns a silent upstream
- * failure into a node's content destroyed and reported as success. Creating an
- * empty node by accident is only litter.
+ * It matters most when replacing: accepting there turns a silent upstream
+ * failure into a node's content destroyed and reported as success.
  *
- * `--allow-empty` resolves the ambiguity without the tool acquiring an opinion
- * about content — it refuses an ambiguous *call*, never a value.
+ * There is no escape hatch, because there is nothing to escape to — a node
+ * holding a single newline is one keystroke away and perfectly legal, so
+ * refusing zero bytes takes no capability with it.
  */
-function contentFrom(stdin: Stdin, allowEmpty: boolean): Content {
+function contentFrom(stdin: Stdin): Content {
   const text = stdin.kind === "terminal" ? "" : stdin.text;
-  if (text === "" && !allowEmpty) {
+  if (text === "") {
     return {
       kind: "refused",
-      outcome: refused(
-        "no content on stdin — pipe content in, or pass --allow-empty for an empty node",
-      ),
+      outcome: refused("no content on stdin — did the command before the pipe fail?"),
     };
   }
   return { kind: "content", text };

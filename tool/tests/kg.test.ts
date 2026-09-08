@@ -161,7 +161,7 @@ Deno.test("an empty stdin refuses, and says how to mean it", async () => {
   await kg("space", "init");
   const result = await pipe(dir, ["node", "new"], "");
   assertEquals(result.code, 1);
-  assertStringIncludes(result.err, "pass --allow-empty for an empty node");
+  assertStringIncludes(result.err, "did the command before the pipe fail?");
   assertEquals(stdout(await kg("nodes", "list")), "", "nothing was created");
 });
 
@@ -179,18 +179,14 @@ Deno.test("an empty stdin cannot destroy a node's content by accident", async ()
   );
 });
 
-Deno.test("--allow-empty is the escape hatch, for both create and replace", async () => {
+Deno.test("a node holding a newline is legal, which is why there is no escape hatch", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
 
-  const made = await pipe(dir, ["node", "new", "--allow-empty"], "");
+  // Refusing zero bytes takes no capability with it: the adjacent value works.
+  const made = await pipe(dir, ["node", "new"], "\n");
   assertEquals(made.code, 0);
-  assertEquals(stdout(await kg("node", made.out.trim())), "");
-
-  const id = (await pipe(dir, ["node", "new"], "something\n")).out.trim();
-  const emptied = await pipe(dir, ["node", id, "write", "--allow-empty"], "");
-  assertEquals(emptied.code, 0);
-  assertEquals(stdout(await kg("node", id)), "");
+  assertEquals(stdout(await kg("node", made.out.trim())), "\n");
 });
 
 // ── usage ────────────────────────────────────────────────────────────────────

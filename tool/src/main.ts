@@ -42,7 +42,6 @@ function help(): string {
     "",
     "Global:",
     "  -C <dir>        run as if from there",
-    "  --allow-empty   let a write store nothing",
     "  --properties    read a node's properties instead of its content",
     "  --help",
   ].join("\n");
@@ -65,7 +64,7 @@ async function stdin(): Promise<Stdin> {
 export async function run(argv: string[]): Promise<Outcome> {
   let unknownFlag: string | null = null;
   const flags = parseArgs(argv, {
-    boolean: ["help", "allow-empty", "properties"],
+    boolean: ["help", "properties"],
     string: ["C", "where", "without"],
     collect: ["where", "without"],
     unknown: (arg) => {
@@ -130,7 +129,7 @@ export async function run(argv: string[]): Promise<Outcome> {
       if (first === undefined) return usage(`node needs an id, or new\n\n${help()}`);
       if (first === "new") {
         if (rest2.length > 0) return usage("node new takes no arguments");
-        return await nodeNew(cwd, await stdin(), flags["allow-empty"]);
+        return await nodeNew(cwd, await stdin());
       }
       const [action, ...extra] = rest2;
       if (extra.length > 0 && action !== "set" && action !== "unset") {
@@ -138,7 +137,7 @@ export async function run(argv: string[]): Promise<Outcome> {
       }
       if (action === undefined) return await node(cwd, first, flags.properties);
       if (action === "write") {
-        return await nodeWrite(cwd, first, await stdin(), flags["allow-empty"]);
+        return await nodeWrite(cwd, first, await stdin());
       }
       if (action === "set") {
         const [name, ...value] = extra;

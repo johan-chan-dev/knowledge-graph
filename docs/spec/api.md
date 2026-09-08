@@ -157,11 +157,11 @@ EOF
 
 **An empty stdin refuses.** `cmd | kg node new` where `cmd` failed and
 `kg node new </dev/null` are byte-identical requests meaning opposite things
-— the shell erases the difference before the tool sees it — so the tool asks
-which was meant rather than guessing:
+— the shell erases the difference before the tool sees it — so it names the
+likely cause rather than guessing:
 
 ```
-no content on stdin — pipe content in, or pass --allow-empty for an empty node
+no content on stdin — did the command before the pipe fail?
 ```
 
 Stdin at a terminal is the same end state and refuses the same way, so the tool
@@ -169,11 +169,12 @@ never hangs waiting on one and never quietly mints something nobody asked for.
 
 **It matters most when replacing.** Accepting an empty stdin there turns a
 silent upstream failure into a node's content destroyed and reported as success;
-creating an empty node by accident is only litter. So both refuse, and
-`--allow-empty` is the escape hatch for either.
+creating an empty node by accident is only litter. So both refuse.
 
-`--allow-empty` resolves an ambiguous *call*. The tool acquires no opinion about
-content — it will store nothing, once you have said that is what you meant.
+**There is no escape hatch, because there is nothing to escape to.** A node
+holding a single newline is one keystroke away and perfectly legal, so refusing
+zero bytes takes no capability with it — and a flag guarding the gap between
+nothing and one newline would be guarding a distinction nobody has.
 
 ### Properties
 
@@ -275,7 +276,7 @@ a shell all need it. Inside it nothing is addressable but by id.
 **Ids in, ids out.** An id is the only handle on a node.
 
 **Names are long, because the caller is an agent.** `--properties` rather than
-`--props`, `--allow-empty` rather than `-e`. A flag is typed by a model far more
+`--props`, `--without` rather than `-w`. A flag is typed by a model far more
 often than by a person, and a model pays nothing for length while an abbreviation
 costs it a guess. Terseness is a convenience for hands, and there are hardly any
 here.
@@ -308,6 +309,7 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | no frontmatter fence | `cannot read 01997a3e-…: no frontmatter block` | `1` |
 | properties will not parse | `cannot read 01997a3e-…: properties are not valid yaml` | `1` |
 | bad property name | `not a property name: Valid_Until — expected a lowercase hyphenated token` | `1` |
+| empty stdin | `no content on stdin — did the command before the pipe fail?` | `1` |
 | bad property value | `not a property value: contains a control character — a value is a single line` | `1` |
 | two values to `set` | `node <id> set takes one value — quote it if it contains spaces` | `4` |
 

@@ -68,9 +68,10 @@ credentials, which is what cloning a private space needs.
 
 **That an empty stdin is ambiguous.** `cmd | kg node new` where `cmd` failed and
 `kg node new </dev/null` are byte-identical requests meaning opposite things,
-and the shell erases the difference before the tool sees it. Refusing and asking
-which was meant beat guessing, and it matters most on a replace, where accepting
-turns a silent upstream failure into content destroyed and reported as success.
+and the shell erases the difference before the tool sees it. Refusing and naming
+the likely cause beat guessing, and it matters most on a replace, where
+accepting turns a silent upstream failure into content destroyed and reported
+as success.
 
 **Which stream carries what.** stdout is the answer, stderr is everything else —
 so a node's content pipes byte for byte while still reporting its size, and
@@ -104,6 +105,12 @@ forced the tool to own writing, which is why `node new` takes content on stdin.
 A `body` scope went the same way, for a reason worth keeping: it named the half
 of a markdown file after the frontmatter, which is a storage word in a surface
 that had just finished removing storage from the contract.
+
+And an `--allow-empty` flag, added so the empty-stdin refusal would have an
+escape hatch. It guarded the gap between zero bytes and a single newline — and
+a node holding a newline is legal and one keystroke away, so the flag protected
+a distinction nobody has. Refusing zero bytes takes no capability with it, which
+is what the escape hatch was there to preserve.
 
 ---
 
