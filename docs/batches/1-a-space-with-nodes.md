@@ -11,6 +11,50 @@ A space had to exist before anything else could be argued about. Everything
 after this batch — properties, lists, relations — presumes a place to put a node
 and a way to name one.
 
+## What it looks like
+
+```console
+$ kg space init
+notes
+  root     /Users/you/notes
+  branch   (no commit yet)
+  nodes    0
+initialised a git repository at /Users/you/notes
+
+$ id=$(kg node new <<'EOF')
+> Modules own their schema. A shared one couples every module to every
+> other module's release.
+> EOF
+wrote 93 bytes
+
+$ kg node "$id" read
+Modules own their schema. A shared one couples every module to every
+other module's release.
+2 lines, 93 bytes
+
+$ kg nodes list
+01a0801d-42fa-7ea4-9025-b693306f23fb
+
+$ printf 'Modules own their schema.\n' | kg node "$id" write
+01a0801d-42fa-7ea4-9025-b693306f23fb
+wrote 26 bytes, replacing 93
+
+$ kg space show
+notes
+  root     /Users/you/notes
+  branch   (no commit yet)
+  nodes    1
+```
+
+Make a space, put material in it, find it again, read it back, replace it —
+and no file was opened by hand. **Backed by `batch 1 — a space, and nodes in
+it`** in [`tool/tests/kg.test.ts`](../../tool/tests/kg.test.ts): if the surface
+moves, that test fails before this page goes stale.
+
+Note which lines are on stderr — every advisory (`wrote 93 bytes`,
+`2 lines, 93 bytes`, the git notice) — and which are the answer. `kg node "$id"
+read` pipes the content byte for byte while still reporting its size.
+
 ## What building it forced
 
 **Where a space is, exactly.** `.kg/` at the root of the repository containing

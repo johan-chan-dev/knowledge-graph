@@ -10,6 +10,44 @@ A node had a body and nothing else. Properties are the first thing that makes
 the frontmatter structure rather than an empty fence, and everything a practice
 will ever record about a node lives there.
 
+## What it looks like
+
+```console
+$ kg node "$a" set kind decision
+01a0801d-42fa-7ea4-9025-b693306f23fb
+set kind
+
+$ kg node "$b" set kind authority
+$ kg node "$b" set valid-until 2027-01-01
+
+$ kg node "$b" read --properties
+kind: authority
+valid-until: 2027-01-01
+2 properties
+
+$ kg node "$b" read
+OWASP is authoritative on session handling until 2027.
+1 line, 55 bytes
+
+$ kg nodes list --where kind=decision
+01a0801d-42fa-7ea4-9025-b693306f23fb
+01a0801d-6795-7e19-87c9-b543e6a7f553
+
+$ kg nodes list --where valid-until
+01a0801d-675e-7c6e-8609-26d75ec5dfc3
+
+$ kg nodes list --where kind=decision --without valid-until
+01a0801d-42fa-7ea4-9025-b693306f23fb
+01a0801d-6795-7e19-87c9-b543e6a7f553
+```
+
+Annotate a node, then find it again by its annotation. **Backed by `batch 2 —
+nodes carry properties`** in [`tool/tests/kg.test.ts`](../../tool/tests/kg.test.ts).
+
+The two `read` calls are the point: stdout carries one half of a node or the
+other, never both. And the tool has no idea what `kind` or `valid-until` mean —
+it compared text.
+
 ## What building it forced
 
 **How much a filter may express.** Three predicates: equals, present, absent.

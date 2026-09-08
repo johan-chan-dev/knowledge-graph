@@ -15,6 +15,28 @@ history: what a batch was for, what building it forced, what it settled.
 | 2 | [nodes carry properties](2-properties.md) | shipped |
 | 3 | [a property can hold a list](3-lists.md) | planned |
 
+## Every batch shows its goal, and a test holds it there
+
+Each document opens with a transcript of the loop that batch closes — what you
+type, and what comes back. A batch that cannot be illustrated in a dozen lines
+is too big.
+
+**Each illustration is backed by a test named for its batch.** The *done when*
+is not a sentence, it is something that passes or does not:
+
+```
+batch 1 — a space, and nodes in it
+batch 2 — nodes carry properties
+```
+
+So a transcript here cannot rot quietly. Change the surface and the test fails
+first, and whoever fixes it is pointed at the page to correct. That is the same
+trade the no-signatures rule makes, from the other side: what is written down
+twice must be checkable, or it will drift.
+
+A planned batch shows the transcript it is aiming at, and names the test that
+does not pass yet.
+
 ## Why batches at all
 
 Building whole and then correcting is how the first draft of this design got so

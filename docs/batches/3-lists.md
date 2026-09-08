@@ -7,6 +7,50 @@ Planned. The shape is
 [`design/parked/lists.md`](../design/parked/lists.md); this is what building it
 has to answer.
 
+## What it should look like
+
+Not built. This is the target, and the test that has to pass for it to be done.
+
+```console
+$ kg node "$a" add labels auth pattern
+01a0801d-42fa-7ea4-9025-b693306f23fb
+added 2 to labels
+
+$ kg node "$a" read --properties
+kind: decision
+labels: auth, pattern
+2 properties
+
+$ kg nodes list --contains labels auth
+01a0801d-42fa-7ea4-9025-b693306f23fb
+
+$ kg node "$a" remove labels auth
+01a0801d-42fa-7ea4-9025-b693306f23fb
+removed 1 from labels
+
+$ kg node "$a" remove labels pattern
+01a0801d-42fa-7ea4-9025-b693306f23fb
+removed 1 from labels, labels is now unset
+```
+
+And the refusals, which are half of what this batch decides:
+
+```console
+$ kg node "$a" set kind decision
+$ kg node "$a" add kind authority
+cannot add to kind: not a list
+
+$ kg nodes list --where labels=auth
+cannot filter labels with --where: it holds a list — use --contains
+
+$ kg node "$a" set note "$(printf 'one\ntwo')"
+not a property value: contains a control character — a value is a single line
+```
+
+**Done when** `batch 3 — a property can hold a list` passes in
+[`tool/tests/kg.test.ts`](../../tool/tests/kg.test.ts), alongside the two
+batches before it.
+
 ## Why this and not partial edits
 
 Both were ready. Three reviews split two to one for lists, and the deciding
