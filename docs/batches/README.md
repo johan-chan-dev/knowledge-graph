@@ -14,7 +14,7 @@ history: what a batch was for, what building it forced, what it settled.
 | 1 | [a space, and nodes in it](1-a-space-with-nodes.md) | shipped |
 | 2 | [nodes carry properties](2-properties.md) | shipped |
 | 3 | [a property can hold a list](3-lists.md) | shipped |
-| 4 | [the tool stops guessing](4-stops-guessing.md) | planned |
+| 4 | [the tool stops guessing](4-stops-guessing.md) | shipped |
 
 ## Every batch shows its goal, and a test holds it there
 
@@ -31,6 +31,7 @@ $ deno task verify
 batch 1 — a space, and nodes in it ... ok
 batch 2 — nodes carry properties ... ok
 batch 3 — a property can hold a list ... ok
+batch 4 — the tool stops guessing ... ok
 ```
 
 **Against the compiled binary, not the source.** Everything else runs the

@@ -21,20 +21,20 @@ notes
   nodes    0
 initialised a git repository at /Users/you/notes
 
-$ id=$(kg node new <<'EOF')
+$ id=$(kg node new --stdin <<'EOF')
 > Modules own their schema. A shared one couples every module to every
 > other module's release.
 > EOF
-01a0804b-38b7-751c-9847-ad2a253cc25f
+01a084f0-3ec6-76cf-a890-ad8268b74530
 
 $ kg node "$id"
 Modules own their schema. A shared one couples every module to every
 other module's release.
 
 $ kg nodes list
-01a0804b-38b7-751c-9847-ad2a253cc25f
+01a084f0-3ec6-76cf-a890-ad8268b74530
 
-$ printf 'Modules own their schema.\n' | kg node "$id" write
+$ printf 'Modules own their schema.\n' | kg node "$id" write --stdin
 replaced 93 bytes
 
 $ kg space
@@ -46,12 +46,15 @@ notes
 
 Make a space, put material in it, find it again, read it back, replace it —
 and no file was opened by hand. **Backed by `batch 1 — a space, and nodes in
-it`** in [`tool/tests/batches/1_test.ts`](../../tool/tests/batches/1_test.ts): if the surface
-moves, that test fails before this page goes stale.
+it`** in [`tool/tests/batches/1_test.ts`](../../tool/tests/batches/1_test.ts):
+if the surface moves, that test fails before this page goes stale.
 
 Two things to notice. `kg node new` prints only the id, because the id is the
 only thing you could not have worked out — you sent the bytes yourself. And the
 replace prints nothing at all on stdout, saying only what it displaced.
+
+`--stdin` arrived in [batch 4](4-stops-guessing.md): content is declared rather
+than detected, so the tool never reads a stream it was not offered.
 
 ## What building it forced
 

@@ -21,9 +21,8 @@ Deno.test("the binary refuses exactly as the source does", async () => {
 
   // Permissions are baked in at compile time — this is the one thing only the
   // binary can prove.
-  const empty = await kg(dir, ["node", "new"], "");
-  assertEquals(empty.code, 1);
-  assertStringIncludes(empty.err, "did the command before the pipe fail?");
+  const empty = await kg(dir, ["node", "new", "--stdin"], "");
+  assertEquals(empty.code, 0, "an empty node is legal");
   assert(
     !empty.err.includes("PermissionDenied"),
     "compiled with the permissions it needs",

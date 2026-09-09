@@ -26,9 +26,9 @@ holding elements. `labels: [auth, pattern]` is the node saying two things on one
 dimension, the way `kind: decision` says one. That reading is what makes
 `contains` the wrong word for it and `--where` the plausible right one.
 
-**What it would break.** Nothing silently — `--where labels=auth` against a list
-currently refuses, so gaining membership semantics only turns a refusal into an
-answer.
+**What it would break.** Nothing — there is no filter at all now. `--where` was
+removed in [batch 4](../../batches/4-stops-guessing.md) along with the rest of
+the family, so this arrives with them rather than changing anything.
 
 **What it would lose.** Asking *is this list exactly `[auth]`* becomes
 inexpressible. Nothing wants it, and it would be a different predicate with its

@@ -4,7 +4,7 @@
 environment, and every behaviour the specification claims is the behaviour you
 get.
 
-Planned. No new capability: everything here already exists, and this changes how
+Shipped. No new capability: everything here already exists, and this changes how
 it is called, corrects what it does, or removes it.
 
 ## Not a batch like the others
@@ -13,7 +13,7 @@ Batches 1 to 3 each closed a loop you could not close before, so each could be
 demonstrated. This one has nothing to demonstrate — the loops are the same and
 should look the same afterwards.
 
-Its test is therefore a list of things that must stop happening:
+Its test is therefore a list of things that must stop happening — `batch 4 — the tool stops guessing` in [`tool/tests/batches/4_test.ts`](../../tool/tests/batches/4_test.ts):
 
 ```console
 $ kg node <id> set version 1.10

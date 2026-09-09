@@ -14,7 +14,7 @@ Deno.test("batch 1 — a space, and nodes in it", async () => {
 
   const text = "Modules own their schema. A shared one couples every module to every\n" +
     "other module's release.\n";
-  const created = await kg(dir, ["node", "new"], text);
+  const created = await kg(dir, ["node", "new", "--stdin"], text);
   const id = created.out.trim();
   assertMatch(id, /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   assertEquals(created.err, "", "the id is the only thing the caller did not know");
@@ -25,7 +25,11 @@ Deno.test("batch 1 — a space, and nodes in it", async () => {
 
   assertEquals((await kg(dir, ["nodes", "list"])).out, `${id}\n`);
 
-  const rewritten = await kg(dir, ["node", id, "write"], "Modules own their schema.\n");
+  const rewritten = await kg(
+    dir,
+    ["node", id, "write", "--stdin"],
+    "Modules own their schema.\n",
+  );
   assertEquals(rewritten.out, "", "a targeted write prints nothing");
   assertStringIncludes(rewritten.err, "replaced 93 bytes");
 

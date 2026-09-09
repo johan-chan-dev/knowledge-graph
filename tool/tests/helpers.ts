@@ -17,9 +17,11 @@ export async function seeded(text = "worth keeping\n") {
   return { ...made, id };
 }
 
-/** stdin is a terminal under `deno test`, so a piped write is exercised by
- * spawning the entrypoint. Everything else goes through `run` directly.
- * The compiled binary is exercised separately, in `batches.test.ts`. */
+/** A write taking content has to cross a process boundary — `run` cannot be
+ * handed a stdin. Everything else goes through `run` directly; the compiled
+ * binary is exercised separately, under `batches/`.
+ *
+ * `--stdin` is appended because content is declared rather than detected. */
 export async function pipe(dir: string, argv: string[], input: string) {
   const child = new Deno.Command(Deno.execPath(), {
     args: [
@@ -32,6 +34,7 @@ export async function pipe(dir: string, argv: string[], input: string) {
       "-C",
       dir,
       ...argv,
+      "--stdin",
     ],
     stdin: "piped",
     stdout: "piped",

@@ -77,13 +77,22 @@ Deno.test("ids sort into creation order, to the millisecond", async () => {
   assertEquals(stdout(await kg("nodes", "list")), made.join("\n") + "\n");
 });
 
-Deno.test("an empty stdin refuses, and says how to mean it", async () => {
+Deno.test("an empty stdin is refused only where it can destroy", async () => {
   const { dir, kg } = await space();
   await kg("space", "init");
-  const result = await pipe(dir, ["node", "new"], "");
-  assertEquals(result.code, 1);
-  assertStringIncludes(result.err, "did the command before the pipe fail?");
-  assertEquals(stdout(await kg("nodes", "list")), "", "nothing was created");
+
+  // `new` can only litter: an empty node is legal, and this is just a longer
+  // way to ask for one.
+  const made = await pipe(dir, ["node", "new"], "");
+  assertEquals(made.code, 0);
+  assertEquals(stdout(await kg("node", made.out.trim())), "");
+
+  // `write` can destroy — a failed upstream would empty a node that held prose.
+  const id = (await pipe(dir, ["node", "new"], "worth keeping\n")).out.trim();
+  const emptied = await pipe(dir, ["node", id, "write"], "");
+  assertEquals(emptied.code, 1);
+  assertStringIncludes(emptied.err, "did the command before the pipe fail?");
+  assertEquals(stdout(await kg("node", id)), "worth keeping\n", "content survives");
 });
 
 Deno.test("an empty stdin cannot destroy a node's content by accident", async () => {

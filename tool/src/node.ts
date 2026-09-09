@@ -59,6 +59,7 @@ export async function read(space: Space, id: string): Promise<Read> {
 
 export type Written =
   | { readonly kind: "written"; readonly id: string; readonly replaced: number | null }
+  | { readonly kind: "unwritable"; readonly reason: string }
   | Failure;
 
 /**
@@ -75,23 +76,26 @@ export async function write(
 ): Promise<Written> {
   if (id === null) {
     const minted = mint();
-    await atomically(fileOf(space, minted), frontmatter.join("", content));
+    const failed = await atomically(fileOf(space, minted), frontmatter.join("", content));
+    if (failed !== null) return { kind: "unwritable", reason: failed };
     return { kind: "written", id: minted, replaced: null };
   }
 
   const found = await load(space, id);
   if (found.kind !== "loaded") return { kind: found.kind };
 
-  await atomically(
+  const failed = await atomically(
     fileOf(space, id),
     frontmatter.join(frontmatter.write(found.properties), content),
   );
+  if (failed !== null) return { kind: "unwritable", reason: failed };
   return { kind: "written", id, replaced: bytes(found.content) };
 }
 
 export type Amended =
   | { readonly kind: "amended"; readonly properties: Properties }
   | { readonly kind: "refused"; readonly message: string }
+  | { readonly kind: "unwritable"; readonly reason: string }
   | Failure;
 
 /**
@@ -114,25 +118,40 @@ export async function amend(
   const refusal = change(properties);
   if (typeof refusal === "string") return { kind: "refused", message: refusal };
 
-  await atomically(
+  const failed = await atomically(
     fileOf(space, id),
     frontmatter.join(frontmatter.write(properties), found.content),
   );
+  if (failed !== null) return { kind: "unwritable", reason: failed };
   return { kind: "amended", properties };
 }
 
 /** A temporary file in the same directory, then a rename. An interrupted
  * rewrite would corrupt the one thing the tool is custodian of; rename is
- * atomic on every filesystem that matters, write-in-place is not. */
-async function atomically(path: string, text: string): Promise<void> {
+ * atomic on every filesystem that matters, write-in-place is not.
+ *
+ * A failure comes back as a value rather than a throw: an uncaught one printed
+ * a stack trace, which `git.ts` calls the failure an agent reads worst — and it
+ * exited `1`, which promises nothing was written. */
+async function atomically(path: string, text: string): Promise<string | null> {
   const temp = `${path}.${crypto.randomUUID().slice(0, 8)}.tmp`;
   try {
     await Deno.writeTextFile(temp, text);
     await Deno.rename(temp, path);
+    return null;
   } catch (error) {
     await Deno.remove(temp).catch(() => {});
-    throw error;
+    return reason(error);
   }
 }
 
 const bytes = (s: string): number => new TextEncoder().encode(s).length;
+
+/** Deno's own message carries the offending path — including the temp file,
+ * which is an implementation detail the tool never emits. The error's kind is
+ * what a caller can act on. */
+export function reason(error: unknown): string {
+  if (!(error instanceof Error)) return "unknown error";
+  const kind = error.name.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+  return kind === "error" ? "write failed" : kind;
+}

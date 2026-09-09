@@ -1,5 +1,6 @@
 import { parseArgs } from "@std/cli/parse-args";
 import { exitCode, lines, type Outcome, refused, usage } from "./outcome.ts";
+import { isDir } from "./space.ts";
 import {
   node,
   nodeAdd,
@@ -10,7 +11,6 @@ import {
   nodeWrite,
   space,
   spaceInit,
-  type Stdin,
 } from "./commands.ts";
 
 /** One table. Dispatch reads it, and so does help — so the two cannot drift.
@@ -22,11 +22,11 @@ const FORMS = [
   ["space", "what and where this space is"],
   ["space init", "create one"],
   ["nodes list", "every id, in creation order"],
-  ["nodes list --where <name>=<value>", "…whose property equals that"],
-  ["node new", "create one — stdin is its content"],
+  ["node new", "create an empty one"],
+  ["node new --stdin", "…with content read from stdin"],
   ["node <id>", "the content, properties on stderr"],
   ["node <id> --properties", "the properties instead"],
-  ["node <id> write", "stdin replaces the content"],
+  ["node <id> write --stdin", "stdin replaces the content"],
   ["node <id> set <name> <value>", "write one property"],
   ["node <id> unset <name>", "remove one"],
   ["node <id> add <name> <value>...", "values into a property's list"],
@@ -49,8 +49,10 @@ function help(): string {
   ].join("\n");
 }
 
-async function stdin(): Promise<Stdin> {
-  if (Deno.stdin.isTerminal()) return { kind: "terminal" };
+/** Read only when told to. `isTerminal()` answers *is something attached*,
+ * not *is content coming* — so an open pipe with nothing in it blocked forever,
+ * which was the only hang in the tool. */
+async function readStdin(): Promise<string> {
   const chunks: Uint8Array[] = [];
   for await (const chunk of Deno.stdin.readable) chunks.push(chunk);
   const size = chunks.reduce((n, c) => n + c.length, 0);
@@ -60,15 +62,18 @@ async function stdin(): Promise<Stdin> {
     joined.set(chunk, at);
     at += chunk.length;
   }
-  return { kind: "piped", text: new TextDecoder().decode(joined) };
+  return new TextDecoder().decode(joined);
 }
 
 export async function run(argv: string[]): Promise<Outcome> {
   let unknownFlag: string | null = null;
   const flags = parseArgs(argv, {
-    boolean: ["help", "properties"],
-    string: ["C", "where"],
-    collect: ["where"],
+    boolean: ["help", "stdin", "properties"],
+    // `_` keeps positionals as text. Without it parseArgs runs
+    // `isNumber(arg) ? Number(arg) : arg` over every one, so `set version 1.10`
+    // stores 1.1 and a ticket past 2^53 gains invented digits. The value is
+    // stored as given, and that starts here rather than in the serialiser.
+    string: ["C", "_"],
     unknown: (arg) => {
       if (arg.startsWith("-")) unknownFlag = arg;
       return true;
@@ -84,23 +89,23 @@ export async function run(argv: string[]): Promise<Outcome> {
   const cwd = flags.C ?? Deno.cwd();
   // Without this the throw from a missing cwd is caught downstream as a missing
   // git binary, and the tool reports the wrong thing entirely.
-  if (flags.C !== undefined && !isDirectory(flags.C)) {
+  if (flags.C !== undefined && !await isDir(flags.C)) {
     return refused(`not a directory: ${flags.C}`);
   }
 
-  /** `collect` yields undefined for a flag that was never passed, one value for
-   * a flag passed once, and an array beyond that. */
-  const many = (value: unknown): string[] =>
-    value === undefined ? [] : Array.isArray(value) ? value.map(String) : [String(value)];
-
-  /** `--where` always carries a comparison. The bare form was a presence test
-   * wearing a comparison word; presence is parked. */
-  const clause = (text: string) => {
-    const at = text.indexOf("=");
-    return at === -1 ? null : { name: text.slice(0, at), value: text.slice(at + 1) };
-  };
   const [scope, ...rest] = flags._.map(String);
   if (scope === undefined) return usage(help());
+
+  // `--properties` is parsed globally because parseArgs must know it is a
+  // boolean, but it means something on exactly one command. Accepted and
+  // ignored elsewhere it returned a plausible answer, which is worse than
+  // refusing — so placement is checked rather than existence.
+  if (flags.properties && !(scope === "node" && rest.length === 1)) {
+    return usage("--properties belongs to `kg node <id>`");
+  }
+  if (flags.stdin && scope !== "node") {
+    return usage("--stdin belongs to `kg node new` and `kg node <id> write`");
+  }
 
   switch (scope) {
     case "space": {
@@ -117,11 +122,7 @@ export async function run(argv: string[]): Promise<Outcome> {
       if (action !== "list" || extra.length > 0) {
         return usage(`nodes takes one action: list\n\n${help()}`);
       }
-      const clauses = many(flags.where).map(clause);
-      if (clauses.includes(null)) {
-        return usage("--where needs a comparison — use --where <name>=<value>");
-      }
-      return await nodes(cwd, clauses as { name: string; value: string }[]);
+      return await nodes(cwd);
     }
 
     // `node` is the one scope with two shapes: you cannot address what does not
@@ -131,7 +132,7 @@ export async function run(argv: string[]): Promise<Outcome> {
       if (first === undefined) return usage(`node needs an id, or new\n\n${help()}`);
       if (first === "new") {
         if (rest2.length > 0) return usage("node new takes no arguments");
-        return await nodeNew(cwd, await stdin());
+        return await nodeNew(cwd, flags.stdin ? await readStdin() : "");
       }
       const [action, ...extra] = rest2;
       const takesArguments = ["set", "unset", "add", "remove"].includes(action ?? "");
@@ -140,7 +141,12 @@ export async function run(argv: string[]): Promise<Outcome> {
       }
       if (action === undefined) return await node(cwd, first, flags.properties);
       if (action === "write") {
-        return await nodeWrite(cwd, first, await stdin());
+        if (!flags.stdin) {
+          return usage(
+            "node <id> write needs --stdin — that is where the content comes from",
+          );
+        }
+        return await nodeWrite(cwd, first, await readStdin());
       }
       if (action === "set") {
         const [name, ...value] = extra;
@@ -182,20 +188,20 @@ export async function run(argv: string[]): Promise<Outcome> {
 if (import.meta.main) {
   const outcome = await run(Deno.args);
   if (outcome.kind === "ok") {
-    if (outcome.stdout !== "") {
-      await Deno.stdout.write(new TextEncoder().encode(outcome.stdout));
+    // A consumer closing early — `| head`, a failing filter — is not an error
+    // here. Left uncaught it printed a trace naming a path inside the compiled
+    // binary, which is the one thing this tool never emits.
+    try {
+      if (outcome.stdout !== "") {
+        await Deno.stdout.write(new TextEncoder().encode(outcome.stdout));
+      }
+      for (const note of outcome.notes) console.error(note);
+    } catch (error) {
+      if (!(error instanceof Deno.errors.BrokenPipe)) throw error;
+      Deno.exit(0);
     }
-    for (const note of outcome.notes) console.error(note);
   } else {
     console.error(outcome.message);
   }
   Deno.exit(exitCode(outcome));
-}
-
-function isDirectory(path: string): boolean {
-  try {
-    return Deno.statSync(path).isDirectory;
-  } catch {
-    return false;
-  }
 }

@@ -24,24 +24,17 @@ replaced kind
 
 $ kg node "$b" --properties
 kind: authority
-valid-until: 2027-01-01
+valid-until: '2027-01-01'
 
 $ kg node "$b"
 OWASP is authoritative on session handling until 2027.
 kind: authority
-valid-until: 2027-01-01
-
-$ kg nodes list --where kind=decision
-01a0804b-8e77-7517-a8fc-e14d530cc9a5
-01a0804b-8f17-7a54-a862-c92ec3d8a03e
-
-$ kg nodes list --where kind=decision --without valid-until
-01a0804b-8e77-7517-a8fc-e14d530cc9a5
-01a0804b-8f17-7a54-a862-c92ec3d8a03e
+valid-until: '2027-01-01'
 ```
 
-Annotate a node, then find it again by its annotation. **Backed by `batch 2 —
-nodes carry properties`** in [`tool/tests/batches/2_test.ts`](../../tool/tests/batches/2_test.ts).
+Annotate a node, then read the annotation back. **Backed by `batch 2 — nodes
+carry properties`** in
+[`tool/tests/batches/2_test.ts`](../../tool/tests/batches/2_test.ts).
 
 `set kind` and `replaced kind` are the same command twice — the second says the
 property already existed, which is the one thing about a `set` you cannot know
@@ -50,7 +43,12 @@ in advance.
 The two reads are the point. `--properties` puts them on stdout, pipeable,
 without the body; reading the content puts the same lines on stderr, byte for
 byte. stdout carries one half of a node or the other, never both. And the tool
-has no idea what `kind` or `valid-until` mean — it compared text.
+has no idea what `kind` or `valid-until` mean — it compared nothing.
+
+**Finding a node by its annotation is not here.** This batch shipped three
+filter predicates; [batch 3](3-lists.md) removed two and
+[batch 4](4-stops-guessing.md) removed the third, because the family they
+belonged to had not settled. See [search](../design/parked/search.md).
 
 ## What building it forced
 

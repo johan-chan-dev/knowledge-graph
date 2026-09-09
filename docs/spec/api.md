@@ -89,32 +89,19 @@ ambiguous.
 
 ```
 kg nodes list                            every id, in creation order
-kg nodes list --where <name>=<value>     the property equals that
 ```
 
-**Bare, it parses nothing.** The id is the filename, so enumerating is a
-directory read. **Filtered, it opens every file** — which is where the tool
-first runs over a whole space.
+**It parses nothing.** The id is the filename, so enumerating is a directory
+read — a damaged node lists like any other, and only a command naming it can
+tell.
 
-`--where` repeats and the clauses are ANDed: `--where a=1 --where b=2` is one
-conjunction.
-
-**`--where` always carries a comparison.** A bare `--where <name>` used to mean
-*present*, which was a presence test wearing a comparison word — two questions
-sharing a name because they happened to share an argument shape. Presence,
-absence and searching the body are one family and wait together; see
-[`design/parked/search.md`](../design/parked/search.md).
-
-**A list does not equal anything**, so `--where labels=auth` simply does not
-match a node whose `labels` is a list. Filtering a list by value is parked.
-
-**The tool compares strings and understands nothing.** It does not know what
-`decided-by` names, only whether the text matches. That is the slot discipline
-applied to reading.
-
-**A node that will not parse is skipped and named on stderr**, and the listing
-still exits `0`. One damaged file must not make a space unfindable, and
-reporting is not the same as failing.
+**There is no filter.** `--where` shipped in batch 2 and was removed in
+[batch 4](../batches/4-stops-guessing.md): it implemented one member of a family
+— presence, absence, comparison, searching the body — whose vocabulary reversed
+five times in a single sitting. Shipped code for a parked design anchors what
+comes next around an arbitrary survivor, and this one produced a silent wrong
+answer against a list. Finding a node by anything but its id waits for
+[search](../design/parked/search.md).
 
 **No cap.** The space is the scope; one too large to enumerate is saying
 something about how the material is organised, and hiding that would hide the
@@ -126,10 +113,11 @@ answer, and a *no nodes yet* line would land in every script that counts lines.
 ## node
 
 ```
-kg node new                          create one — stdin is its content
+kg node new                          create an empty one
+kg node new --stdin                  …with content read from stdin
 kg node <id>                         the content
 kg node <id> --properties            the properties instead
-kg node <id> write                   stdin replaces the content
+kg node <id> write --stdin           stdin replaces the content
 kg node <id> set    <name> <value>   write one property
 kg node <id> unset  <name>           remove one
 kg node <id> add    <name> <value>...   values into a property's list
@@ -159,26 +147,24 @@ Keeping the id in the filename makes a rename impossible by construction.
 EOF
 ```
 
-**An empty stdin refuses.** `cmd | kg node new` where `cmd` failed and
-`kg node new </dev/null` are byte-identical requests meaning opposite things
-— the shell erases the difference before the tool sees it — so it names the
-likely cause rather than guessing:
+**Content is declared, not detected.** The tool reads stdin when told to and
+never otherwise. `isTerminal()` answers *is something attached* rather than *is
+content coming*, so an open pipe with nothing in it blocked forever.
+
+**An empty node is legal** — one carrying `kind: decision` with no prose yet is
+a real thing. So the absence of `--stdin` is how you ask for one, and there is
+nothing to refuse: `node new --stdin` with nothing produces exactly what `node
+new` produces.
+
+**One refusal survives, on the one call that can lose something.**
 
 ```
 no content on stdin — did the command before the pipe fail?
 ```
 
-Stdin at a terminal is the same end state and refuses the same way, so the tool
-never hangs waiting on one and never quietly mints something nobody asked for.
-
-**It matters most when replacing.** Accepting an empty stdin there turns a
-silent upstream failure into a node's content destroyed and reported as success;
-creating an empty node by accident is only litter. So both refuse.
-
-**There is no escape hatch, because there is nothing to escape to.** A node
-holding a single newline is one keystroke away and perfectly legal, so refusing
-zero bytes takes no capability with it — and a flag guarding the gap between
-nothing and one newline would be guarding a distinction nobody has.
+`new` can only litter; `write` can destroy. A failed `cmd | kg node <id> write
+--stdin` would empty a node that held prose and report success, so `write`
+requires `--stdin` and refuses an empty one.
 
 ### Properties
 
@@ -283,7 +269,7 @@ stop reading, which then costs you the lines that matter.
 |---|---|---|
 | `space` | the readout | — |
 | `space init` | the readout | `initialised a git repository at …` *(only when it did)* |
-| `nodes list` | one id per line | `skipped <id>: …` for a node that will not parse |
+| `nodes list` | one id per line | — |
 | `node new` | the new id | — |
 | `node <id>` | the content, byte for byte | its properties, rendered |
 | `node <id> --properties` | one `name: value` per line | — |
@@ -313,6 +299,12 @@ is because a person navigates there — it is a repository, and git, an editor a
 a shell all need it. Inside it nothing is addressable but by id.
 
 **Ids in, ids out.** An id is the only handle on a node.
+
+**A failure names its kind, never a path.** A write that cannot land reports
+`permission denied` or `already exists` — the runtime's own message carries the
+offending file, including the temporary one, which is an implementation detail
+this tool does not emit. And a consumer closing a pipe early is not an error at
+all: it exits `0`.
 
 **Names are long, because the caller is an agent.** `--properties` rather than
 `--props`, and `--contain-properties` over `--cp` when it arrives. A flag is typed by a model far more
@@ -351,7 +343,10 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | empty stdin | `no content on stdin — did the command before the pipe fail?` | `1` |
 | bad property value | `not a property value: contains a control character — a value is a single line` | `1` |
 | `add`/`remove` on a scalar | `cannot add to kind: not a list` | `1` |
-| a bare `--where` | `--where needs a comparison — use --where <name>=<value>` | `4` |
+| `--properties` off `node <id>` | `--properties belongs to \`kg node <id>\`` | `4` |
+| `write` without a source | `node <id> write needs --stdin — that is where the content comes from` | `4` |
+| empty stdin on `write` | `no content on stdin — did the command before the pipe fail?` | `1` |
+| a write that cannot land | `cannot write <id>: permission denied` | `1` |
 | two values to `set` | `node <id> set takes one value — quote it if it contains spaces` | `4` |
 
 **The absent message names the space**, because *wrong space* is one of the two

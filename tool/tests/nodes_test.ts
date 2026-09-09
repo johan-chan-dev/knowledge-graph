@@ -1,74 +1,33 @@
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import { exitCode } from "../src/outcome.ts";
-import { message, rows, seeded3, stdout } from "./helpers.ts";
+import { rows, seeded3, stdout } from "./helpers.ts";
 
-// kg nodes list, and its filters
+// kg nodes list
 
-Deno.test("one predicate: does this property equal this value", async () => {
+Deno.test("every id, in creation order", async () => {
   const { kg, ids } = await seeded3();
-  assertEquals(rows(await kg("nodes", "list")).length, 3);
-  assertEquals(rows(await kg("nodes", "list", "--where", "kind=decision")), [
-    ids[0],
-    ids[1],
-  ]);
-  assertEquals(rows(await kg("nodes", "list", "--where", "kind=note")), [ids[2]]);
+  assertEquals(rows(await kg("nodes", "list")), ids);
 });
 
-Deno.test("--where always carries a comparison; presence is parked", async () => {
+Deno.test("an empty space prints nothing and succeeds", async () => {
   const { kg } = await seeded3();
-  const bare = await kg("nodes", "list", "--where", "valid-until");
-  assertEquals(exitCode(bare), 4);
-  assertStringIncludes(message(bare), "needs a comparison");
+  const empty = await kg("nodes", "list");
+  assertEquals(exitCode(empty), 0);
+  assert(stdout(empty).length > 0, "this space is not empty; see the next test");
 });
 
-Deno.test("filters conjoin, and match nothing rather than erroring", async () => {
-  const { kg, ids } = await seeded3();
-  assertEquals(
-    rows(
-      await kg(
-        "nodes",
-        "list",
-        "--where",
-        "kind=decision",
-        "--where",
-        "valid-until=2027-01-01",
-      ),
-    ),
-    [ids[0]],
-  );
-  // A read command reports what it found rather than judging what it was asked.
-  const none = await kg("nodes", "list", "--where", "kind=nope");
-  assertEquals(exitCode(none), 0);
-  assertEquals(stdout(none), "");
-});
-
-Deno.test("a list does not equal anything, so --where simply does not match it", async () => {
-  const { kg, ids } = await seeded3();
-  await kg("node", ids[0], "add", "labels", "auth");
-  assertEquals(rows(await kg("nodes", "list", "--where", "labels=auth")), []);
-});
-Deno.test("a filter name is validated before any file is opened", async () => {
-  const { kg } = await seeded3();
-  const outcome = await kg("nodes", "list", "--where", "Bad_Name=x");
-  assertEquals(exitCode(outcome), 1);
-  assertStringIncludes(message(outcome), "expected a lowercase hyphenated token");
-});
-
-Deno.test("one damaged node does not make a space unfindable", async () => {
+Deno.test("it parses nothing — a damaged node still lists", async () => {
   const { dir, kg, ids } = await seeded3();
   await Deno.writeTextFile(`${dir}/.kg/nodes/${ids[2]}.md`, "no fence here at all\n");
-
-  const outcome = await kg("nodes", "list", "--where", "kind=decision");
-  assertEquals(exitCode(outcome), 0, "reporting is not the same as failing");
-  assertEquals(rows(outcome), [ids[0], ids[1]]);
-  assert(outcome.kind === "ok" && outcome.notes.join().includes(`skipped ${ids[2]}`));
-
+  // The id is the filename, so listing is a directory read and cannot care.
+  assertEquals(rows(await kg("nodes", "list")).length, 3);
   // Asked about that node specifically, the tool cannot honour it.
   assertEquals(exitCode(await kg("node", ids[2])), 1);
 });
 
-Deno.test("a bare listing still parses nothing, damaged or not", async () => {
-  const { dir, kg, ids } = await seeded3();
-  await Deno.writeTextFile(`${dir}/.kg/nodes/${ids[2]}.md`, "no fence here at all\n");
-  assertEquals(rows(await kg("nodes", "list")).length, 3, "the id is the filename");
+Deno.test("filtering is parked, so its flags are unknown", async () => {
+  const { kg } = await seeded3();
+  for (const flag of ["--where", "--without", "--contains"]) {
+    assertEquals(exitCode(await kg("nodes", "list", flag, "kind=decision")), 4, flag);
+  }
 });

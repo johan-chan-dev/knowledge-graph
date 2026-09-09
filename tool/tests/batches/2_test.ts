@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { kg, type Ran, space } from "./spawn.ts";
+import { kg, space } from "./spawn.ts";
 
 // The loop that batch closes, against the compiled binary. Its transcript
 // is in `docs/batches/2-properties.md` — change one and this fails first.
@@ -8,10 +8,14 @@ Deno.test("batch 2 — nodes carry properties", async () => {
   const dir = await space();
   await kg(dir, ["space", "init"]);
 
-  const a = (await kg(dir, ["node", "new"], "Modules own their schema.\n")).out.trim();
-  const b = (await kg(dir, ["node", "new"], "OWASP is authoritative until 2027.\n")).out
+  const a = (await kg(dir, ["node", "new", "--stdin"], "Modules own their schema.\n")).out
     .trim();
-  const c = (await kg(dir, ["node", "new"], "One full-stack app.\n")).out.trim();
+  const b =
+    (await kg(dir, ["node", "new", "--stdin"], "OWASP is authoritative until 2027.\n"))
+      .out
+      .trim();
+  const c = (await kg(dir, ["node", "new", "--stdin"], "One full-stack app.\n")).out
+    .trim();
 
   assertEquals(
     (await kg(dir, ["node", a, "set", "kind", "decision"])).err.trim(),
@@ -40,13 +44,7 @@ Deno.test("batch 2 — nodes carry properties", async () => {
     "byte for byte, only the channel differs",
   );
 
-  const rows = (r: Ran) => r.out.split("\n").filter(Boolean);
-  assertEquals(rows(await kg(dir, ["nodes", "list", "--where", "kind=decision"])), [
-    a,
-    c,
-  ]);
-  assertEquals(
-    rows(await kg(dir, ["nodes", "list", "--where", "valid-until=2027-01-01"])),
-    [b],
-  );
+  // Filtering is parked; `nodes list` is a bare directory read.
+  const listed = (await kg(dir, ["nodes", "list"])).out.split("\n").filter(Boolean);
+  assertEquals(listed.sort(), [a, b, c].sort());
 });

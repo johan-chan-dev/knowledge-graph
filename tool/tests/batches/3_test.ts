@@ -7,7 +7,8 @@ import { kg, space } from "./spawn.ts";
 Deno.test("batch 3 — a property can hold a list", async () => {
   const dir = await space();
   await kg(dir, ["space", "init"]);
-  const id = (await kg(dir, ["node", "new"], "Modules own their schema.\n")).out.trim();
+  const id = (await kg(dir, ["node", "new", "--stdin"], "Modules own their schema.\n"))
+    .out.trim();
   await kg(dir, ["node", id, "set", "kind", "decision"]);
 
   const added = await kg(dir, ["node", id, "add", "labels", "auth", "pattern"]);
@@ -52,7 +53,6 @@ Deno.test("batch 3 — a property can hold a list", async () => {
   assertEquals(control.code, 1);
   assertStringIncludes(control.err, "a value is a single line");
 
-  const bare = await kg(dir, ["nodes", "list", "--where", "kind"]);
-  assertEquals(bare.code, 4);
-  assertStringIncludes(bare.err, "needs a comparison");
+  const filtered = await kg(dir, ["nodes", "list", "--where", "kind=decision"]);
+  assertEquals(filtered.code, 4, "filtering is parked, so the flag is unknown");
 });

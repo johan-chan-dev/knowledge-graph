@@ -4,10 +4,17 @@ Retrieval over prose, and presence tests over properties. Designed 2026-09-08,
 built by nothing.
 
 ```
+kg nodes list --where <name>=<value>           the property equals that
 kg nodes list --contain-expression <regex>     the body matches
 kg nodes list --contain-properties <names>     these properties are present
 kg nodes list --without-properties <names>     none of these are
 ```
+
+`--where` is here too. It shipped in batch 2 and was removed in
+[batch 4](../../batches/4-stops-guessing.md), because one member of a family
+built ahead of the rest anchors the others around an arbitrary survivor — and
+against a list it answered empty with exit `0`, indistinguishable from no
+matches. The family arrives together or not at all.
 
 ## What *contains* means, and where it belongs
 

@@ -113,9 +113,9 @@ one, and can leave conflict markers in a node the tool owns. So it has to be
 able to read what it did not write, and say so.
 
 A command **naming that node exits `1`** — the caller asked about that node and
-the tool cannot honour it. Any command that sweeps the collection instead
-**skips it, names it on stderr, and exits `0`**: one damaged file must not make
-a space unfindable, and reporting is not the same as failing.
+the tool cannot honour it. `nodes list` is unaffected: it reads the directory
+and never opens a file, so a damaged node lists like any other and is only found
+when something asks about it.
 
 Nothing attempts repair. Detecting damage systematically is a later concern.
 

@@ -36,6 +36,8 @@ export async function spaceInit(cwd: string): Promise<Outcome> {
   switch (result.kind) {
     case "no-git":
       return refused(NO_GIT);
+    case "unwritable":
+      return refused(`cannot create a space: ${result.reason}`);
     case "exists":
       return refused(
         `this repository already has a space at ${result.space.root}/.kg`,
@@ -51,61 +53,12 @@ export async function spaceInit(cwd: string): Promise<Outcome> {
   }
 }
 
-/**
- * One predicate: does this property equal this value.
- *
- * `--where <name>` with no comparison used to mean *present*, which was a
- * presence test wearing a comparison word — two questions sharing a name
- * because they happened to share an argument shape. Presence and absence are
- * parked; see `design/parked/search.md`.
- */
-export type Filter = readonly { name: string; value: string }[];
-
-export async function nodes(cwd: string, filter: Filter): Promise<Outcome> {
-  for (const { name } of filter) {
-    if (!frontmatter.isName(name)) {
-      return refused(
-        `not a property name: ${name} — expected a lowercase hyphenated token`,
-      );
-    }
-  }
-
+export async function nodes(cwd: string): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-
-  const found = await ids(resolved.space);
-  // Bare, this parses nothing: the id is the filename. Filtered, it opens every
-  // file, which is where the tool first runs over a whole space.
-  if (filter.length === 0) return lines(found);
-
-  const kept: string[] = [];
-  const damaged: string[] = [];
-  for (const id of found) {
-    const node = await read(resolved.space, id);
-    if (node.kind !== "read") {
-      // One damaged file must not make a space unfindable, and reporting is not
-      // the same as failing.
-      damaged.push(
-        `skipped ${id}: ${
-          node.kind === "malformed" ? "no frontmatter block" : "unreadable properties"
-        }`,
-      );
-      continue;
-    }
-    if (matches(node.properties, filter)) kept.push(id);
-  }
-  return lines(kept, ...damaged);
-}
-
-/** The tool compares strings and understands nothing — it does not know what
- * `decided-by` names, only whether the text matches. A list is not filterable
- * by value yet, so it simply does not equal anything. */
-function matches(properties: Properties, filter: Filter): boolean {
-  for (const { name, value } of filter) {
-    const held = properties[name];
-    if (typeof held !== "string" || held !== value) return false;
-  }
-  return true;
+  // The id is the filename, so this parses nothing. Filtering belonged to a
+  // family whose vocabulary has not settled; see design/parked/search.md.
+  return lines(await ids(resolved.space));
 }
 
 /** A refusal shared by every command that names a node whose file will not
@@ -152,17 +105,18 @@ export async function node(
   return asProperties ? lines(rendered) : ok(found.content, ...rendered);
 }
 
-export async function nodeNew(
-  cwd: string,
-  stdin: Stdin,
-): Promise<Outcome> {
-  const content = contentFrom(stdin);
-  if (content.kind === "refused") return content.outcome;
-
+/** An empty node is legal — one carrying `kind: decision` with no prose yet is
+ * a real thing. So the absence of `--stdin` is how you ask for one, and there
+ * is nothing here to refuse: `node new --stdin` with nothing produces exactly
+ * what `node new` produces. */
+export async function nodeNew(cwd: string, content: string): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
-  const result = await write(resolved.space, null, content.text);
+  const result = await write(resolved.space, null, content);
+  if (result.kind === "unwritable") {
+    return refused(`cannot create a node: ${result.reason}`);
+  }
   if (result.kind !== "written") return refused(`could not create a node`);
   // The id is the one thing the caller could not have worked out.
   return lines([result.id]);
@@ -171,17 +125,19 @@ export async function nodeNew(
 export async function nodeWrite(
   cwd: string,
   id: string,
-  stdin: Stdin,
+  content: string,
 ): Promise<Outcome> {
   if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
-
-  const content = contentFrom(stdin);
-  if (content.kind === "refused") return content.outcome;
+  // `new` can only litter; `write` can destroy. A failed `cmd | kg node <id>
+  // write --stdin` would empty a node that held prose and report success.
+  if (content === "") {
+    return refused("no content on stdin — did the command before the pipe fail?");
+  }
 
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
-  const result = await write(resolved.space, id, content.text);
+  const result = await write(resolved.space, id, content);
   switch (result.kind) {
     case "absent":
       return absent(`no such node: ${id} in ${resolved.space.name}`);
@@ -190,45 +146,13 @@ export async function nodeWrite(
       // Replacing the content preserves the properties, so a block that will
       // not read is a block this cannot safely write back.
       return unreadable(id, result.kind);
+    case "unwritable":
+      return refused(`cannot write ${id}: ${result.reason}`);
     case "written":
       // Nothing on stdout: the caller supplied the id. What it could not know
       // is the size it displaced.
       return ok("", `replaced ${result.replaced} bytes`);
   }
-}
-
-/** What `node write` was handed. `terminal` means nothing was piped in. */
-export type Stdin =
-  | { readonly kind: "terminal" }
-  | { readonly kind: "piped"; readonly text: string };
-
-type Content =
-  | { readonly kind: "content"; readonly text: string }
-  | { readonly kind: "refused"; readonly outcome: Outcome };
-
-/**
- * Decide what content a write is being given.
- *
- * `cmd | kg node new` where cmd failed and `kg node new </dev/null` are
- * byte-identical requests meaning opposite things, and the shell has already
- * erased the difference. So an empty stdin refuses and names the likely cause.
- *
- * It matters most when replacing: accepting there turns a silent upstream
- * failure into a node's content destroyed and reported as success.
- *
- * There is no escape hatch, because there is nothing to escape to — a node
- * holding a single newline is one keystroke away and perfectly legal, so
- * refusing zero bytes takes no capability with it.
- */
-function contentFrom(stdin: Stdin): Content {
-  const text = stdin.kind === "terminal" ? "" : stdin.text;
-  if (text === "") {
-    return {
-      kind: "refused",
-      outcome: refused("no content on stdin — did the command before the pipe fail?"),
-    };
-  }
-  return { kind: "content", text };
 }
 
 /** `set` and `unset` are about the property; `add` and `remove` are about its
@@ -351,6 +275,8 @@ async function change(
       return unreadable(id, result.kind);
     case "refused":
       return refused(result.message);
+    case "unwritable":
+      return refused(`cannot write ${id}: ${result.reason}`);
     case "amended": {
       const note = said[0];
       // Nothing changed is worth no words.

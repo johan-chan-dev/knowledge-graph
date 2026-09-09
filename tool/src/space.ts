@@ -1,5 +1,6 @@
 import { basename, join } from "@std/path";
 import { branch, initRepo, repoRoot } from "./git.ts";
+import { reason } from "./node.ts";
 
 /**
  * A space is `.kg/` at the root of the repository containing the working
@@ -50,6 +51,7 @@ export async function find(cwd: string): Promise<Found> {
 export type Init =
   | { readonly kind: "made"; readonly space: Space; readonly madeRepo: boolean }
   | { readonly kind: "exists"; readonly space: Space }
+  | { readonly kind: "unwritable"; readonly reason: string }
   | { readonly kind: "no-git" };
 
 export async function init(cwd: string): Promise<Init> {
@@ -69,8 +71,12 @@ export async function init(cwd: string): Promise<Init> {
   const space = at(root);
   // One space or none: a repository holds one, and `init` never adopts one.
   if (await isDir(space.nodes)) return { kind: "exists", space };
-  await Deno.mkdir(space.nodes, { recursive: true });
-  await Deno.writeTextFile(join(root, ".kg", ".gitattributes"), GITATTRIBUTES);
+  try {
+    await Deno.mkdir(space.nodes, { recursive: true });
+    await Deno.writeTextFile(join(root, ".kg", ".gitattributes"), GITATTRIBUTES);
+  } catch (error) {
+    return { kind: "unwritable", reason: reason(error) };
+  }
   return { kind: "made", space, madeRepo };
 }
 
@@ -93,7 +99,7 @@ export async function ids(space: Space): Promise<string[]> {
   return found.sort();
 }
 
-async function isDir(path: string): Promise<boolean> {
+export async function isDir(path: string): Promise<boolean> {
   try {
     return (await Deno.stat(path)).isDirectory;
   } catch {
