@@ -5,6 +5,7 @@ argument.
 
 - [location](location.md) — nothing here is identified by where it sits
 - [vocabulary](vocabulary.md) — a word a node carries, and membership is never written down
+- [structure](structure.md) — the tool may name its own parts, and each name is spent permanently
 - [parked/](parked/) — argued, and not settled enough to build
 
 ## The line between here and the spec

@@ -1,5 +1,8 @@
 # Filtering a list by value
 
+> **Answered.** `labels contains auth`, in the expression
+> [search](search.md) describes. This page records how it got there.
+
 `add` and `remove` ship in [batch 3](../../batches/3-lists.md). Asking *which
 nodes carry `auth`* does not, and it is the obvious next question.
 

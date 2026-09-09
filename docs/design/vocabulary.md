@@ -79,4 +79,4 @@ belongs to whoever is working.
 
 ---
 
-[docs](../README.md) · [design](README.md) · [location](location.md) · vocabulary · [parked](parked/)
+[docs](../README.md) · [design](README.md) · [location](location.md) · vocabulary · [structure](structure.md) · [parked](parked/)
