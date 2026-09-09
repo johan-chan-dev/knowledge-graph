@@ -1,7 +1,8 @@
 # kg
 
-Deno and TypeScript, compiled to a binary. **No third-party packages** — the
-imports in `deno.json` are the whole dependency list.
+Deno and TypeScript, compiled to a binary. It has no third-party dependencies
+today — `deno.json`'s imports are the whole list — which is a fact about what it
+has needed so far, not a rule it is held to.
 
 | | |
 |---|---|

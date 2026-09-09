@@ -21,6 +21,7 @@ its rules move to the spec and its durable argument, if it has one, moves up to
 | [structured-output](structured-output.md) | `--json`, and why nothing needs it yet |
 | [comparison](comparison.md) | `>` and `--order-by`, where the operator carries the type |
 | [query-language](query-language.md) | openCypher, what it would cost, and what exists |
+| [validation](validation.md) | declared schemas — immature, and blocked on a practice existing |
 | [lifecycle](lifecycle.md) | withdrawing a node, blocked on relations |
 | [further-out](further-out.md) | relations, dependencies between spaces, integrity |
 

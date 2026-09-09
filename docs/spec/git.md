@@ -21,10 +21,11 @@ never above it as an override.
 
 ## No embedded git
 
-A JavaScript implementation would be the tool's first third-party dependency,
-and it would substitute a diagnosable failure for an undiagnosable one: instead
-of `init` refusing plainly, a later clone would fail for reasons the user cannot
-see, because the embedded git does no SSH and diverges on credentials.
+An embedded implementation would substitute an undiagnosable failure for a
+diagnosable one: instead of `init` refusing plainly, a later clone would fail for
+reasons the user cannot see, because it does no SSH and diverges on credentials.
+
+That is the whole argument. It does not rest on avoiding a dependency.
 
 **One resolution path, one failure.** There is no search order to maintain.
 
