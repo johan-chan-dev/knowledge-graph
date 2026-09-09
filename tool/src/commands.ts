@@ -3,7 +3,7 @@ import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
 import * as frontmatter from "./frontmatter.ts";
 import type { Properties } from "./frontmatter.ts";
-import { amend, isId, read, write } from "./node.ts";
+import { amend, read, write } from "./node.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -84,10 +84,6 @@ export async function node(
   id: string,
   asProperties: boolean,
 ): Promise<Outcome> {
-  // Validation precedes lookup, so a refused call cannot have touched anything
-  // — and the same argument gets the same verdict whichever half was asked for.
-  if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
-
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
@@ -127,7 +123,6 @@ export async function nodeWrite(
   id: string,
   content: string,
 ): Promise<Outcome> {
-  if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
   // `new` can only litter; `write` can destroy. A failed `cmd | kg node <id>
   // write --stdin` would empty a node that held prose and report success.
   if (content === "") {
@@ -164,9 +159,6 @@ export async function nodeSet(
   name: string,
   value: string | null,
 ): Promise<Outcome> {
-  const bad = check(id, name, value === null ? [] : [value]);
-  if (bad !== null) return bad;
-
   return await change(cwd, id, (properties) => {
     const had = name in properties;
     if (value === null) {
@@ -187,9 +179,6 @@ export async function nodeAdd(
   name: string,
   values: string[],
 ): Promise<Outcome> {
-  const bad = check(id, name, values);
-  if (bad !== null) return bad;
-
   return await change(cwd, id, (properties) => {
     const existing = properties[name];
     if (existing !== undefined && !frontmatter.isList(existing)) {
@@ -210,9 +199,6 @@ export async function nodeRemove(
   name: string,
   values: string[],
 ): Promise<Outcome> {
-  const bad = check(id, name, values);
-  if (bad !== null) return bad;
-
   return await change(cwd, id, (properties) => {
     const existing = properties[name];
     if (existing === undefined) return null;
@@ -230,24 +216,6 @@ export async function nodeRemove(
     properties[name] = kept;
     return `removed ${gone} from ${name}`;
   });
-}
-
-/** Arguments first, before a file is opened. */
-function check(id: string, name: string, values: string[]): Outcome | null {
-  if (!isId(id)) return refused(`not an id: ${id} — expected a uuid`);
-  if (!frontmatter.isName(name)) {
-    return refused(
-      `not a property name: ${name} — expected a lowercase hyphenated token`,
-    );
-  }
-  for (const value of values) {
-    if (!frontmatter.isValue(value)) {
-      return refused(
-        "not a property value: contains a control character — a value is a single line",
-      );
-    }
-  }
-  return null;
 }
 
 /** The shared half of every property write: resolve, amend, report. `null` from

@@ -1,8 +1,8 @@
 # kg
 
-Deno and TypeScript, compiled to a binary. It has no third-party dependencies
-today — `deno.json`'s imports are the whole list — which is a fact about what it
-has needed so far, not a rule it is held to.
+Deno and TypeScript, compiled to a binary. `deno.json`'s imports are the whole
+dependency list: `@std/*`, and [Zod](https://jsr.io/@zod/zod), which holds the
+argument shapes in `src/surface.ts`.
 
 | | |
 |---|---|

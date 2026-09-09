@@ -3,14 +3,17 @@
 **Done when** every command's shape is declared in one place, and the names the
 tool holds facts under cannot be shadowed by a property.
 
-Planned. No new capability — this closes the gap between what
+Built. No new capability — this closed the gap between what
 [`design/structure.md`](../design/structure.md) claims and what the tool
-enforces, and it puts the surface's shape somewhere a defect cannot hide.
+enforces, and it put the surface's shape somewhere a defect cannot hide.
 
-## What it should look like
+## The loop
 
 ```console
-$ kg node "$a" set body "something"
+$ kg node "$a" set body something
+body is reserved — it is the node's content, written with `write`
+
+$ kg node "$a" unset body
 body is reserved — it is the node's content, written with `write`
 
 $ kg node "$a" set created 2026-01-01
@@ -21,25 +24,36 @@ $ kg nodes list --properties
 
 $ kg node "$a" frobnicate x
 node <id> takes one action: write, set, unset, add, remove
+
+$ kg node "$a" set title
+node <id> set needs a name and a value
+
+$ kg node "$a" set title one two three
+node <id> set takes one value — quote it if it contains spaces
 ```
 
-The last one is a correction rather than an addition — today it says
-`node <id> frobnicate takes no arguments`, which tells the caller `frobnicate`
-is a property that happens to take none.
+The unknown action is a correction rather than an addition — it used to say
+`node <id> frobnicate takes no arguments`, which told the caller `frobnicate`
+was a property that happened to take none.
 
-**Will be backed by** `batch 5 — the entry point`, as `5_test.ts` in
-[`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
+**Backed by** `batch 5 — the entry point`, in
+[`tool/tests/batches/5_test.ts`](../../tool/tests/batches/5_test.ts).
 
 ## Reserved property names
 
-`body` and `created` stop being writable. `set`, `unset`, `add` and `remove`
-refuse them, and the refusal says where to go instead.
+`body` and `created` are refused by `set`, `unset`, `add` and `remove`, and the
+refusal says where the fact actually lives.
 
 They are reserved because the tool holds those facts itself — one is the node's
 other half, the other is arithmetic on its filename — and a property carrying
-the same name shadows a fact rather than adding one. `structure.md` argues this
-already; the tool has never enforced it, so today a node can carry a `body`
-property sitting beside its actual body.
+the same name shadows a fact rather than adding one. `structure.md` argued this
+already; the tool had never enforced it, so a node could carry a `body` property
+sitting beside its actual body.
+
+**The reservation is on writing.** A file that already carries `body:` still
+reads and still lists. The reader is robustness against YAML the tool did not
+write, and turning it into a second gate would make a file unreadable for
+carrying a name that was legal when it was written.
 
 **Not the grammar's keywords.** `and`, `or`, `not` and `in` are reserved in
 [batch 6](6-find.md), where the parser that needs them lives. Reserving them
@@ -48,21 +62,13 @@ for a batch that does not exist.
 
 ## A declared command table
 
-One source for what each command takes: how many positional arguments, and which
-flags are legal on it.
+`tool/src/surface.ts` holds one entry per command: its form, its scope, whether
+a second positional is an id, its arity, which flags are legal on it, and what
+it runs. Help, matching, checking and dispatch all read that table.
 
-```
-nodes list        —                    no flags
-node new          —                    --stdin
-node <id>         id                   --properties
-node <id> write   id                   --stdin required
-node <id> set     id, name, value      exactly two
-node <id> add     id, name, value...   one or more
-```
-
-**Because that shape currently lives in three places, and all four argument
-defects were disagreements between them.** Help reads a `FORMS` table; dispatch
-is a chain of branches; arity is conditionals inside those branches. So:
+**Because that shape used to live in three places, and all four argument defects
+were disagreements between them.** Help read a `FORMS` table; dispatch was a
+chain of branches; arity was conditionals inside those branches.
 
 | defect | which pair disagreed |
 |---|---|
@@ -74,19 +80,37 @@ is a chain of branches; arity is conditionals inside those branches. So:
 One declaration removes those structurally rather than by being careful, which
 is what a fourth round of care would have been.
 
-## What a schema library does and does not buy
+**Dispatch is in the entry too.** A `run` on each command was the last place the
+table could be complete and the program still not reach it — a `switch` can omit
+a case; a table whose entries carry their own behaviour cannot.
 
-The entries are held with [Zod](https://jsr.io/@zod/zod). Worth being exact
-about what that is worth, so the batch is not judged on the wrong thing:
-**the table is the design, and the library is a convenience inside it.**
+### What is still prose, and how it is held
 
-A schema validates a structure *after* parsing. It types the extraction —
-`{ id, name, value }` — and it catches an argument of the wrong shape. It does
-not catch a flag accepted where it means nothing; that comes from the table
-being consulted at all.
+Two fields restate the shape in words a schema cannot produce: `form`, which is
+what help prints, and `arity`, which is what a wrong count says. `set` refusing
+a second value is really about shell quoting, and no tuple knows that.
 
-So if the table earns itself and the library does not, the batch still
-succeeded.
+So they are checked rather than trusted.
+[`src/surface_test.ts`](../../tool/src/surface_test.ts) types each command's own
+`form` back at the matcher and requires it to match that command and satisfy its
+schema. A form and a rule that disagree fail the suite.
+
+## What a schema library bought
+
+The entries are held with [Zod](https://jsr.io/@zod/zod). Worth being exact, so
+the batch is not credited to the wrong thing: **the table is the design, and the
+library is a convenience inside it.**
+
+What it earned: one place per argument kind, saying what a name is and what a
+value is, with the refusal message attached to the rule rather than to the
+caller. `Name` carries the reserved check, so every verb that takes a name
+refuses `body` without any of them mentioning it.
+
+What it did not: a flag accepted where it means nothing is not a schema failure
+at all — that comes from the table being consulted. Nor does it decide exit
+codes. A wrong count is `4` and a wrong argument is `1`, because one means the
+caller does not know the form and the other that it broke a rule, and only the
+tool knows which of Zod's issues is which.
 
 ## What it does not do
 

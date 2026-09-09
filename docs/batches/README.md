@@ -15,7 +15,7 @@ history: what a batch was for, what building it forced, what it settled.
 | 2 | [nodes carry properties](2-properties.md) | shipped |
 | 3 | [a property can hold a list](3-lists.md) | shipped |
 | 4 | [the tool stops guessing](4-stops-guessing.md) | shipped |
-| 5 | [the entry point](5-the-entry-point.md) | planned |
+| 5 | [the entry point](5-the-entry-point.md) | shipped |
 | 6 | [find](6-find.md) | planned |
 
 ## Every batch shows its goal, and a test holds it there

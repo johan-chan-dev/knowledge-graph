@@ -46,6 +46,13 @@ kg node new           no id — there isn't one
 kg node <id> …        an id — act on that one
 ```
 
+**Every command's shape is declared once**, in `tool/src/surface.ts`: which
+positionals it takes, which flags are legal on it, and what it runs. Help,
+dispatch and arity all read that one table, so they cannot disagree — which is
+what all four of [batch 4](../batches/4-stops-guessing.md)'s argument defects
+were. A flag is refused wherever the command does not declare it, rather than
+accepted and ignored.
+
 ## space
 
 ```
@@ -234,6 +241,27 @@ the format* is a weak objection when the caller parses YAML natively.
 Anything needing quoting or escaping is a name that will eventually be typed
 wrong and fail by silently matching nothing.
 
+**Some names are the tool's.** `set`, `unset`, `add` and `remove` refuse them:
+
+| name | the fact it names | where that fact lives |
+|---|---|---|
+| `body` | the node's other half | `kg node <id>`, written with `write` |
+| `created` | arithmetic on the filename | the id itself |
+
+A property carrying either name would sit beside the fact rather than being it —
+a node with a `body` property and a body has two answers to one question. The
+argument for spending names this way, and the arithmetic that limits how many,
+is in [`design/structure.md`](../design/structure.md).
+
+`created` is reserved ahead of anything reading it, because a reservation is
+only free before an author has used the name.
+
+**The reservation is on writing.** A file that already carries `body:` still
+reads and still lists — the reader is robustness against YAML the tool did not
+write, not a second gate. **And the grammar's words are not reserved**: `and`,
+`or`, `not` and `in` belong to the parser that needs them, which does not exist
+yet.
+
 **A value is a single line of printable text.** Refused: `U+0000`–`U+001F` and
 `U+007F` — newline, carriage return, tab and the other control characters.
 Everything else is legal, including spaces, punctuation, and `= & ? ;`, because
@@ -348,6 +376,10 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | empty stdin on `write` | `no content on stdin — did the command before the pipe fail?` | `1` |
 | a write that cannot land | `cannot write <id>: permission denied` | `1` |
 | two values to `set` | `node <id> set takes one value — quote it if it contains spaces` | `4` |
+| too few arguments | `node <id> set needs a name and a value` | `4` |
+| a reserved name | ``body is reserved — it is the node's content, written with `write` `` | `1` |
+| an unknown action | `node <id> takes one action: write, set, unset, add, remove` | `4` |
+| an unknown scope | `unknown scope: nodez` | `4` |
 
 **The absent message names the space**, because *wrong space* is one of the two
 real causes and the caller cannot see which from the id alone.
@@ -355,6 +387,11 @@ real causes and the caller cannot see which from the id alone.
 Style: lowercase, no trailing period, `—` before a hint, a remedy where one
 exists and none where fixing the argument is self-evident, and **never a
 filesystem location except the space's own root**.
+
+**The full help follows a message only when the caller named something that does
+not exist** — an unknown scope or action, where the answer is the list of what
+does. An arity or flag message already names the form it is about, so printing
+twelve more would bury it.
 
 ## Deliberately absent
 

@@ -9,7 +9,8 @@
     "jsr:@std/internal@^1.0.14": "1.0.14",
     "jsr:@std/path@1": "1.1.6",
     "jsr:@std/uuid@1": "1.1.1",
-    "jsr:@std/yaml@1": "1.2.0"
+    "jsr:@std/yaml@1": "1.2.0",
+    "jsr:@zod/zod@4": "4.5.4"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -45,6 +46,9 @@
     },
     "@std/yaml@1.2.0": {
       "integrity": "20beb41e4983ba3437dbefac62b14061ab058e8a187596f19d28ff9035f6e6cf"
+    },
+    "@zod/zod@4.5.4": {
+      "integrity": "bf0da80e42232d5f9f485d37b5c980e0d88f07fe04b9b1f2bd9012c008404df4"
     }
   },
   "workspace": {
@@ -53,7 +57,8 @@
       "jsr:@std/cli@1",
       "jsr:@std/path@1",
       "jsr:@std/uuid@1",
-      "jsr:@std/yaml@1"
+      "jsr:@std/yaml@1",
+      "jsr:@zod/zod@4"
     ]
   }
 }

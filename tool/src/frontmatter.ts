@@ -34,6 +34,21 @@ const NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const CONTROL = /[\x00-\x1F\x7F]/;
 
 export const isName = (s: string): boolean => NAME.test(s);
+
+/**
+ * Names the tool holds facts under, which a property may not shadow. `body` is
+ * the node's other half; `created` is arithmetic on its filename. A property
+ * carrying either name would sit beside the fact rather than being it.
+ *
+ * The grammar's own keywords are not here — they belong to the parser that
+ * needs them, and reserving a name is permanent.
+ */
+const RESERVED: Record<string, string> = {
+  body: "it is the node's content, written with `write`",
+  created: "it is read from the id, and cannot be written",
+};
+
+export const reservedReason = (name: string): string | undefined => RESERVED[name];
 export const isValue = (s: string): boolean => !CONTROL.test(s);
 
 /** A property holds one value or several. Several is multiplicity on one
