@@ -12,7 +12,7 @@ reserved names in [structure](../structure.md):
 
 ```
 kind = decision and not retired
-auth in labels
+decision in labels
 body ~ "session.*handling"
 created > 2026-09-01
 (kind = decision or kind = opinion) and body.lines > 200

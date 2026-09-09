@@ -66,6 +66,41 @@ wrong, and will fail by silently matching nothing rather than by complaining.
 That is the whole reason the form is restricted; the specific restriction is
 [the spec's](../spec/api.md).
 
+## Where this comes from, and what it is not
+
+The shape is Neo4j's, and borrowing it deliberately is cheaper than inventing:
+**labels classify, properties hold data.** A node carries any number of labels;
+a label is a bare word with no value attached; and what a label *means* is not
+the store's business.
+
+A **kind** is that idea one layer up — a label a practice has singled out and
+attached rules to. *Decision* is a kind when some practice says a decision must
+state what would unmake it. The word is a practice's, and so is the rule.
+
+**None of this is in the tool.** The substrate does not know `labels`, does not
+know `kind`, and has no concept of classification at all. What it has is
+properties, some of which hold several values, and that is enough to carry the
+whole arrangement:
+
+```
+labels: [auth, decision]      classification, the borrowed shape —
+                              a value in a list is a label
+kind: decision                also legal, and a different modelling choice —
+                              a dimension with one value
+```
+
+Both work, because the tool has no opinion about either. They are not the same
+model, though: the first says a node carries several classifiers on one axis,
+the second says it has one value on an axis called `kind`. Which to use is a
+practice's decision, and the difference shows up in the query — `decision in
+labels` against `kind = decision`.
+
+**The confusion worth avoiding** is reading `kind` as something the tool might
+own. It is a word somebody chose, and it appears in these documents only as an
+example of that — see [structure](structure.md), where the line between a word
+somebody chose and a fact the format holds is what decides whether the tool may
+know a name at all.
+
 ## What a word is not
 
 It carries no meaning the tool can act on. Nothing about a word decides what a

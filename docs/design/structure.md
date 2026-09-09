@@ -11,6 +11,14 @@ what keeps a graph of decisions and a graph of recipes running on the same
 machinery: `kind`, `validated-by` and `labels` are words somebody chose, and a
 tool that knew any of them would be a knowledge tool wearing a general name.
 
+`kind` is the sharpest of those, because it is *useful* enough that reserving it
+keeps suggesting itself — every practice will classify something, and a
+guaranteed shape would make the classification reliably queryable. It is still a
+practice's word, borrowed from Neo4j's labels by way of
+[vocabulary](vocabulary.md), and the guarantee it offers is available without
+the breach: a practice declares the constraint and the tool enforces what it is
+told, which is a different thing from the tool knowing the name.
+
 But a node's prose is not a word anybody chose. Neither is the moment it was
 made, nor the name it goes by. Those are facts about the **shape** of a node,
 true of any graph whatever it holds, and the tool computes all three without
