@@ -12,7 +12,7 @@ reserved names in [structure](../structure.md):
 
 ```
 kind = decision and not retired
-labels contains auth
+auth in labels
 body ~ "session.*handling"
 created > 2026-09-01
 (kind = decision or kind = opinion) and body.lines > 200
@@ -48,16 +48,16 @@ would have been.
 
 | | | |
 |---|---|---|
-| `contains` | membership in a list | `labels contains auth` |
+| `in` | membership in a list | `auth in labels` |
 | `~` | a regex over text | `body ~ "session.*handling"` |
 
 Neither infers from a runtime shape. `body` is known to be text at parse time
-because it is reserved, so `body contains "x"` refuses and says which operator
-to use; `labels ~ "au.*"` refuses the other way.
+because it is reserved, so `body in x` refuses and says which operator to use;
+`labels ~ "au.*"` refuses the other way.
 
-Literal substring search over prose is not here. If regex-escaping a phrase turns
-out to bite, `contains` extends to text additively, without changing what it
-means for a list.
+Literal substring search over prose is not here. If regex-escaping a phrase
+turns out to bite, `contains` is free for it — every language in the family
+reserves that word for text, which is why membership had to give it up.
 
 ## The shell is the outer grammar
 
@@ -81,7 +81,7 @@ and quote each value, which is friendlier — until the operators, because `>` a
 `<` are redirects. `kg nodes find score > 0.7` truncates a file named `0.7` and
 runs a different query, silently. That disqualifies it.
 
-## Why *contains* means what it means here
+## Why membership is `in` and not `contains`
 
 There are four things that could be the container, and a predicate can be
 written at any of them:
@@ -94,9 +94,10 @@ written at any of them:
 | the value | characters |
 
 **The bottom rung is the one people mean.** Asked *does this node contain
-`auth`*, a reader of a knowledge tool reads it as *does its prose* — which is
-why the word could not be spent on list membership while prose search had no
-spelling. With `~` taking the text, `contains` is free for the rung above it.
+`auth`*, a reader of a knowledge tool reads it as *does its prose* — and every
+query language agrees: Cypher's `CONTAINS` is a substring operator, SPARQL has
+`CONTAINS()` for strings and `IN` for sets, and Python, jq and CEL all use `in`.
+Membership is `in`; `contains` stays unspent for text.
 
 **And *contains* is presence, not comparison.** *Contains X* asks whether X is
 there; it does not compare a key to a value. That distinction caught a defect in
@@ -122,7 +123,25 @@ without a dependency, so this is recorded rather than solved.
 
 **`~` searches text, and the only text a node has is its body.** A regex over
 property values has no operand and no caller — property values are single-line
-tokens and dates, which `=` and `contains` already reach.
+tokens and dates, which `=` and `in` already reach.
+
+**`not` over a comparison needs a rule, and does not have one.** If `score >
+0.7` is false when `score` is absent, then `not score > 0.7` is **true for every
+node without a score** — and for every node where it is text or a list. SQL and
+Cypher propagate `NULL` through `NOT` and keep only what is true; SPARQL treats
+an incomparable operand as an error and drops the row rather than flipping it.
+
+Two-valued is defensible for a first version, and then the idiom is `score and
+not score > 0.7`. But it has to be *chosen in writing*, because an agent that
+assumes the other reading assembles a confidently wrong query. Undecided, and
+the first thing batch 5 must settle.
+
+**Keywords are legal property names today.** `and`, `or`, `not`, `in` all match
+`[a-z0-9]+(-[a-z0-9]+)*`, and a node can already carry every one of them — so
+`kind = decision and not` reads as a presence test on a property called `not`.
+Either they become reserved words, spending names permanently by
+[structure](../structure.md)'s arithmetic, or values must be quoted. Also
+undecided.
 
 **An unknown property is not an error.** A predicate over a name no node carries
 matches nothing, because a read command reports what it found rather than
