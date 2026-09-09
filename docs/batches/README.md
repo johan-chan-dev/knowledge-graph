@@ -15,6 +15,8 @@ history: what a batch was for, what building it forced, what it settled.
 | 2 | [nodes carry properties](2-properties.md) | shipped |
 | 3 | [a property can hold a list](3-lists.md) | shipped |
 | 4 | [the tool stops guessing](4-stops-guessing.md) | shipped |
+| 5 | [the entry point](5-the-entry-point.md) | planned |
+| 6 | [find](6-find.md) | planned |
 
 ## Every batch shows its goal, and a test holds it there
 
@@ -51,8 +53,9 @@ first, and whoever fixes it is pointed at the page to correct. That is the same
 trade the no-signatures rule makes, from the other side: what is written down
 twice must be checkable, or it will drift.
 
-A planned batch shows the transcript it is aiming at, and names the test that
-does not pass yet.
+A planned batch shows the transcript it is aiming at, and **names** the test
+that does not pass yet — without linking a file that does not exist, since a
+plan should not leave a broken reference behind it.
 
 **A batch that adds nothing shows what must stop happening instead.** Batch 4
 corrects and removes rather than adding, so it has no loop to demonstrate — its
