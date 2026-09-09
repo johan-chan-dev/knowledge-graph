@@ -14,6 +14,7 @@ history: what a batch was for, what building it forced, what it settled.
 | 1 | [a space, and nodes in it](1-a-space-with-nodes.md) | shipped |
 | 2 | [nodes carry properties](2-properties.md) | shipped |
 | 3 | [a property can hold a list](3-lists.md) | shipped |
+| 4 | [the tool stops guessing](4-stops-guessing.md) | planned |
 
 ## Every batch shows its goal, and a test holds it there
 
@@ -51,6 +52,11 @@ twice must be checkable, or it will drift.
 
 A planned batch shows the transcript it is aiming at, and names the test that
 does not pass yet.
+
+**A batch that adds nothing shows what must stop happening instead.** Batch 4
+corrects and removes rather than adding, so it has no loop to demonstrate — its
+illustration is a list of behaviours that must no longer occur, and its test
+pins each one.
 
 ## Why batches at all
 
