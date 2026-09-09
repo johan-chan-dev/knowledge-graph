@@ -147,6 +147,36 @@ undecided.
 matches nothing, because a read command reports what it found rather than
 judging what it was asked. Only a malformed *expression* refuses.
 
+## Ranking, if matching stops being enough
+
+`~` is boolean: a node matches or it does not. BM25 — the standard lexical
+relevance ranking, used by Lucene and SQLite's FTS5 — would say which matches
+are *best*, by weighing term frequency with diminishing returns, rarity across
+the corpus, and document length.
+
+**Parked, because nothing has the problem it solves.** Ranking earns itself when
+a query matches more nodes than a caller wants to read. That is a complaint you
+can only have after matching exists, and `find` does not.
+
+**And it needs no index, which is worth recording before someone assumes it
+does.** BM25 wants term frequencies, document frequencies and an average length
+— and `find` already opens and parses every node. Computing all three in that
+same pass costs one tokenisation: measured 2026-09-09 over this repository's own
+documentation, 24 files and 87 KB read, tokenised and counted in **15 ms**,
+extrapolating to roughly 0.6 s at a thousand nodes.
+
+So ranking would not breach *nothing may depend on an index existing*. An index
+could come later as exactly what [vocabulary](../vocabulary.md) permits — an
+accelerator that may be deleted without notice.
+
+The reason that holds is scale, not cleverness. Inverted indexes exist because a
+web-scale corpus cannot be re-read per query. A knowledge space can. Inheriting
+the machinery without inheriting the constraint is how a small tool acquires a
+stale index it never needed.
+
+**What would trigger it:** a query routinely returning more nodes than the
+caller reads. Not a corpus size, and not a feeling that search should rank.
+
 ## What it replaced
 
 Four flags, designed four times: `--where`, `--contains` with `-any` and `-all`
