@@ -59,12 +59,34 @@ schema away and the second half evaporates.
 
 | | schema layer | absences | what anchors absence |
 |---|---|---|---|
-| SQL | in the engine | 1 | the declared slot |
+| SQL | in the engine, at evaluation | 1 | the declared slot |
 | JavaScript | none | 2 | intent — anchors nothing |
+| TypeScript | at authoring, erased before evaluation | 2, now mandatory | still nothing, at runtime |
 | here | none *in the substrate* | 1 | a practice, above this layer |
 
 This tool is structurally in JavaScript's position and takes SQL's answer, by
 refusing to let absence mean anything locally.
+
+**TypeScript does not move that row, and it is worth saying why**, because it
+looks like it should. Its schema constrains what may be written and is gone
+before anything runs — a value typed `number | null` still compares `null >= 0`
+as true and `null > 0` as false. SQL's schema is present *at evaluation*, which
+is the only place an absence rule can be enforced.
+
+It also models the split rather than healing it: `string | null` and
+`string | undefined` stay distinct, so strict checking makes the inherited
+distinction mandatory instead of removing it. And `a?: string` cannot separate
+*key absent* from *key present holding undefined* without a compiler flag —
+the instance/schema line resurfacing inside the type system.
+
+The two are not the same kind of schema. SQL's **guarantees slots**, so absence
+has one degree of freedom. TypeScript's **describes which slots may be absent**,
+which is a faithful description of the mess rather than an anchor against it.
+
+This is why the tool is written in TypeScript and still validates at runtime:
+`frontmatter.ts` refuses YAML null because node files arrive from disk, and
+[`spec/api.md`](../spec/api.md)'s argument shapes are checked because argv
+arrives from the shell. Both are boundaries a compile-time schema never reaches.
 
 ## Nothing-as-a-value stays expressible
 
