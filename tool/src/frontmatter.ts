@@ -100,6 +100,11 @@ export function read(frontmatter: string): Properties | undefined {
   const out: Properties = {};
   for (const [name, value] of Object.entries(parsed)) {
     if (Array.isArray(value)) {
+      // An empty list is a key carrying nothing — present, with no value on
+      // that dimension. `remove` deletes a key rather than leaving one, so the
+      // tool never writes this; refusing it keeps absent and present-but-empty
+      // from being two different ways to be absent.
+      if (value.length === 0) return undefined;
       if (value.some((each) => each === null || typeof each === "object")) {
         return undefined;
       }

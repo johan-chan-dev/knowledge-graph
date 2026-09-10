@@ -113,4 +113,19 @@ Deno.test("an absence is never a value: YAML null is refused, empty string is no
     assertEquals(frontmatter.read(text), undefined, JSON.stringify(text));
   }
   assertEquals(frontmatter.read('kind: ""\n'), { kind: "" });
+  // Every spelling the YAML 1.2 core schema resolves to null, refused by
+  // testing the parsed value rather than the text — so a spelling nobody
+  // thought of cannot get through.
+  for (const text of ["kind: Null\n", "kind: NULL\n"]) {
+    assertEquals(frontmatter.read(text), undefined, JSON.stringify(text));
+  }
+  // A quoted null is a value, and stays one.
+  assertEquals(frontmatter.read('kind: "null"\n'), { kind: "null" });
+});
+
+// `remove` deletes a key rather than leaving an empty list, so present-but-empty
+// is a state the tool never writes and must not read back either.
+Deno.test("an empty list is an absence, not a value", () => {
+  assertEquals(frontmatter.read("labels: []\n"), undefined);
+  assertEquals(frontmatter.read("labels: [auth]\n"), { labels: ["auth"] });
 });
