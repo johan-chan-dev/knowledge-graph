@@ -22,7 +22,7 @@ Deno.test("split refuses anything without a fence, CRLF included", () => {
       "---\r\nkind: decision\r\n---\r\n\r\nbody\r\n",
     ]
   ) {
-    assertEquals(frontmatter.split(raw), null, JSON.stringify(raw));
+    assertEquals(frontmatter.split(raw), undefined, JSON.stringify(raw));
   }
 });
 
@@ -71,7 +71,7 @@ Deno.test("what is neither a value nor a list does not read at all", () => {
       "unbalanced: [\n",
     ]
   ) {
-    assertEquals(frontmatter.read(text), null, JSON.stringify(text));
+    assertEquals(frontmatter.read(text), undefined, JSON.stringify(text));
   }
 });
 
@@ -102,4 +102,15 @@ Deno.test("a value is a single line of printable text", () => {
   for (const bad of ["one\ntwo", "one\rtwo", "one\ttwo", "\u0000", "\u007F"]) {
     assertEquals(frontmatter.isValue(bad), false, JSON.stringify(bad));
   }
+});
+
+// The rule the tool's absence model depends on: a YAML null is recognised and
+// refused, never stored. Without this, a key could hold an absence and `in`
+// would stop agreeing with a lookup — which is the JavaScript conflation the
+// design declines. See `docs/design/absence.md`.
+Deno.test("an absence is never a value: YAML null is refused, empty string is not", () => {
+  for (const text of ["kind:\n", "kind: null\n", "kind: ~\n", "kind: [~]\n"]) {
+    assertEquals(frontmatter.read(text), undefined, JSON.stringify(text));
+  }
+  assertEquals(frontmatter.read('kind: ""\n'), { kind: "" });
 });

@@ -22,7 +22,7 @@ async function readStdin(): Promise<string> {
 /** Parse, match, check, run. Each step's rules live in `surface.ts`, so what is
  * left here is the two things a table cannot hold: the process, and the shell. */
 export async function run(argv: string[]): Promise<Outcome> {
-  let unknownFlag: string | null = null;
+  let unknownFlag: string | undefined;
   const flags = parseArgs(argv, {
     boolean: ["help", "stdin", "properties"],
     // `_` keeps positionals as text. Without it parseArgs runs
@@ -35,7 +35,9 @@ export async function run(argv: string[]): Promise<Outcome> {
       return true;
     },
   });
-  if (unknownFlag !== null) return usage(`unknown flag: ${unknownFlag}\n\n${help()}`);
+  if (unknownFlag !== undefined) {
+    return usage(`unknown flag: ${unknownFlag}\n\n${help()}`);
+  }
   // Asking for help is not a usage error: it answers on stdout and succeeds,
   // so `kg --help | less` works. Help shown *because* a call was wrong is the
   // other thing, and goes to stderr with the rest of the refusal.

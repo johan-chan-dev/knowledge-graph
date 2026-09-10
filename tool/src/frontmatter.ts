@@ -59,9 +59,10 @@ export type Properties = Record<string, Value>;
 
 export type Split = { readonly frontmatter: string; readonly content: string };
 
-export function split(raw: string): Split | null {
+export function split(raw: string): Split | undefined {
+  // `exec` hands back a null; it does not travel past this line.
   const match = OPEN.exec(raw);
-  if (match === null) return null;
+  if (match === null) return undefined;
   const content = match[2] ?? "";
   // The fence is followed by one blank line, belonging to neither half.
   return {
@@ -78,27 +79,33 @@ export const join = (frontmatter: string, content: string): string =>
  * `2027-01-01` into a date, which would be the tool deciding what a field it
  * has never heard of means.
  *
- * `null` means the block will not parse, or holds something that is neither a
- * value nor a list. Flattening the latter is what silently destroyed a
- * hand-written list before lists existed.
+ * Nothing comes back when the block will not parse, or holds something that is
+ * neither a value nor a list. Flattening the latter is what silently destroyed
+ * a hand-written list before lists existed.
  */
-export function read(frontmatter: string): Properties | null {
+export function read(frontmatter: string): Properties | undefined {
   if (frontmatter.trim() === "") return {};
   let parsed: unknown;
   try {
     parsed = parseYaml(frontmatter, { schema: "core" });
   } catch {
-    return null;
+    return undefined;
   }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  // A YAML null is recognised here so it can be refused — the one place the
+  // word appears in this tool's own vocabulary, and it stops here.
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return undefined;
+  }
 
   const out: Properties = {};
   for (const [name, value] of Object.entries(parsed)) {
     if (Array.isArray(value)) {
-      if (value.some((each) => each === null || typeof each === "object")) return null;
+      if (value.some((each) => each === null || typeof each === "object")) {
+        return undefined;
+      }
       out[name] = value.map(String);
     } else if (value === null || typeof value === "object") {
-      return null;
+      return undefined;
     } else {
       out[name] = String(value);
     }

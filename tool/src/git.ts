@@ -33,11 +33,12 @@ export async function repoRoot(cwd: string): Promise<RepoRoot> {
   return result.ok ? { kind: "root", path: result.stdout } : { kind: "none" };
 }
 
-/** The checked-out branch, or null on a repository with no commit yet. */
-export async function branch(cwd: string): Promise<string | null> {
+/** The checked-out branch. Nothing comes back on a repository with no commit
+ * yet, which is a real state rather than a failure. */
+export async function branch(cwd: string): Promise<string | undefined> {
   const result = await git(["rev-parse", "--abbrev-ref", "HEAD"], cwd);
-  if (result.kind === "missing" || !result.ok) return null;
-  return result.stdout === "HEAD" ? null : result.stdout;
+  if (result.kind === "missing" || !result.ok) return undefined;
+  return result.stdout === "HEAD" ? undefined : result.stdout;
 }
 
 export async function initRepo(cwd: string): Promise<boolean> {

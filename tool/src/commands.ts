@@ -3,7 +3,7 @@ import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
 import * as frontmatter from "./frontmatter.ts";
 import type { Properties } from "./frontmatter.ts";
-import { amend, read, write } from "./node.ts";
+import { amend, create, read, replace } from "./node.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -109,11 +109,10 @@ export async function nodeNew(cwd: string, content: string): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
-  const result = await write(resolved.space, null, content);
+  const result = await create(resolved.space, content);
   if (result.kind === "unwritable") {
     return refused(`cannot create a node: ${result.reason}`);
   }
-  if (result.kind !== "written") return refused(`could not create a node`);
   // The id is the one thing the caller could not have worked out.
   return lines([result.id]);
 }
@@ -132,7 +131,7 @@ export async function nodeWrite(
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
-  const result = await write(resolved.space, id, content);
+  const result = await replace(resolved.space, id, content);
   switch (result.kind) {
     case "absent":
       return absent(`no such node: ${id} in ${resolved.space.name}`);
@@ -143,7 +142,7 @@ export async function nodeWrite(
       return unreadable(id, result.kind);
     case "unwritable":
       return refused(`cannot write ${id}: ${result.reason}`);
-    case "written":
+    case "replaced":
       // Nothing on stdout: the caller supplied the id. What it could not know
       // is the size it displaced.
       return ok("", `replaced ${result.replaced} bytes`);
@@ -157,16 +156,22 @@ export async function nodeSet(
   cwd: string,
   id: string,
   name: string,
-  value: string | null,
+  value: string,
 ): Promise<Outcome> {
   return await change(cwd, id, (properties) => {
     const had = name in properties;
-    if (value === null) {
-      delete properties[name];
-      return had ? `unset ${name}` : `${name} was not set`;
-    }
     properties[name] = value;
     return had ? `replaced ${name}` : `set ${name}`;
+  });
+}
+
+export async function nodeUnset(cwd: string, id: string, name: string): Promise<Outcome> {
+  return await change(cwd, id, (properties) => {
+    // `delete`, never an assignment: a key holding `undefined` would be a
+    // second way to be absent, and `in` would stop agreeing with a lookup.
+    const had = name in properties;
+    delete properties[name];
+    return had ? `unset ${name}` : `${name} was not set`;
   });
 }
 
@@ -187,7 +192,7 @@ export async function nodeAdd(
     }
     const list = existing ?? [];
     const fresh = values.filter((value) => !list.includes(value));
-    if (fresh.length === 0) return null;
+    if (fresh.length === 0) return undefined;
     properties[name] = [...list, ...fresh];
     return `added ${fresh.length} to ${name}`;
   });
@@ -201,12 +206,12 @@ export async function nodeRemove(
 ): Promise<Outcome> {
   return await change(cwd, id, (properties) => {
     const existing = properties[name];
-    if (existing === undefined) return null;
+    if (existing === undefined) return undefined;
     if (!frontmatter.isList(existing)) {
       return { refuse: `cannot remove from ${name}: not a list` };
     }
     const kept = existing.filter((value) => !values.includes(value));
-    if (kept.length === existing.length) return null;
+    if (kept.length === existing.length) return undefined;
     const gone = existing.length - kept.length;
     // A property emptied must be indistinguishable from one never set.
     if (kept.length === 0) {
@@ -218,20 +223,21 @@ export async function nodeRemove(
   });
 }
 
-/** The shared half of every property write: resolve, amend, report. `null` from
- * the callback means nothing changed, and nothing changed is worth no words. */
+/** The shared half of every property write: resolve, amend, report. Nothing
+ * back from the callback means nothing changed, and nothing changed is worth no
+ * words. */
 async function change(
   cwd: string,
   id: string,
-  edit: (properties: Properties) => string | null | { refuse: string },
+  edit: (properties: Properties) => string | undefined | { refuse: string },
 ): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
-  const said: (string | null)[] = [];
+  const said: (string | undefined)[] = [];
   const result = await amend(resolved.space, id, (properties) => {
     const outcome = edit(properties);
-    if (outcome !== null && typeof outcome === "object") return outcome.refuse;
+    if (outcome !== undefined && typeof outcome === "object") return outcome.refuse;
     said.push(outcome);
   });
 
@@ -248,7 +254,7 @@ async function change(
     case "amended": {
       const note = said[0];
       // Nothing changed is worth no words.
-      return note == null ? ok("") : ok("", note);
+      return note === undefined ? ok("") : ok("", note);
     }
   }
 }

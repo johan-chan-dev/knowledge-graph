@@ -33,9 +33,9 @@ async function load(space: Space, id: string): Promise<Loaded> {
     return { kind: "absent" };
   }
   const parts = frontmatter.split(raw);
-  if (parts === null) return { kind: "malformed" };
+  if (parts === undefined) return { kind: "malformed" };
   const properties = frontmatter.read(parts.frontmatter);
-  if (properties === null) return { kind: "unparseable" };
+  if (properties === undefined) return { kind: "unparseable" };
   return { kind: "loaded", properties, content: parts.content };
 }
 
@@ -57,45 +57,54 @@ export async function read(space: Space, id: string): Promise<Read> {
     : { kind: found.kind };
 }
 
-export type Written =
-  | { readonly kind: "written"; readonly id: string; readonly replaced: number | null }
-  | { readonly kind: "unwritable"; readonly reason: string }
+export type Created =
+  | { readonly kind: "created"; readonly id: string }
+  | Unwritable;
+
+export type Replaced =
+  | { readonly kind: "replaced"; readonly replaced: number }
+  | Unwritable
   | Failure;
 
-/**
- * With no id this creates and hands the id back; with one it replaces that
- * node's content and **keeps its properties**, which is what a caller means by
- * replacing what they wrote. An id that is not here refuses rather than
- * creating: a caller cannot invent an id, so an unknown one means the node is
- * gone or this is the wrong space.
- */
-export async function write(
-  space: Space,
-  id: string | null,
-  content: string,
-): Promise<Written> {
-  if (id === null) {
-    const minted = mint();
-    const failed = await atomically(fileOf(space, minted), frontmatter.join("", content));
-    if (failed !== null) return { kind: "unwritable", reason: failed };
-    return { kind: "written", id: minted, replaced: null };
-  }
+/** Mints an id and hands it back. It cannot fail the way `replace` can: there
+ * is no file to load, so `absent` and the parse failures are not among its
+ * outcomes — which is why these are two functions and not one with a nullable
+ * id saying which was meant. */
+export async function create(space: Space, content: string): Promise<Created> {
+  const id = mint();
+  const wrote = await atomically(fileOf(space, id), frontmatter.join("", content));
+  if (wrote.kind === "unwritable") return wrote;
+  return { kind: "created", id };
+}
 
+/**
+ * Replaces a node's content and **keeps its properties**, which is what a
+ * caller means by replacing what they wrote. An id that is not here refuses
+ * rather than creating: a caller cannot invent an id, so an unknown one means
+ * the node is gone or this is the wrong space.
+ */
+export async function replace(
+  space: Space,
+  id: string,
+  content: string,
+): Promise<Replaced> {
   const found = await load(space, id);
   if (found.kind !== "loaded") return { kind: found.kind };
 
-  const failed = await atomically(
+  const wrote = await atomically(
     fileOf(space, id),
     frontmatter.join(frontmatter.write(found.properties), content),
   );
-  if (failed !== null) return { kind: "unwritable", reason: failed };
-  return { kind: "written", id, replaced: bytes(found.content) };
+  if (wrote.kind === "unwritable") return wrote;
+  return { kind: "replaced", replaced: bytes(found.content) };
 }
+
+export type Unwritable = { readonly kind: "unwritable"; readonly reason: string };
 
 export type Amended =
   | { readonly kind: "amended"; readonly properties: Properties }
   | { readonly kind: "refused"; readonly message: string }
-  | { readonly kind: "unwritable"; readonly reason: string }
+  | Unwritable
   | Failure;
 
 /**
@@ -118,11 +127,11 @@ export async function amend(
   const refusal = change(properties);
   if (typeof refusal === "string") return { kind: "refused", message: refusal };
 
-  const failed = await atomically(
+  const wrote = await atomically(
     fileOf(space, id),
     frontmatter.join(frontmatter.write(properties), found.content),
   );
-  if (failed !== null) return { kind: "unwritable", reason: failed };
+  if (wrote.kind === "unwritable") return wrote;
   return { kind: "amended", properties };
 }
 
@@ -132,16 +141,23 @@ export async function amend(
  *
  * A failure comes back as a value rather than a throw: an uncaught one printed
  * a stack trace, which `git.ts` calls the failure an agent reads worst — and it
- * exited `1`, which promises nothing was written. */
-async function atomically(path: string, text: string): Promise<string | null> {
+ * exited `1`, which promises nothing was written.
+ *
+ * It says which case it is rather than returning a reason-or-nothing: success
+ * was the empty one, so the check read `if (failed !== null)` and the quiet
+ * path was the one spelled as an absence. */
+async function atomically(
+  path: string,
+  text: string,
+): Promise<{ kind: "written" } | Unwritable> {
   const temp = `${path}.${crypto.randomUUID().slice(0, 8)}.tmp`;
   try {
     await Deno.writeTextFile(temp, text);
     await Deno.rename(temp, path);
-    return null;
+    return { kind: "written" };
   } catch (error) {
     await Deno.remove(temp).catch(() => {});
-    return reason(error);
+    return { kind: "unwritable", reason: reason(error) };
   }
 }
 

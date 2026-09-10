@@ -9,6 +9,7 @@ import {
   nodeRemove,
   nodes,
   nodeSet,
+  nodeUnset,
   nodeWrite,
   space,
   spaceInit,
@@ -158,7 +159,7 @@ export const COMMANDS: readonly Command[] = [
   },
   {
     form: "node <id> unset <name>",
-    run: ({ cwd, id, args }) => nodeSet(cwd, id, args[0], null),
+    run: ({ cwd, id, args }) => nodeUnset(cwd, id, args[0]),
     summary: "remove one",
     scope: "node",
     id: true,
