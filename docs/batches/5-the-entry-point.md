@@ -65,13 +65,14 @@ for a batch that does not exist.
 
 `tool/src/surface.ts` holds one entry per command: its form, its scope, whether
 a second positional is an id, its arity, which flags are legal on it, and what
-it runs. Help, matching, checking and dispatch all read that table.
+it runs. Help, matching, checking and dispatch all read those entries.
 
-**Because that shape used to live in three places.** Help read a `FORMS` table;
+**Because that shape used to live in three places.** Help read a `FORMS` list;
 dispatch was a chain of branches; arity was conditionals inside those branches.
-Every argument defect the tool has had was a disagreement between them — all of
-these are fixed, and they are listed as the evidence that the arrangement, not
-the care taken with it, was the cause:
+Every argument defect the tool has had was a disagreement between them.
+
+All four are fixed. They are set out here as the evidence that the arrangement
+was the cause, rather than the care taken with it:
 
 | defect | fixed in | which pair disagreed |
 |---|---|---|
