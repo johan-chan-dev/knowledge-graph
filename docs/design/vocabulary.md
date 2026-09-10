@@ -114,4 +114,4 @@ belongs to whoever is working.
 
 ---
 
-[docs](../README.md) · [design](README.md) · [location](location.md) · vocabulary · [structure](structure.md) · [absence](absence.md) · [parked](parked/)
+[docs](../README.md) · [design](README.md) · [location](location.md) · vocabulary · [structure](structure.md) · [absence](absence.md) · [boundaries](boundaries.md) · [parked](parked/)

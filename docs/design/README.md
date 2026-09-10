@@ -7,6 +7,7 @@ argument.
 - [vocabulary](vocabulary.md) — a word a node carries, and membership is never written down
 - [structure](structure.md) — the tool may name its own parts, and each name is spent permanently
 - [absence](absence.md) — a property is absent, and that is all it means
+- [boundaries](boundaries.md) — data is checked where it enters, and once
 - [parked/](parked/) — argued, and not settled enough to build
 
 ## The line between here and the spec

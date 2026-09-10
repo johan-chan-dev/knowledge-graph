@@ -202,4 +202,4 @@ to agree.
 
 ---
 
-[docs](../README.md) · [design](README.md) · [location](location.md) · [vocabulary](vocabulary.md) · [structure](structure.md) · absence · [parked](parked/)
+[docs](../README.md) · [design](README.md) · [location](location.md) · [vocabulary](vocabulary.md) · [structure](structure.md) · absence · [boundaries](boundaries.md) · [parked](parked/)

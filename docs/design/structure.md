@@ -93,4 +93,4 @@ gets more expensive with time.
 
 ---
 
-[docs](../README.md) · [design](README.md) · [location](location.md) · [vocabulary](vocabulary.md) · structure · [absence](absence.md) · [parked](parked/)
+[docs](../README.md) · [design](README.md) · [location](location.md) · [vocabulary](vocabulary.md) · structure · [absence](absence.md) · [boundaries](boundaries.md) · [parked](parked/)

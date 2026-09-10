@@ -78,4 +78,4 @@ was on offer, and buys a reference that survives every rearrangement.
 
 ---
 
-[docs](../README.md) · [design](README.md) · location · [vocabulary](vocabulary.md) · [structure](structure.md) · [absence](absence.md) · [parked](parked/)
+[docs](../README.md) · [design](README.md) · location · [vocabulary](vocabulary.md) · [structure](structure.md) · [absence](absence.md) · [boundaries](boundaries.md) · [parked](parked/)
