@@ -114,10 +114,11 @@ tool knows which of Zod's issues is which.
 
 ## What it does not do
 
-**Nothing about reading a node.** `frontmatter.read`'s coercion stays as it is
-and stays honestly named: it is robustness against YAML the tool did not write —
-`42` unquoted comes back a number — not validation. Data is validated where it
-enters, and by the time it is stored it has been.
+**Nothing about reading a node.** The entry point this batch declared is argv,
+and the reading path was left exactly as it was. What arrives from disk raises a
+different question from what arrives from the shell — one is about a block
+somebody may have hand-edited, the other about the shape of an argument list —
+and answering both in one batch would have made neither legible.
 
 **No node-content rules.** A practice declaring that a `decision` must carry a
 `valid-until` is a different thing wearing the same word, and it is blocked on a
