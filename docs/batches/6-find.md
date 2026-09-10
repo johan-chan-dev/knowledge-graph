@@ -115,11 +115,12 @@ it; `!=` is exactly `not =`. So `not score > 0.7` matches a node with no
 `score`, which is the literal reading — *it is not the case that score exceeds
 0.7* is true when there is no score.
 
-**Not a choice so much as what is left.** Three-valued logic exists to carry a
-schema's promise and the data's gap through a comparison together; a layer that
-declares no slots has no promise, so there is nothing for a third value to hold.
-The tool has no null and refuses one on the way in, which
-[`design/absence.md`](../design/absence.md) argues in full.
+**A choice with a name.** Absence reading as false is the Closed World
+Assumption, and `not` is negation as failure: `not retired` means *the corpus
+does not say retired*, not *retired is false*. Slotlessness does not force it —
+SPARQL has no slots and is three-valued anyway — so
+[`design/absence.md`](../design/absence.md) argues why it is chosen here, and
+what it costs.
 
 **So `find 'p'` and `find 'not p'` always partition the space.** That is the
 payoff, and SQL cannot offer it: a row whose column is NULL falls out of both

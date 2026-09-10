@@ -2,33 +2,78 @@
 
 There is exactly one way for a node not to carry something: the key is not
 there. No null, no empty marker, no second kind of nothing. This argues why one
-is the right number, and why the tool cannot have more even if it wanted them.
+is the right number here — a **choice**, with a name and a price, not something
+the format forced.
 
-## Two words at two levels
+## The choice has a name: the closed world
 
-*Undefined* and *unknown* sound like the same fact stated with different
-confidence. They are not the same kind of fact at all.
+Absence reads as false and `not` flips it. That is the **Closed World
+Assumption** (Reiter, *On Closed World Data Bases*, 1978), implemented as
+**negation as failure** (Clark, 1978). `not retired` means *the corpus does not
+say retired* — never *retired is false*. It is the semantics of Datalog, Prolog
+and ordinary database query answering, so the company is orthodox rather than
+eccentric.
 
-| level | the claim | who can make it |
+**It is not entailed by having no schema.** An earlier version of this page
+argued that it was, and that was wrong — the two axes are independent:
+
+| | two-valued | three-valued |
 |---|---|---|
-| instance | the key is not in this file | the tool, by looking |
-| schema | the key **should** be here and is not | only something that declared it should |
+| schema'd | Date & Darwen's null-free model, via 6NF | SQL |
+| schemaless | Datalog, Prolog — and this tool | **SPARQL**, **Cypher** |
 
-The second is not a vaguer version of the first. It is a claim about a *slot*,
-and a slot has to be declared before anything can be said about its emptiness.
+RDF has no slots whatever, and SPARQL still evaluates `FILTER` three-valued with
+*error* as the third value, so `FILTER(?x > 5)` and `FILTER(!(?x > 5))` both drop
+an unbound solution. Cypher deletes a property when it is set to null — exactly
+this tool's storage model — and is three-valued regardless. Slotlessness neither
+entails two-valued logic nor argues for it.
 
-SQL can say *unknown* because it has a schema: every row carries every column by
-declaration, so a `NULL` cell is a slot that exists holding a value nobody
-knows. That is two facts in tension — the schema promises the slot, the data
-leaves it empty — and three-valued logic is the machinery for carrying both
-through a comparison. Propagation is honest there. It preserves a tension that
-genuinely exists.
+Nor is *unknown* beyond a schemaless store's reach: Wikidata says both
+`somevalue` and `novalue` at statement level, with no schema anywhere.
 
-**This layer declares no slots.** A node carries the properties it carries.
-There is no prior promise for an absence to be in tension with, so there is
-nothing for a third truth value to hold. Two-valued absence is not a
-simplification chosen here; it is what is left when there is no schema to
-anchor a richer one.
+## Why it is the right choice anyway
+
+**Three-valued logic is not the principled alternative it appears to be.**
+Libkin proved SQL's version does not compute certain answers correctly — it
+returns answers that are not certain, and misses ones that are (*SQL's
+Three-Valued Logic and Certain Answers*, TODS 41(1), 2016). The real theory of
+incomplete information is conditional tables (Imieliński & Lipski, JACM 1984),
+which three values approximate badly. Declining it forfeits no rigour.
+
+**And no expressive power is lost.** Kleene's strong three-valued logic is not
+functionally complete: no combination of `and`, `or` and `not` can test for the
+third value, since all three are monotone. That is why SQL needs `IS NULL` — a
+mandatory escape hatch rather than a wart. This tool has the same escape hatch
+already, because key presence is directly testable. Same completeness, one truth
+value fewer.
+
+**The sprawl is what the other road actually costs.** `IS NULL`, `COALESCE`,
+`NULLIF`, `NULLS FIRST/LAST`, `IS DISTINCT FROM`, `UNIQUE NULLS NOT DISTINCT`,
+and a per-aggregate rule about skipping. SQL's null is three-valued in
+comparison yet value-like in grouping, sorting and duplicate elimination, and it
+is that incoherence rather than any one operator that Date and Darwen indict.
+
+## The price, named
+
+**Non-monotonicity.** Adding a node can falsify an answer already given — `not
+owner` was true of a node until someone wrote an owner. Nothing concluded under
+a closed world is stable as the graph grows, and for a corpus written by hand
+over time, where absence usually means *not written down yet*, that is the
+sharpest objection there is. It is why RDF and OWL chose the open world.
+
+Three consequences, stated rather than discovered:
+
+**A closed-world answer is safe to act on and unsafe to store.** Materialising
+one — writing *these twelve decisions have no owner* into a node — bakes in a
+fact the next commit may contradict.
+
+**`not` does not distribute into a comparison.** `not (score > 0.7)` includes a
+node with no score; `score <= 0.7` does not.
+
+**A mistyped name is indistinguishable from an absence.** `scroe: 9` is a node
+lacking `score`, and every query agrees. A schema'd store fails fast on an
+unknown column and this one cannot — the standing complaint against every
+schemaless store, and it is about names rather than values.
 
 ## What JavaScript got wrong, and it is not having two
 
@@ -54,18 +99,23 @@ empty* carries no information, which is why SQL needs no second marker and
 happily lets an author write `NULL` directly. Without that anchor, JavaScript
 reached for intent as a substitute, and intent does not propagate.
 
-Read as a translation: SQL's `NULL` is `undefined` **plus a schema**. Take the
-schema away and the second half evaporates.
+A tempting shorthand — *SQL's `NULL` is `undefined` plus a schema* — does not
+survive contact. Most nulls a query meets were **made by operations**, not left
+in a declared slot: an outer join fabricates them, `MAX` over an empty set
+returns one, a `CASE` with no matching branch yields one. The missing conjunct
+is **propagation**, and propagation is what produces three-valued logic,
+independently of any schema.
 
-| | schema layer | absences | what anchors absence |
+Which is this tool's warning too. The day it aggregates, or traverses
+optionally, it meets the same question — *what is the average confidence over
+nodes citing X, when nothing cites X?* — and having no schema will not answer it.
+
+| | absences | split on | does the split propagate? |
 |---|---|---|---|
-| SQL | in the engine, at evaluation | 1 | the declared slot |
-| JavaScript | none | 2 | intent — anchors nothing |
-| TypeScript | at authoring, erased before evaluation | 2, now mandatory | still nothing, at runtime |
-| here | none *in the substrate* | 1 | a practice, above this layer |
-
-This tool is structurally in JavaScript's position and takes SQL's answer, by
-refusing to let absence mean anything locally.
+| SQL | 1 | schema's promise vs the data | yes — that is its logic |
+| JavaScript | 2 | who caused it | **no** |
+| TypeScript | 2, now mandatory | who caused it, checked early | no — erased before evaluation |
+| here | 1 | — | — |
 
 **TypeScript does not move that row, and it is worth saying why**, because it
 looks like it should. Its schema constrains what may be written and is gone
