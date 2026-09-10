@@ -22,7 +22,7 @@ created is reserved — it is read from the id, and cannot be written
 $ kg nodes list --properties
 --properties belongs to `kg node <id>`
 
-$ kg node "$a" rename x
+$ kg node "$a" whatever x
 node <id> takes one action: write, set, unset, add, remove
 
 $ kg node "$a" set title
@@ -32,10 +32,9 @@ $ kg node "$a" set title one two three
 node <id> set takes one value — quote it if it contains spaces
 ```
 
-The unknown action is a correction rather than an addition — it used to say
-`node <id> rename takes no arguments`, which told the caller `rename` was a
-property that happened to take none, rather than an action that does not
-exist.
+The unknown action is a correction rather than an addition. It used to be
+reported as `takes no arguments` — describing it as a property that happens to
+take none, rather than as a word the tool does not know.
 
 **Backed by** `batch 5 — the entry point`, in
 [`tool/tests/batches/5_test.ts`](../../tool/tests/batches/5_test.ts).
@@ -79,7 +78,7 @@ was the cause, rather than the care taken with it:
 | `--where` hand-parsed into clauses | 4 | a shape with no declaration |
 | `set title one two three` silently joined | 4 | no declared arity to violate |
 | `nodes list --properties` accepted and ignored | 4 | the flag was declared globally; nothing consulted the command |
-| `node <id> rename x` reported as an argumentless property | 5 | the arity check ran before the action was validated |
+| an unknown action reported as an argumentless property | 5 | the arity check ran before the action was validated |
 
 Three of the four were caught one at a time by [batch 4](4-stops-guessing.md),
 which is the point: a fourth round of care would have found a fifth.
