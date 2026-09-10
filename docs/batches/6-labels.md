@@ -98,21 +98,45 @@ is a body. [`api.md`](../spec/api.md) already says a value wanting several lines
 is content, and a one-line flag argument would have contradicted the storage it
 writes to.
 
-## What a description is not
+## The vocabulary stays open
 
-`label auth write` does not create the word. A label exists in a node or it does
-not, and [`vocabulary.md`](../design/vocabulary.md) is explicit that membership
-is computed and never stored.
+A label file could have been two different things, and the batch has to pick:
 
-So `labels list` shows the union of two sources — words nodes carry, and words
-with a file — and the count comes only from the first. A described word nothing
-carries lists with `0`, which is a real state and reads as one: *defined, not
-yet used*.
+| | a controlled vocabulary | **an open one** |
+|---|---|---|
+| `kg node <id> label auth`, no `labels/auth.md` | refused — define it first | works |
+| what a label file is | permission to use the word | a description of a word |
+| `labels list` | the registry | words nodes carry, plus words with a file |
 
-That settles the lifecycle without a rule. Dropping the last node carrying
-`auth` does not touch its description, because the description was never a fact
-about those nodes. `label auth forget` removes the file and nothing else does —
-which is deletion, but not the deletion
+**Open, and it is not a close call for a knowledge graph.**
+[`vocabulary.md`](../design/vocabulary.md) already argues it: which groupings
+exist is not knowable when the first piece is written, and a subject becomes
+visible only once enough material shares it. A registry inverts that — it wants
+the scheme before the material — and charges for it at the worst possible
+moment, when the thing just understood fits none of the allowed words. The
+author then either forces it into a word that is wrong or stops to amend the
+registry, and both are worse than writing the word they meant.
+
+A controlled vocabulary is also machinery for keeping *many people* on the same
+words. That is a real problem and it is not this one.
+
+**What it would have bought is drift** — `auth`, `authn` and `authentication`
+splitting one idea three ways. Open vocabulary does not prevent that; `labels
+list` makes it *visible*, because `auth 12` beside `authn 1` is the answer and
+the fix in one line. Detection rather than prevention, which is the same trade
+the tool makes everywhere else it declines to guess.
+
+## A description and a membership are independent
+
+Neither creates or destroys the other:
+
+- `label auth write` — a description exists; nothing carries `auth` yet, and
+  `labels list` shows it with a count of `0`: *defined, not yet used*
+- `label auth forget` — the description goes; nodes carrying `auth` still do
+- the last node dropping `auth` — the description stays, the count falls to `0`
+
+That settles the lifecycle without needing a rule, because the description was
+never a fact about those nodes. `forget` is deletion, but not the deletion
 [`lifecycle.md`](../design/parked/lifecycle.md) parks: nothing can reference a
 label file, and removing it leaves the word intact wherever nodes carry it.
 
