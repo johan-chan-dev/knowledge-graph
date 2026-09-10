@@ -1,170 +1,59 @@
 # knowledge-graph
 
-A Claude Code plugin for managing a knowledge graph inside a repository.
+`kg` keeps a knowledge graph as files in a repository: one node per file, a uuid
+for a name, properties in frontmatter and prose in the body.
 
-**Early, and in daily use.** The surface still moves between minor versions; the
-origin repository is upgraded with it, which is what keeps the churn honest.
-
-**And it is being replaced.** The `kg` command is being reimplemented from
-scratch — see [`docs/`](docs/) for its design, specification and the batches it
-is arriving in. The plugin follows once the tool is right, and nothing described
-below constrains it.
+**Being designed and built, in the open.** There is no plugin to install and
+nothing here is stable. What exists is a design tree and a binary that closes
+five of six planned loops.
 
 ## What it is for
 
 A repository where the reasoning matters as much as the artefacts — decisions,
-verified facts, load-bearing assumptions — and where an agent is the primary
-reader. Atomic markdown nodes with typed frontmatter, a personal/shared graph, a
-derived metadata layer small enough to load at session start, and a queue of
-pending work with a cap on what is surfaced at once.
+verified facts, load-bearing assumptions — and where **an agent is the primary
+reader**.
 
-## Why there are so few checks
+That last part is the whole constraint. A person asks and rules; an agent
+drives; the tool writes. So the surface is optimised for a caller who reads
+every refusal, holds no state between sessions, and pays for what it reads in
+context rather than in time — which is why listing and searching are two
+actions rather than one with a flag, and why an expression that will not parse
+refuses before a single file is opened.
 
-The tool writes the nodes, so validation runs **before** the write rather than
-after it. Re-checking frontmatter that `kg new` just generated is work done twice
-— which is the whole of the argument, and it is about not wasting effort, not
-about guarantees.
-
-So `kg new` writes complete frontmatter and the index entry together; `kg set`
-refuses a state its own schema forbids; and there is deliberately **no** `kg rm`,
-because the graph is monotonic and a missing operation is stronger than a refused
-one.
-
-That removed 20 of the origin repo's 24 validation checks. What survives is what
-no constructor can own: prose. Links inside a body, a citation crossing a scope, a
-claim written in the first person plural. Nothing owns a sentence.
-
-**And the limit is real.** This holds only while `kg` is the sole writer. `check`
-does not re-validate frontmatter at all, so a node written by anything else —
-by hand, by another tool, or inside a mounted repository that does not run `kg` —
-gets no validation from anywhere. The savings are genuine; they are not a
-property of the graph, only of how it was produced.
-
-## Personal and shared
-
-Knowledge **travels**. It starts personal, and it is shared once it holds
-somewhere beyond where it was written.
-
-```
-products/<name>/knowledge/   personal — scoped to one product
-knowledge/                   shared   — holds across this repository's products
-<the product's own repo>     shared   — holds for whoever reads that repo
-```
-
-One rule falls out, and it is the only one:
-
-> **Personal knowledge may cite shared knowledge. Shared may not cite personal.**
-
-A claim cannot be more general than what it rests on, so edges run toward the
-more-shared space. This is Cyc's `genlMt` relation — transitive, monotonic, and a
-query in the general context cannot see the specific one. Two properties follow:
-promotion is safe, because nothing shared was pointing down at the node being
-moved up; and the graph stays acyclic.
-
-**"Shared" is relative.** `knowledge/` is shared with respect to a product and
-personal with respect to the world — the axis is one recursive chain, not an
-absolute two-way split, so "is this shared?" always needs *"with respect to
-what?"*.
-
-**Containment and inheritance point in opposite directions**, which catches
-everyone once. Git points *down* — a repository knows its submodules, and no
-`../` climbs out of one. The graph points *up* — a more-shared space is a root in
-its own right, which the personal space refers to. Reason from the directory tree
-and you will get the direction wrong every time. One absolute consequence: across
-a repository boundary, in either direction, a reference is a URL, never a path.
-
-## The toolbelt
-
-`kg <op>`, fifteen operations, stdlib Python and no dependencies.
+## Where things are
 
 | | |
 |---|---|
-| **write** | `new` · `set` · `link` · `unlink` · `mv` · `supersede` |
-| **tasks** | `task new` · `task retire` |
-| **read** | `inbound` · `neighbors` · `stale` |
-| **whole graph** | `build` · `check` · `init` · `migrate` |
+| [`docs/`](docs/) | the design, the spec, and what each batch decided |
+| [`tool/`](tool/) | Deno and TypeScript, compiled to a binary |
 
-Two are worth knowing before you need them.
+[`docs/README.md`](docs/README.md) says which of those three to read first for
+which question. [`docs/spec/api.md`](docs/spec/api.md) is true of the binary in
+front of you and of nothing else.
 
-**`supersede` inserts into a chain rather than replacing a file.** The live node
-never moves, so every citer keeps pointing at the current version; a timestamped
-snapshot takes the history. An earlier design wrote the replacement to a new path
-and quietly orphaned every citer onto the old one.
-
-**`mv --closure` computes what must travel with a node, and the number is a test
-or a manifest depending on what you were doing.**
-
-| You | The count is | A large one means |
-|---|---|---|
-| moved **one node** one step more shared | a **test** of the claim that it belongs there | the claim is false — usually a refusal |
-| meant to share **a body of reasoning** | a **manifest** | nothing is wrong; that is the shipment |
-
-It stops at the space boundary: a dependency in a third space is left where it
-is, and the move refuses rather than write a graph that breaks the citation rule.
-What the closure declines to carry is exactly what somebody else owns.
-
-Design rationale, one entry per operation: `kg/TOOLBELT.md`. What the frontmatter
-means: `kg/SCHEMA.md`. Six worked scenarios, all from real friction:
-`kg/USE-CASES.md`.
-
-## Skill and agent
+## State
 
 | | |
 |---|---|
-| skill `graph` | the working procedure — triggers on any repository holding a `.kg.json`, with `references/method.md` and `references/settle.md` loaded on demand |
-| agent `guide` | explains why the graph is shaped as it is, **by measuring it** — what a promotion would drag with it, what cites a node and how. One turn, no follow-up. Invoke for the expensive cases, not for a rule you already know |
+| batches 1–5 | shipped — a space, properties, lists, no guessing, a declared entry point |
+| batch 6 | planned — [`find`](docs/batches/6-find.md) |
+| plugin | **none published.** The tool comes first |
 
-## Install
+## There is no plugin, deliberately
 
-```bash
-claude plugin marketplace add johan-chan-dev/knowledge-graph
-claude plugin install kg@knowledge-graph
-```
+An earlier implementation shipped as one: a Python toolbelt, a skill and an
+agent, in daily use in a private repository where it managed 73 nodes. It is
+deleted rather than migrated — every command name changed, the layout on disk
+changed, and a rename would have left more dead code than it saved.
 
-Then, in a repository that should hold a graph:
+**It stayed too long after the rewrite started**, and the cost was not disk. It
+described a second, different model — two scopes resolved by directory, a
+frontmatter shape, fifteen operations — in the same tree as the design replacing
+it, and this file advertised that model in full while mentioning the replacement
+in one line. Anything reading in that order carried the wrong model forward.
 
-```bash
-kg init --graphs knowledge 'products/*/knowledge'
-kg migrate       # adopt an existing tree of markdown notes, if there is one
-```
-
-`--graphs` takes the shared graph first, then the personal ones; a glob expands
-against directories that exist, so a new product needs its directory created
-before its first node. Omit the flag and you get a single shared graph, which is
-a valid setup but not the two-scope one.
-
-`init` also writes `.githooks/pre-commit` and `.githooks/pre-push` and points
-`core.hooksPath` at them. **The hooks are shipped rather than documented**,
-because the instruction people would otherwise follow — *"wire `kg build && kg
-check` into a pre-commit hook"* — is subtly wrong: `build` rewrites the derived
-layer, and a hook that does not then **stage** what it wrote commits a stale
-queue and an unbumped `next-id`, which is how two tasks come to share an id.
-
-| Hook | Does | Blocks |
-|---|---|---|
-| `pre-commit` | validate the derived path, build, stage it, check | yes, on structural faults |
-| `pre-push` | report how much graph change is being published that nobody reconciled into `meta/MAP.md` | **no** |
-
-`core.hooksPath` is local config and does not travel with a clone. A fresh clone
-needs `git config core.hooksPath .githooks` — nothing in the repository can do
-that for you.
-
-**Updating an installed copy needs a version bump.** Installed plugins are cached
-by version, so `marketplace update` alone will not propagate an edit.
-
-## Status
-
-| | |
-|---|---|
-| toolbelt | 15 operations, in daily use |
-| schema, design rationale, use cases | written |
-| skill, guide agent | written |
-| git hooks | shipped, written by `kg init` |
-| settle agent | **not shipped** — lives in the origin repo; the procedure it follows is here, at `kg/skills/graph/references/settle.md` |
-| skill description | **unmeasured** — six optimizer runs returned 0% recall and the cause was the harness, not the description. Triggering is untested |
-
-Extracted from a private repository where it has been in daily use, and where it
-now manages 73 nodes across two scopes. That repo is the plugin's first consumer,
-which is the only real test that anything portable came out — and the source of
-every refusal listed above, each of which exists because something went wrong
-there first.
+Git history holds it. The two arguments it made that this design has **not**
+settled were carried across rather than left there:
+[raw](docs/design/parked/raw.md) — material nobody has judged yet, and why
+capture must cost nothing — and [sharing](docs/design/parked/sharing.md) —
+knowledge travels, and edges run toward the more-shared space.

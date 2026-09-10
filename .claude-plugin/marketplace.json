@@ -3,12 +3,5 @@
   "owner": {
     "name": "Johan Chan"
   },
-  "plugins": [
-    {
-      "name": "kg",
-      "source": "./kg",
-      "description": "Knowledge-graph management for a repository \u2014 atomic nodes, typed relations, a derived metadata layer, and a toolbelt that makes the rules unreachable rather than checked.",
-      "version": "0.15.0"
-    }
-  ]
+  "plugins": []
 }

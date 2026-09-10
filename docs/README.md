@@ -4,11 +4,13 @@
 uuid for a name, properties in frontmatter and prose in the body. A person asks
 and rules; an agent drives; the tool writes.
 
-**This is a replacement, not a migration.** The shipped plugin at
-[`../kg/`](../kg/) is the outgoing implementation, and nothing in it constrains
-what is described here — not its command names, not its frontmatter shape, not
-its layout on disk. The tool comes first; the plugin follows once the tool is
-right.
+**This is a replacement, not a migration.** The outgoing implementation — a
+Python toolbelt shipped as a plugin — is deleted, and nothing in it constrains
+what is described here: not its command names, not its frontmatter shape, not
+its layout on disk. Git history holds it. The two arguments it made that this
+design has not settled were carried across rather than left there, and are in
+[`design/parked/`](design/parked/): [raw](design/parked/raw.md) and
+[sharing](design/parked/sharing.md).
 
 ## Where things are
 
