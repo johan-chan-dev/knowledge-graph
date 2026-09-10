@@ -63,9 +63,7 @@ Deno.test("init guards the space against line-ending conversion", async () => {
 
 Deno.test("a node with CRLF does not parse, rather than half-parsing", async () => {
   const { dir, kg } = await seeded();
-  const id = (await kg("nodes", "list")).kind === "ok"
-    ? rows(await kg("nodes", "list"))[0]
-    : "";
+  const id = rows(await kg("nodes", "list"))[0] ?? "";
   await Deno.writeTextFile(
     `${dir}/.kg/nodes/${id}.md`,
     "---\r\nkind: decision\r\n---\r\n\r\none\r\ntwo\r\n",

@@ -1,22 +1,27 @@
 import { join as joinPath } from "@std/path";
 import { validate as isUuid } from "@std/uuid";
-import { generate as mint } from "@std/uuid/v7";
+import { generate as generateV7 } from "@std/uuid/v7";
 import * as frontmatter from "./frontmatter.ts";
-import type { Properties } from "./frontmatter.ts";
+import type { Branded, Properties } from "./frontmatter.ts";
 import type { Space } from "./space.ts";
 
 /** Reading and writing node files. What a node file *is* belongs to
  * `frontmatter.ts`; this knows only where they live and how to replace one
  * without ever leaving a half-written file behind. */
 
+/** A node's id. */
+export type Uuid = Branded<"Uuid">;
+
 /** Any uuid is well formed, not only the v7 this tool mints — a v4 is a
  * plausible id it never issued, which makes it honestly absent rather than
  * refused. */
-export const isId = (s: string): boolean => isUuid(s);
+export const isId = (s: string): s is Uuid => isUuid(s);
 
-export { mint };
+/** The other way to obtain a checked value: generated legal by construction,
+ * rather than checked on arrival. A door is not the only manufacturer. */
+export const mint = (): Uuid => generateV7() as Uuid;
 
-const fileOf = (space: Space, id: string): string => joinPath(space.nodes, `${id}.md`);
+const fileOf = (space: Space, id: Uuid): string => joinPath(space.nodes, `${id}.md`);
 
 /** Every read hits the same three failures, so they are named once. */
 type Loaded =
@@ -25,7 +30,7 @@ type Loaded =
   | { readonly kind: "malformed" }
   | { readonly kind: "unparseable"; readonly reason: string };
 
-async function load(space: Space, id: string): Promise<Loaded> {
+async function load(space: Space, id: Uuid): Promise<Loaded> {
   let raw: string;
   try {
     raw = await Deno.readTextFile(fileOf(space, id));
@@ -50,7 +55,7 @@ export type Read =
   | { readonly kind: "read"; readonly content: string; readonly properties: Properties }
   | Failure;
 
-export async function read(space: Space, id: string): Promise<Read> {
+export async function read(space: Space, id: Uuid): Promise<Read> {
   const found = await load(space, id);
   return found.kind === "loaded"
     ? { kind: "read", content: found.content, properties: found.properties }
@@ -85,7 +90,7 @@ export async function create(space: Space, content: string): Promise<Created> {
  */
 export async function replace(
   space: Space,
-  id: string,
+  id: Uuid,
   content: string,
 ): Promise<Replaced> {
   const found = await load(space, id);
@@ -117,7 +122,7 @@ export type Amended =
  */
 export async function amend(
   space: Space,
-  id: string,
+  id: Uuid,
   change: (properties: Properties) => string | void,
 ): Promise<Amended> {
   const found = await load(space, id);

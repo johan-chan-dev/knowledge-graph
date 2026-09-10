@@ -69,5 +69,5 @@ export async function seeded3() {
     if (dated) await made.kg("node", id, "set", "valid-until", "2027-01-01");
     ids.push(id);
   }
-  return { ...made, ids };
+  return { ...made, ids: ids as [string, string, string] };
 }

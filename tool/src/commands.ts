@@ -2,8 +2,8 @@ import { absent, lines, ok, type Outcome, refused } from "./outcome.ts";
 import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
 import * as frontmatter from "./frontmatter.ts";
-import type { Properties } from "./frontmatter.ts";
-import { amend, create, read, replace } from "./node.ts";
+import type { Name, Properties, Text } from "./frontmatter.ts";
+import { amend, create, read, replace, type Uuid } from "./node.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -84,7 +84,7 @@ const render = (properties: Properties): string[] => {
 
 export async function node(
   cwd: string,
-  id: string,
+  id: Uuid,
   asProperties: boolean,
 ): Promise<Outcome> {
   const resolved = await resolve(cwd);
@@ -122,7 +122,7 @@ export async function nodeNew(cwd: string, content: string): Promise<Outcome> {
 
 export async function nodeWrite(
   cwd: string,
-  id: string,
+  id: Uuid,
   content: string,
 ): Promise<Outcome> {
   // `new` can only litter; `write` can destroy. A failed `cmd | kg node <id>
@@ -157,9 +157,9 @@ export async function nodeWrite(
  * arrived, so `set x a` is a scalar and `add x a` is a one-element list. */
 export async function nodeSet(
   cwd: string,
-  id: string,
-  name: string,
-  value: string,
+  id: Uuid,
+  name: Name,
+  value: Text,
 ): Promise<Outcome> {
   return await change(cwd, id, (properties) => {
     const had = name in properties;
@@ -168,7 +168,7 @@ export async function nodeSet(
   });
 }
 
-export async function nodeUnset(cwd: string, id: string, name: string): Promise<Outcome> {
+export async function nodeUnset(cwd: string, id: Uuid, name: Name): Promise<Outcome> {
   return await change(cwd, id, (properties) => {
     // `delete`, never an assignment: a key holding `undefined` would be a
     // second way to be absent, and `in` would stop agreeing with a lookup.
@@ -183,9 +183,9 @@ export async function nodeUnset(cwd: string, id: string, name: string): Promise<
  * how many you passed; what you could not know is how many were already there. */
 export async function nodeAdd(
   cwd: string,
-  id: string,
-  name: string,
-  values: string[],
+  id: Uuid,
+  name: Name,
+  values: Text[],
 ): Promise<Outcome> {
   return await change(cwd, id, (properties) => {
     const existing = properties[name];
@@ -203,9 +203,9 @@ export async function nodeAdd(
 
 export async function nodeRemove(
   cwd: string,
-  id: string,
-  name: string,
-  values: string[],
+  id: Uuid,
+  name: Name,
+  values: Text[],
 ): Promise<Outcome> {
   return await change(cwd, id, (properties) => {
     const existing = properties[name];
@@ -231,7 +231,7 @@ export async function nodeRemove(
  * words. */
 async function change(
   cwd: string,
-  id: string,
+  id: Uuid,
   edit: (properties: Properties) => string | undefined | { refuse: string },
 ): Promise<Outcome> {
   const resolved = await resolve(cwd);

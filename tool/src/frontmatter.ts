@@ -33,7 +33,7 @@ const NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 // deno-lint-ignore no-control-regex -- matching control characters is the point
 const CONTROL = /[\x00-\x1F\x7F]/;
 
-export const isName = (s: string): boolean => NAME.test(s);
+export const isName = (s: string): s is Name => NAME.test(s);
 
 /**
  * Names the tool holds facts under, which a property may not shadow. `body` is
@@ -49,13 +49,34 @@ const RESERVED: Record<string, string> = {
 };
 
 export const reservedReason = (name: string): string | undefined => RESERVED[name];
-export const isValue = (s: string): boolean => !CONTROL.test(s);
+
+/**
+ * A checked string is a different type from any other string.
+ *
+ * TypeScript is structurally typed, so `type Name = string` is an alias and
+ * protects nothing. The phantom property makes the shapes differ; it is erased
+ * at runtime, so a `Name` *is* a string and costs nothing. What it buys is that
+ * the guard below becomes the only way to obtain one — the check stops being a
+ * rule someone has to remember and becomes the only route to the type.
+ *
+ * `docs/design/boundaries.md` is the argument. The two manufacturers are a
+ * guard, and a generator that produces a legal value by construction.
+ */
+declare const brand: unique symbol;
+export type Branded<T extends string> = string & { readonly [brand]: T };
+
+/** A property name the tool could write: a lowercase hyphenated token. */
+export type Name = Branded<"Name">;
+/** One value: a single line of printable text. */
+export type Text = Branded<"Text">;
+
+export const isValue = (s: string): s is Text => !CONTROL.test(s);
 
 /** A property holds one value or several. Several is multiplicity on one
  * dimension, not a container — which is why the shape follows from the verb
  * that wrote it rather than from anything the tool infers. */
-export type Value = string | string[];
-export type Properties = Record<string, Value>;
+export type Value = Text | Text[];
+export type Properties = Record<Name, Value>;
 
 export type Split = { readonly frontmatter: string; readonly content: string };
 
@@ -66,7 +87,7 @@ export function split(raw: string): Split | undefined {
   const content = match[2] ?? "";
   // The fence is followed by one blank line, belonging to neither half.
   return {
-    frontmatter: match[1],
+    frontmatter: match[1] ?? "",
     content: content.startsWith("\n") ? content.slice(1) : content,
   };
 }
@@ -123,9 +144,10 @@ export function read(frontmatter: string): Read {
       if (value.some((each) => each === null || typeof each === "object")) {
         return unreadable(`${name} holds something that is not a value`);
       }
+      // `every` with a guard narrows the array, so the check that refuses is
+      // also the thing that produces the typed value.
       const values = value.map(String);
-      const bad = values.find((each) => !isValue(each));
-      if (bad !== undefined) {
+      if (!values.every(isValue)) {
         return unreadable(`${name} holds a value with a control character`);
       }
       out[name] = values;
@@ -151,5 +173,4 @@ export const write = (properties: Properties): string =>
     ? ""
     : toYaml(properties, { sortKeys: true, flowLevel: 1, lineWidth: -1 });
 
-export const isList = (value: Value | undefined): value is string[] =>
-  Array.isArray(value);
+export const isList = (value: Value | undefined): value is Text[] => Array.isArray(value);

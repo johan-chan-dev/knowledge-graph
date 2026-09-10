@@ -59,19 +59,47 @@ raw input, so it can say `not a property name: Kind — expected a lowercase
 hyphenated token`. Code further in knows neither, and its version of the same
 refusal would be worse.
 
-## The check should leave proof
+## The check leaves proof
 
-*Checked once* is a rule someone can forget. A guard that returns a boolean
+*Checked once* is a rule someone can forget. A guard returning a boolean
 announces that it ran and then discards the evidence, so every function behind
-the door still takes the same untrusted type it would have taken anyway, and the
+the door still takes the untrusted type it would have taken anyway, and the
 discipline lives in whoever remembers it.
 
-A guard that narrows the type instead makes the door the only crossing: if the
-only way to obtain a checked name is to pass through the check, then nothing
-behind it can be called with an unchecked one, and the rule stops depending on
-memory. The proof is erased at runtime and costs nothing.
+A guard that **narrows the type** makes the door the only crossing. The proof is
+erased at runtime, so a checked value is an ordinary string and costs nothing.
 
-That is the natural enforcement of everything above, and it is not built yet.
+```
+isName(s)   s is Name    a lowercase hyphenated token
+isValue(s)  s is Text    a single line of printable text
+isId(s)     s is Uuid    a well-formed uuid
+mint()   -> Uuid         legal by construction, not by inspection
+```
+
+`nodeSet(cwd, id: Uuid, name: Name, value: Text)` cannot be called with anything
+that has not passed one, and cannot be called with its arguments in the wrong
+order. Two manufacturers, and no third: a guard for what arrives, a generator
+for what the tool makes itself.
+
+## The pattern, in five steps
+
+| | |
+|---|---|
+| 1 | a vocabulary is one predicate per kind of value |
+| 2 | the predicate narrows to a type — the proof it ran |
+| 3 | every door applies the same predicates |
+| 4 | a door returns checked values, or a refusal naming what failed |
+| 5 | nothing behind a door checks again; signatures take the checked types |
+
+A third door later — a config file, structured input — plugs in by applying the
+same predicates. Nothing else needs to change.
+
+**Two things the pattern does not carry.** A brand is a convention rather than a
+language feature, so a cast defeats it; it stops accidents, not determination,
+which is the right bar for a rule about forgetting. And the two doors enforce
+deliberately different rules on reserved names — `body` is grammatical, so it
+survives `isName`, and only the writing door refuses it. The type therefore
+promises *representable*, never *writable*.
 
 ## What the reading door refuses
 

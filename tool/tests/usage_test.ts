@@ -30,7 +30,7 @@ Deno.test("a single resource reads bare; a collection names its action", async (
 
 Deno.test("a flag under Global is not one that belongs to a command", async () => {
   const help = stdout(await run(["--help"]));
-  const [commands, global] = help.split("Global:");
+  const [commands = "", global = ""] = help.split("Global:");
 
   const inCommands = new Set(commands.match(/--[a-z-]+/g) ?? []);
   const asGlobal = global.match(/--[a-z-]+/g) ?? [];

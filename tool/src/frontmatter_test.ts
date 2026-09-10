@@ -9,6 +9,14 @@ function props(text: string): frontmatter.Properties {
   return read.properties;
 }
 
+/** A literal, as properties. Tests are the one place a checked value is
+ * written rather than parsed, so the assertion lives here and nowhere else. */
+function like(o: Record<string, string | string[]>): frontmatter.Properties {
+  return o as frontmatter.Properties;
+}
+
+const name = (s: string) => s as frontmatter.Name;
+
 /** The reason, for the tests that are about refusing. */
 function why(text: string): string | undefined {
   const read = frontmatter.read(text);
@@ -63,10 +71,10 @@ Deno.test("a list survives, and is distinguishable from a scalar that looks like
 });
 
 Deno.test("keys are alphabetical; list elements keep the order they were given", () => {
-  const text = frontmatter.write({ zulu: "1", alpha: "2", seq: ["c", "a", "b"] });
+  const text = frontmatter.write(like({ zulu: "1", alpha: "2", seq: ["c", "a", "b"] }));
   // Quoted, because bare `2` would come back a number.
   assertEquals(text.split("\n")[0], "alpha: '2'");
-  assertEquals(props(text).seq, ["c", "a", "b"]);
+  assertEquals(props(text)[name("seq")], like({ x: ["c", "a", "b"] })[name("x")]);
 });
 
 Deno.test("an empty block reads as no properties, and writes back as nothing", () => {
@@ -126,7 +134,7 @@ Deno.test("an absence is never a value: YAML null is refused, empty string is no
   for (const text of ["kind:\n", "kind: null\n", "kind: ~\n", "kind: [~]\n"]) {
     assertEquals(why(text) !== undefined, true, JSON.stringify(text));
   }
-  assertEquals(props('kind: ""\n'), { kind: "" });
+  assertEquals(props('kind: ""\n'), like({ kind: "" }));
   // Every spelling the YAML 1.2 core schema resolves to null, refused by
   // testing the parsed value rather than the text — so a spelling nobody
   // thought of cannot get through.
@@ -134,14 +142,14 @@ Deno.test("an absence is never a value: YAML null is refused, empty string is no
     assertEquals(why(text) !== undefined, true, JSON.stringify(text));
   }
   // A quoted null is a value, and stays one.
-  assertEquals(props('kind: "null"\n'), { kind: "null" });
+  assertEquals(props('kind: "null"\n'), like({ kind: "null" }));
 });
 
 // `remove` deletes a key rather than leaving an empty list, so present-but-empty
 // is a state the tool never writes and must not read back either.
 Deno.test("an empty list is an absence, not a value", () => {
   assertStringIncludes(why("labels: []\n") ?? "", "labels is an empty list");
-  assertEquals(props("labels: [auth]\n"), { labels: ["auth"] });
+  assertEquals(props("labels: [auth]\n"), like({ labels: ["auth"] }));
 });
 
 // `docs/design/boundaries.md`: what the tool cannot write, it must not read —
@@ -168,5 +176,5 @@ Deno.test("the reading door enforces the writing door's vocabulary", () => {
 
   // Reserved names are a different case and stay readable: `body` is a name the
   // tool can represent and declines to write, not one it cannot hold.
-  assertEquals(props("body: stale\n"), { body: "stale" });
+  assertEquals(props("body: stale\n"), like({ body: "stale" }));
 });

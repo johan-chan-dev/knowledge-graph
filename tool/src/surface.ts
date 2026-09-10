@@ -1,6 +1,6 @@
 import { z } from "@zod/zod";
 import { isName, isValue, reservedReason } from "./frontmatter.ts";
-import { isId } from "./node.ts";
+import { isId, type Uuid } from "./node.ts";
 import type { Outcome } from "./outcome.ts";
 import {
   node,
@@ -28,7 +28,7 @@ import {
 
 /** Argument shapes. The messages are the spec's, not the library's — a schema
  * says *which* argument failed, and these say why in the tool's own words. */
-const Uuid = z.string().refine(isId, {
+const Id = z.string().refine(isId, {
   error: (issue) => `not an id: ${issue.input} — expected a uuid`,
 });
 
@@ -51,16 +51,20 @@ const Value = z.string().refine(isValue, {
 export type Flag = "stdin" | "properties";
 
 /** What a checked call hands its command. `stdin` is a thunk so a command that
- * does not read it cannot block on a pipe that never closes. */
-export type Call = {
+ * does not read it cannot block on a pipe that never closes.
+ *
+ * `args` is the command's own tuple — `set` receives `[Name, Text]`, not two
+ * strings — so a handler cannot index past the arity the table declared, and
+ * cannot be handed a value that never passed a guard. */
+export type Call<A extends readonly unknown[] = readonly string[]> = {
   readonly cwd: string;
-  readonly id: string;
-  readonly args: string[];
+  readonly id: Uuid;
+  readonly args: A;
   readonly properties: boolean;
   readonly stdin: () => Promise<string>;
 };
 
-export type Command = {
+export type Command<A extends readonly unknown[] = readonly string[]> = {
   /** The form as `--help` prints it, and as a reader recognises it. */
   readonly form: string;
   readonly summary: string;
@@ -70,7 +74,7 @@ export type Command = {
   /** The literal that names the action, if any. Absent means a bare read. */
   readonly action?: string;
   /** Arguments after the action. Absent means none are accepted. */
-  readonly args?: z.ZodType<string[]>;
+  readonly args?: z.ZodType<A>;
   /** Said when the count is wrong. Two messages because the two failures teach
    * different things: too few is the form, too many is usually shell quoting.
    * `many` is absent where the schema accepts any number. */
@@ -84,19 +88,32 @@ export type Command = {
   readonly variant?: { readonly form: string; readonly summary: string };
   /** What it does. Held here so dispatch cannot reach a command the table does
    * not declare, nor declare one dispatch cannot reach. */
-  readonly run: (call: Call) => Promise<Outcome>;
+  readonly run: (call: Call<A>) => Promise<Outcome>;
 };
 
+/**
+ * The one place a command's declared arity and its handler are matched.
+ *
+ * `A` is inferred from the entry's own schema, so `run` is checked against it
+ * — `set` cannot be given a handler that reads a third argument. The table then
+ * erases to a common type, because help, matching and the structural tests all
+ * iterate it. That erasure is the single unsound step in this file, and it is
+ * sound in fact: `check` parses against the same schema before `run` is
+ * reached, so the tuple it validated is the tuple the handler receives.
+ */
+const command = <A extends readonly unknown[]>(entry: Command<A>): Command =>
+  entry as unknown as Command;
+
 export const COMMANDS: readonly Command[] = [
-  {
+  command({
     form: "space",
     run: ({ cwd }) => space(cwd),
     summary: "what and where this space is",
     scope: "space",
     id: false,
     flags: [],
-  },
-  {
+  }),
+  command({
     form: "space init",
     run: ({ cwd }) => spaceInit(cwd),
     summary: "create one",
@@ -104,8 +121,8 @@ export const COMMANDS: readonly Command[] = [
     id: false,
     action: "init",
     flags: [],
-  },
-  {
+  }),
+  command({
     form: "nodes list",
     run: ({ cwd }) => nodes(cwd),
     summary: "every id, in creation order",
@@ -113,8 +130,8 @@ export const COMMANDS: readonly Command[] = [
     id: false,
     action: "list",
     flags: [],
-  },
-  {
+  }),
+  command({
     form: "node new",
     run: async ({ cwd, stdin }) => nodeNew(cwd, await stdin()),
     summary: "create an empty one",
@@ -123,8 +140,8 @@ export const COMMANDS: readonly Command[] = [
     action: "new",
     flags: ["stdin"],
     variant: { form: "node new --stdin", summary: "…with content read from stdin" },
-  },
-  {
+  }),
+  command({
     form: "node <id>",
     run: ({ cwd, id, properties }) => node(cwd, id, properties),
     summary: "the content, properties on stderr",
@@ -132,8 +149,8 @@ export const COMMANDS: readonly Command[] = [
     id: true,
     flags: ["properties"],
     variant: { form: "node <id> --properties", summary: "the properties instead" },
-  },
-  {
+  }),
+  command({
     form: "node <id> write --stdin",
     run: async ({ cwd, id, stdin }) => nodeWrite(cwd, id, await stdin()),
     summary: "stdin replaces the content",
@@ -142,8 +159,8 @@ export const COMMANDS: readonly Command[] = [
     action: "write",
     flags: ["stdin"],
     needsStdin: true,
-  },
-  {
+  }),
+  command({
     form: "node <id> set <name> <value>",
     run: ({ cwd, id, args }) => nodeSet(cwd, id, args[0], args[1]),
     summary: "write one property",
@@ -156,8 +173,8 @@ export const COMMANDS: readonly Command[] = [
       many: "node <id> set takes one value — quote it if it contains spaces",
     },
     flags: [],
-  },
-  {
+  }),
+  command({
     form: "node <id> unset <name>",
     run: ({ cwd, id, args }) => nodeUnset(cwd, id, args[0]),
     summary: "remove one",
@@ -170,8 +187,8 @@ export const COMMANDS: readonly Command[] = [
       many: "node <id> unset takes one name",
     },
     flags: [],
-  },
-  {
+  }),
+  command({
     form: "node <id> add <name> <value>...",
     run: ({ cwd, id, args: [name, ...values] }) => nodeAdd(cwd, id, name, values),
     summary: "values into a property's list",
@@ -181,8 +198,8 @@ export const COMMANDS: readonly Command[] = [
     args: z.tuple([Name]).rest(Value),
     arity: { few: "node <id> add needs a name and at least one value" },
     flags: [],
-  },
-  {
+  }),
+  command({
     form: "node <id> remove <name> <value>...",
     run: ({ cwd, id, args: [name, ...values] }) => nodeRemove(cwd, id, name, values),
     summary: "values out of it",
@@ -192,7 +209,7 @@ export const COMMANDS: readonly Command[] = [
     args: z.tuple([Name]).rest(Value),
     arity: { few: "node <id> remove needs a name and at least one value" },
     flags: [],
-  },
+  }),
 ];
 
 const of = (scope: string) => COMMANDS.filter((command) => command.scope === scope);
@@ -205,9 +222,11 @@ export const scopes =
 /** Every line `--help` prints, derived so a new command cannot be missing from
  * it — which is the failure the old hand-kept table existed to have. */
 export function help(): string {
-  const forms = COMMANDS.flatMap((command) => [
+  const forms: [string, string][] = COMMANDS.flatMap((command) => [
     [command.form, command.summary],
-    ...(command.variant ? [[command.variant.form, command.variant.summary]] : []),
+    ...(command.variant
+      ? [[command.variant.form, command.variant.summary] as [string, string]]
+      : []),
   ]);
   const width = Math.max(...forms.map(([form]) => form.length));
   return [
@@ -285,7 +304,7 @@ export function match(positionals: string[]): Matched {
 }
 
 export type Checked =
-  | { readonly kind: "ok"; readonly args: string[] }
+  | { readonly kind: "ok"; readonly id?: Uuid; readonly args: readonly string[] }
   | { readonly kind: "refused"; readonly message: string }
   | { readonly kind: "usage"; readonly message: string };
 
@@ -299,9 +318,10 @@ export type Checked =
 export function check(
   command: Command,
   id: string | undefined,
-  args: string[],
+  args: readonly string[],
   given: Readonly<Record<Flag, boolean>>,
 ): Checked {
+  let checkedId: Uuid | undefined;
   for (const flag of ["stdin", "properties"] as const) {
     if (given[flag] && !command.flags.includes(flag)) {
       const where = COMMANDS.filter((other) => other.flags.includes(flag))
@@ -319,30 +339,36 @@ export function check(
   }
 
   if (id !== undefined) {
-    const parsed = Uuid.safeParse(id);
+    const parsed = Id.safeParse(id);
     if (!parsed.success) {
-      return { kind: "refused", message: parsed.error.issues[0].message };
+      return {
+        kind: "refused",
+        message: parsed.error.issues[0]?.message ?? `not an id: ${id}`,
+      };
     }
+    checkedId = parsed.data;
   }
 
   if (command.args === undefined) {
     if (args.length > 0) {
       return { kind: "usage", message: `${command.form} takes no arguments` };
     }
-    return { kind: "ok", args: [] };
+    return { kind: "ok", id: checkedId, args: [] };
   }
 
   const parsed = command.args.safeParse(args);
-  if (parsed.success) return { kind: "ok", args: parsed.data };
+  if (parsed.success) return { kind: "ok", id: checkedId, args: parsed.data };
 
   // A wrong count is a usage error and a wrong argument is a refusal: one means
   // the caller does not know the form, the other that it broke a rule.
+  // A failed parse always carries an issue, but the type does not say so, and
+  // inventing a dead branch to prove it is worse than defaulting the message.
   const issue = parsed.error.issues[0];
-  const missing = issue.code === "too_small" ||
-    (issue.code === "invalid_type" && args[Number(issue.path[0])] === undefined);
-  if (missing || issue.code === "too_big") {
+  const missing = issue?.code === "too_small" ||
+    (issue?.code === "invalid_type" && args[Number(issue.path[0])] === undefined);
+  if (missing || issue?.code === "too_big") {
     const said = missing ? command.arity?.few : command.arity?.many;
     return { kind: "usage", message: said ?? `kg ${command.form}` };
   }
-  return { kind: "refused", message: issue.message };
+  return { kind: "refused", message: issue?.message ?? `kg ${command.form}` };
 }

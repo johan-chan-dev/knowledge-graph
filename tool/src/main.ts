@@ -1,6 +1,7 @@
 import { parseArgs } from "@std/cli/parse-args";
 import { exitCode, lines, type Outcome, refused, usage } from "./outcome.ts";
 import { isDir } from "./space.ts";
+import type { Uuid } from "./node.ts";
 import { check, help, match } from "./surface.ts";
 
 /** Read only when told to. `isTerminal()` answers *is something attached*,
@@ -58,7 +59,7 @@ export async function run(argv: string[]): Promise<Outcome> {
     return usage(matched.message === "" ? help() : `${matched.message}\n\n${help()}`);
   }
 
-  const { command, id = "", args } = matched;
+  const { command, args } = matched;
   const checked = check(command, matched.id, args, {
     stdin: flags.stdin,
     properties: flags.properties,
@@ -68,7 +69,10 @@ export async function run(argv: string[]): Promise<Outcome> {
 
   return await command.run({
     cwd,
-    id,
+    // `check` returns an id only for a command that declares one, and the three
+    // that do not never read it. This stands in for those, next to the check
+    // that would have refused anything else.
+    id: checked.id ?? ("" as Uuid),
     args: checked.args,
     properties: flags.properties,
     stdin: () => flags.stdin ? readStdin() : Promise.resolve(""),
