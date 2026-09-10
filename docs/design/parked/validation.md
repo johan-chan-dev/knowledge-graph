@@ -32,6 +32,16 @@ program. A space carrying rules it cannot enforce is the thing
 the layering argument argues against; a tool carrying a practice's rules is what
 the whole substrate/practice split exists to prevent.
 
+**How much of this a query already covers.** A practice can find violations by
+narrowing first — decisions, then the ones lacking `valid-until` — and the
+substrate answers without learning why the absence matters. That is detection
+after resolution, node by node, against whatever exists at that moment: the
+quantified claim is not stored, not checked for coherence, and never reaches a
+node written afterwards. It does not settle what is wanted here, but it does
+mean the gap is narrower than *nothing enforces anything*, and the part that is
+genuinely missing is a place for a generalisation to live. See
+[absence](../absence.md), which arrives at the same gap from the other side.
+
 **What enforcement means on a node that already violates it.** A schema arriving
 after nodes exist either refuses them, quarantines them, or reports — and each
 answer implies a different relationship between the tool and the material.

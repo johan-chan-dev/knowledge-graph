@@ -115,10 +115,16 @@ it; `!=` is exactly `not =`. So `not score > 0.7` matches a node with no
 `score`, which is the literal reading — *it is not the case that score exceeds
 0.7* is true when there is no score.
 
-That is honest here because **the tool has no null.** A property is absent or it
-has a value, and a file expressing YAML null does not parse at all. SQL's
-three-valued logic answers a question this design does not have: it needs a
-column to exist while its value does not, and there is nowhere to put one.
+**Not a choice so much as what is left.** Three-valued logic exists to carry a
+schema's promise and the data's gap through a comparison together; a layer that
+declares no slots has no promise, so there is nothing for a third value to hold.
+The tool has no null and refuses one on the way in, which
+[`design/absence.md`](../design/absence.md) argues in full.
+
+**So `find 'p'` and `find 'not p'` always partition the space.** That is the
+payoff, and SQL cannot offer it: a row whose column is NULL falls out of both
+halves, silently. Here an agent can run a query and its negation and know the
+two cover everything — which makes coverage checkable rather than assumed.
 
 **A known asymmetry, stated rather than discovered:**
 
@@ -134,7 +140,28 @@ is `score and not score > 0.7`.
 
 **The evaluator must check presence explicitly.** `undefined > 0` and
 `undefined <= 0` are both false in JavaScript, so writing the comparison the
-natural way reintroduces the quirk by accident.
+natural way gets the right result for the wrong reason — and inherits every
+other thing that coercion decides.
+
+### Open: a value that is present and not comparable
+
+```
+score: abc          legal today
+kg nodes find 'score > 0.7'
+```
+
+Each operator declares its literal, so `score > "0.7"` refuses at parse time.
+That checks *what was written*, not what is on disk — and this cannot be known
+before a file is opened, which makes it the first refusal in the design that
+cannot precede lookup.
+
+**Blocks tier 2**, and should not be patched here. *What type is `score`?* is a
+schema question — general, prior, about a slot — and with no schema it can only
+be answered per node, after resolution. Answering it locally by coercing, the
+way JavaScript does, would be choosing a schema by accident and is the guessing
+[batch 4](4-stops-guessing.md) removed. The alternative is a place for a
+generalisation to live, which is
+[`design/parked/validation.md`](../design/parked/validation.md).
 
 ## The shell is the outer grammar
 
