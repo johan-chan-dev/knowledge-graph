@@ -8,17 +8,24 @@ see [`design/parked/search.md`](../design/parked/search.md).
 ## What it should look like
 
 ```console
-$ kg nodes find 'kind = "decision"'
+$ kg nodes find '"decision" in labels'
 01a084f0-631b-7bba-a6fe-81d79faedbde
 01a084f0-63be-732e-b44e-f9029a874a5f
 
 $ kg nodes find 'retired'
 
-$ kg nodes find 'kind = "decision" and not retired'
+$ kg nodes find '"decision" in labels and not retired'
 01a084f0-631b-7bba-a6fe-81d79faedbde
 
-$ kg nodes find '(kind = "decision" or kind = "opinion") and retired'
+$ kg nodes find 'kind = "decision" and score > 0.7'
 ```
+
+**Both classification shapes are above on purpose.** A practice that carries
+words asks `"decision" in labels`; a practice that chose a dimension asks
+`kind = "decision"`. [`design/vocabulary.md`](../design/vocabulary.md) names the
+query as exactly where the two diverge, so this document shows both rather than
+teaching one by using it everywhere. Neither `labels` nor `kind` is a word the
+tool knows — both are property names somebody picked.
 
 And the refusals, which are half of what it decides:
 

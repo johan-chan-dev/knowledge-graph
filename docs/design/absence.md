@@ -31,6 +31,13 @@ entails two-valued logic nor argues for it.
 Nor is *unknown* beyond a schemaless store's reach: Wikidata says both
 `somevalue` and `novalue` at statement level, with no schema anywhere.
 
+**Which tradition this answers to.** The knowledge-graph world splits along the
+same line: OWL is open-world *inference* — what else must be true given what is
+stated — while SHACL is closed-world *validation*, checking what is written
+against a shape. This tool is SHACL-shaped. It reports what the corpus says and
+derives nothing, which is why a closed world costs it little and why the
+comparison to OWL's open world is the wrong one to answer.
+
 ## Why it is the right choice anyway
 
 **Three-valued logic is not the principled alternative it appears to be.**
@@ -175,6 +182,23 @@ way inherits the host language's answer — and in JavaScript `undefined > 0` an
 `undefined <= 0` are both false, which is the right result reached for the wrong
 reason. Presence is checked because it is a fact, not because a coercion happens
 to agree.
+
+## Sources
+
+- Reiter, *On Closed World Data Bases* (1978) — the assumption, and its package
+  with domain closure and unique names.
+- Clark, *Negation as Failure* (1978) — what `not` does here.
+- Libkin, *SQL's Three-Valued Logic and Certain Answers*, TODS 41(1) (2016) —
+  that SQL's three values do not compute certain answers correctly.
+- Imieliński & Lipski, *Incomplete Information in Relational Databases*, JACM
+  (1984) — conditional tables, the theory three-valued logic approximates.
+- Codd, *Missing Information (Applicable and Inapplicable) in Relational
+  Databases*, SIGMOD Record 15(4) (1986) — the two-mark proposal, and the
+  reason a second kind of absence does not stop at two.
+- Date & Darwen, *The Third Manifesto* — the null-free relational model, of
+  which absent keys are the schemaless twin.
+- Rubin (1976) — missingness that is not random, which is what a corpus written
+  by hand over time has.
 
 ---
 

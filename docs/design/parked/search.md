@@ -11,12 +11,16 @@ One action, one argument, one grammar — over authored properties and over the
 reserved names in [structure](../structure.md):
 
 ```
-kind = decision and not retired
-decision in labels
+decision in labels and not retired
+kind = decision
 body ~ "session.*handling"
 created > 2026-09-01
-(kind = decision or kind = opinion) and body.lines > 200
+(decision in labels or opinion in labels) and body.lines > 200
 ```
+
+The first two are the same question under two modelling choices — a word
+carried, or a dimension with one value. Both are a practice's to make and
+neither is the tool's; see [vocabulary](../vocabulary.md).
 
 **Flags could not express combination, and that is why this churned.** It was
 designed four times as a set of them — `--where`, `--contains`, `--contain-any`,
