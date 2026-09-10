@@ -1,5 +1,19 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import * as frontmatter from "./frontmatter.ts";
+
+/** `read` returns a verdict now. These tests are about the properties, so this
+ * unwraps it and fails loudly if the block did not read at all. */
+function props(text: string): frontmatter.Properties {
+  const read = frontmatter.read(text);
+  if (read.kind !== "properties") throw new Error(`unreadable: ${read.reason}`);
+  return read.properties;
+}
+
+/** The reason, for the tests that are about refusing. */
+function why(text: string): string | undefined {
+  const read = frontmatter.read(text);
+  return read.kind === "unreadable" ? read.reason : undefined;
+}
 
 // What a node file is made of — reachable with a string, expensive to reach
 // through a filesystem and a command line.
@@ -37,13 +51,13 @@ Deno.test("a value round-trips as the text it was given", () => {
     urly: "https://example.org/p?ref=x&id=2",
     empty: "",
   };
-  assertEquals(frontmatter.read(frontmatter.write(given)), given);
+  assertEquals(props(frontmatter.write(given)), given);
 });
 
 Deno.test("a list survives, and is distinguishable from a scalar that looks like one", () => {
   const given = { labels: ["auth", "pattern"], single: ["auth"], looks: "[auth]" };
   const text = frontmatter.write(given);
-  assertEquals(frontmatter.read(text), given);
+  assertEquals(props(text), given);
   // The quoting is what carries the distinction, not a convention we invented.
   assertEquals(text, "labels: [auth, pattern]\nlooks: '[auth]'\nsingle: [auth]\n");
 });
@@ -52,12 +66,12 @@ Deno.test("keys are alphabetical; list elements keep the order they were given",
   const text = frontmatter.write({ zulu: "1", alpha: "2", seq: ["c", "a", "b"] });
   // Quoted, because bare `2` would come back a number.
   assertEquals(text.split("\n")[0], "alpha: '2'");
-  assertEquals(frontmatter.read(text)?.seq, ["c", "a", "b"]);
+  assertEquals(props(text).seq, ["c", "a", "b"]);
 });
 
 Deno.test("an empty block reads as no properties, and writes back as nothing", () => {
-  assertEquals(frontmatter.read(""), {});
-  assertEquals(frontmatter.read("   \n"), {});
+  assertEquals(props(""), {});
+  assertEquals(props("   \n"), {});
   assertEquals(frontmatter.write({}), "");
 });
 
@@ -71,7 +85,7 @@ Deno.test("what is neither a value nor a list does not read at all", () => {
       "unbalanced: [\n",
     ]
   ) {
-    assertEquals(frontmatter.read(text), undefined, JSON.stringify(text));
+    assertEquals(why(text) !== undefined, true, JSON.stringify(text));
   }
 });
 
@@ -110,22 +124,49 @@ Deno.test("a value is a single line of printable text", () => {
 // design declines. See `docs/design/absence.md`.
 Deno.test("an absence is never a value: YAML null is refused, empty string is not", () => {
   for (const text of ["kind:\n", "kind: null\n", "kind: ~\n", "kind: [~]\n"]) {
-    assertEquals(frontmatter.read(text), undefined, JSON.stringify(text));
+    assertEquals(why(text) !== undefined, true, JSON.stringify(text));
   }
-  assertEquals(frontmatter.read('kind: ""\n'), { kind: "" });
+  assertEquals(props('kind: ""\n'), { kind: "" });
   // Every spelling the YAML 1.2 core schema resolves to null, refused by
   // testing the parsed value rather than the text — so a spelling nobody
   // thought of cannot get through.
   for (const text of ["kind: Null\n", "kind: NULL\n"]) {
-    assertEquals(frontmatter.read(text), undefined, JSON.stringify(text));
+    assertEquals(why(text) !== undefined, true, JSON.stringify(text));
   }
   // A quoted null is a value, and stays one.
-  assertEquals(frontmatter.read('kind: "null"\n'), { kind: "null" });
+  assertEquals(props('kind: "null"\n'), { kind: "null" });
 });
 
 // `remove` deletes a key rather than leaving an empty list, so present-but-empty
 // is a state the tool never writes and must not read back either.
 Deno.test("an empty list is an absence, not a value", () => {
-  assertEquals(frontmatter.read("labels: []\n"), undefined);
-  assertEquals(frontmatter.read("labels: [auth]\n"), { labels: ["auth"] });
+  assertStringIncludes(why("labels: []\n") ?? "", "labels is an empty list");
+  assertEquals(props("labels: [auth]\n"), { labels: ["auth"] });
+});
+
+// `docs/design/boundaries.md`: what the tool cannot write, it must not read —
+// otherwise a hand-written name loads, displays, and can never be unset.
+Deno.test("the reading door enforces the writing door's vocabulary", () => {
+  assertStringIncludes(why("Kind: Decision\n") ?? "", "Kind is not a property name");
+  assertStringIncludes(
+    why("valid_until: x\n") ?? "",
+    "valid_until is not a property name",
+  );
+
+  // A control character reaches a value only as a YAML escape. Written raw it
+  // is not YAML at all, and the parser refuses it first — also correct, and a
+  // different refusal worth pinning so neither path silently changes.
+  assertStringIncludes(
+    why('a: "x\\x01y"\n') ?? "",
+    "a holds a value with a control character",
+  );
+  assertStringIncludes(why('a: ["ok", "x\\x01y"]\n') ?? "", "control character");
+  assertStringIncludes(
+    why(`a: "x${String.fromCharCode(1)}y"\n`) ?? "",
+    "the block is not YAML",
+  );
+
+  // Reserved names are a different case and stay readable: `body` is a name the
+  // tool can represent and declines to write, not one it cannot hold.
+  assertEquals(props("body: stale\n"), { body: "stale" });
 });

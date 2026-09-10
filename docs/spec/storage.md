@@ -92,6 +92,12 @@ dimension, not a container — `labels: [auth, pattern]` is the node saying two
 things on one dimension, the way `kind: decision` says one. Anything that is
 neither a value nor a list does not read at all.
 
+**A block is read only if the tool could have written it.** A property name that
+is not a lowercase hyphenated token, or a value carrying a control character,
+refuses the node rather than loading — otherwise it would display a property no
+command could then unset. [`design/boundaries.md`](../design/boundaries.md)
+argues why, and names the one exception: a reserved name still reads.
+
 **A property's value is stored as a string, always.** The serialiser quotes
 only what would otherwise change type on the way back — `hello world` stays
 bare, `'42'` and `'2027-01-01'` keep their quotes. Those quotes are the tool

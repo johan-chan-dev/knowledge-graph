@@ -23,7 +23,7 @@ type Loaded =
   | { readonly kind: "loaded"; readonly properties: Properties; readonly content: string }
   | { readonly kind: "absent" }
   | { readonly kind: "malformed" }
-  | { readonly kind: "unparseable" };
+  | { readonly kind: "unparseable"; readonly reason: string };
 
 async function load(space: Space, id: string): Promise<Loaded> {
   let raw: string;
@@ -34,9 +34,9 @@ async function load(space: Space, id: string): Promise<Loaded> {
   }
   const parts = frontmatter.split(raw);
   if (parts === undefined) return { kind: "malformed" };
-  const properties = frontmatter.read(parts.frontmatter);
-  if (properties === undefined) return { kind: "unparseable" };
-  return { kind: "loaded", properties, content: parts.content };
+  const read = frontmatter.read(parts.frontmatter);
+  if (read.kind === "unreadable") return { kind: "unparseable", reason: read.reason };
+  return { kind: "loaded", properties: read.properties, content: parts.content };
 }
 
 /** Spelled as object members rather than a union of kind strings, so a switch
@@ -44,7 +44,7 @@ async function load(space: Space, id: string): Promise<Loaded> {
 export type Failure =
   | { readonly kind: "absent" }
   | { readonly kind: "malformed" }
-  | { readonly kind: "unparseable" };
+  | { readonly kind: "unparseable"; readonly reason: string };
 
 export type Read =
   | { readonly kind: "read"; readonly content: string; readonly properties: Properties }
@@ -54,7 +54,7 @@ export async function read(space: Space, id: string): Promise<Read> {
   const found = await load(space, id);
   return found.kind === "loaded"
     ? { kind: "read", content: found.content, properties: found.properties }
-    : { kind: found.kind };
+    : found;
 }
 
 export type Created =
@@ -89,7 +89,7 @@ export async function replace(
   content: string,
 ): Promise<Replaced> {
   const found = await load(space, id);
-  if (found.kind !== "loaded") return { kind: found.kind };
+  if (found.kind !== "loaded") return found;
 
   const wrote = await atomically(
     fileOf(space, id),
@@ -121,7 +121,7 @@ export async function amend(
   change: (properties: Properties) => string | void,
 ): Promise<Amended> {
   const found = await load(space, id);
-  if (found.kind !== "loaded") return { kind: found.kind };
+  if (found.kind !== "loaded") return found;
 
   const properties = { ...found.properties };
   const refusal = change(properties);

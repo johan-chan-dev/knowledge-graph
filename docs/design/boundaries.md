@@ -73,12 +73,26 @@ memory. The proof is erased at runtime and costs nothing.
 
 That is the natural enforcement of everything above, and it is not built yet.
 
-## Where the tool currently disagrees with this page
+## What the reading door refuses
 
-The reading door checks *structure* — a value, or a list of values — and not the
-vocabulary. So a hand-written `Kind:` or `valid_until:` reads back and cannot
-then be unset, which is the trap above. Closing it makes some hand-written files
-refuse where they now load, so it belongs to a batch rather than to a quiet fix.
+Everything the writing door would, plus what the format cannot carry:
+
+| refused | because |
+|---|---|
+| `Kind:`, `valid_until:` | not a property name — the tool could never write it |
+| a value holding a control character | not a value — `set` refuses the same text |
+| a YAML null, in any spelling | there is no second way to be absent |
+| an empty list | a key carrying nothing is not a value |
+| a nested map, an unparseable block | no way to represent it |
+
+Each refusal names the property, because the block is the caller's to fix and
+*something in here is wrong* does not say where.
+
+**Reserved names are deliberately not on that list.** `body` is a name the tool
+can represent perfectly and declines to *write*, which is different from one it
+has no way to hold — so a file carrying `body:` still reads, as
+[batch 5](../batches/5-the-entry-point.md) decided. The rule is about what the
+format can carry, not about which names are spoken for.
 
 ---
 

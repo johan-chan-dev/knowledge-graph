@@ -366,7 +366,9 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | id is not a uuid | `not an id: abc — expected a uuid` | `1` |
 | id not here | `no such node: 01997a3e-… in knowledge-graph` | `2` |
 | no frontmatter fence | `cannot read 01997a3e-…: no frontmatter block` | `1` |
-| properties will not read | `cannot read 01997a3e-…: its properties are neither values nor lists` | `1` |
+| a property the tool could not write | `cannot read 01997a3e-…: Kind is not a property name` | `1` |
+| a value the tool could not write | `cannot read 01997a3e-…: a holds a value with a control character` | `1` |
+| properties will not read | `cannot read 01997a3e-…: labels is an empty list` | `1` |
 | bad property name | `not a property name: Valid_Until — expected a lowercase hyphenated token` | `1` |
 | empty stdin | `no content on stdin — did the command before the pipe fail?` | `1` |
 | bad property value | `not a property value: contains a control character — a value is a single line` | `1` |

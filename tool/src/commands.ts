@@ -63,11 +63,14 @@ export async function nodes(cwd: string): Promise<Outcome> {
 
 /** A refusal shared by every command that names a node whose file will not
  * read — the caller asked about that node, so the tool cannot honour it. */
-function unreadable(id: string, kind: "malformed" | "unparseable"): Outcome {
+function unreadable(
+  id: string,
+  found: { kind: "malformed" } | { kind: "unparseable"; reason: string },
+): Outcome {
   return refused(
-    kind === "malformed"
+    found.kind === "malformed"
       ? `cannot read ${id}: no frontmatter block`
-      : `cannot read ${id}: its properties are neither values nor lists`,
+      : `cannot read ${id}: ${found.reason}`,
   );
 }
 
@@ -93,7 +96,7 @@ export async function node(
       return absent(`no such node: ${id} in ${resolved.space.name}`);
     case "malformed":
     case "unparseable":
-      return unreadable(id, found.kind);
+      return unreadable(id, found);
   }
 
   // stdout is one half of a node or the other, never both.
@@ -139,7 +142,7 @@ export async function nodeWrite(
     case "unparseable":
       // Replacing the content preserves the properties, so a block that will
       // not read is a block this cannot safely write back.
-      return unreadable(id, result.kind);
+      return unreadable(id, result);
     case "unwritable":
       return refused(`cannot write ${id}: ${result.reason}`);
     case "replaced":
@@ -246,7 +249,7 @@ async function change(
       return absent(`no such node: ${id} in ${resolved.space.name}`);
     case "malformed":
     case "unparseable":
-      return unreadable(id, result.kind);
+      return unreadable(id, result);
     case "refused":
       return refused(result.message);
     case "unwritable":

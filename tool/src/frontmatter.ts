@@ -74,48 +74,72 @@ export function split(raw: string): Split | undefined {
 export const join = (frontmatter: string, content: string): string =>
   `---\n${frontmatter}---\n\n${content}`;
 
+export type Read =
+  | { readonly kind: "properties"; readonly properties: Properties }
+  | { readonly kind: "unreadable"; readonly reason: string };
+
+const unreadable = (reason: string): Read => ({ kind: "unreadable", reason });
+
 /**
  * Scalars are read under YAML 1.2 core — the default schema turns
  * `2027-01-01` into a date, which would be the tool deciding what a field it
  * has never heard of means.
  *
- * Nothing comes back when the block will not parse, or holds something that is
- * neither a value nor a list. Flattening the latter is what silently destroyed
- * a hand-written list before lists existed.
+ * **This door enforces the same vocabulary as the writing one.** A name or a
+ * value the tool could never write is refused here rather than loaded, because
+ * loading it produces a property that displays and cannot be unset — see
+ * `docs/design/boundaries.md`. Reserved names are deliberately not part of that:
+ * `body` is a name the tool can represent perfectly and declines to write, which
+ * is a different thing from one it has no way to hold.
+ *
+ * The refusal names the property, since the block is the caller's to fix and
+ * "something in here is wrong" does not tell them where.
  */
-export function read(frontmatter: string): Properties | undefined {
-  if (frontmatter.trim() === "") return {};
+export function read(frontmatter: string): Read {
+  if (frontmatter.trim() === "") return { kind: "properties", properties: {} };
   let parsed: unknown;
   try {
     parsed = parseYaml(frontmatter, { schema: "core" });
   } catch {
-    return undefined;
+    return unreadable("the block is not YAML");
   }
   // A YAML null is recognised here so it can be refused — the one place the
   // word appears in this tool's own vocabulary, and it stops here.
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return undefined;
+    return unreadable("the block is not a mapping");
   }
 
   const out: Properties = {};
   for (const [name, value] of Object.entries(parsed)) {
+    if (!isName(name)) {
+      return unreadable(`${name} is not a property name`);
+    }
     if (Array.isArray(value)) {
       // An empty list is a key carrying nothing — present, with no value on
       // that dimension. `remove` deletes a key rather than leaving one, so the
       // tool never writes this; refusing it keeps absent and present-but-empty
       // from being two different ways to be absent.
-      if (value.length === 0) return undefined;
+      if (value.length === 0) return unreadable(`${name} is an empty list`);
       if (value.some((each) => each === null || typeof each === "object")) {
-        return undefined;
+        return unreadable(`${name} holds something that is not a value`);
       }
-      out[name] = value.map(String);
+      const values = value.map(String);
+      const bad = values.find((each) => !isValue(each));
+      if (bad !== undefined) {
+        return unreadable(`${name} holds a value with a control character`);
+      }
+      out[name] = values;
     } else if (value === null || typeof value === "object") {
-      return undefined;
+      return unreadable(`${name} has no value`);
     } else {
-      out[name] = String(value);
+      const text = String(value);
+      if (!isValue(text)) {
+        return unreadable(`${name} holds a value with a control character`);
+      }
+      out[name] = text;
     }
   }
-  return out;
+  return { kind: "properties", properties: out };
 }
 
 /** Keys alphabetical, `flowLevel: 1` so a list stays on one line. The tool is
