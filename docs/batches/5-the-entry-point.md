@@ -56,7 +56,7 @@ write, and turning it into a second gate would make a file unreadable for
 carrying a name that was legal when it was written.
 
 **Not the grammar's keywords.** `and`, `or`, `not` and `in` are reserved in
-[batch 6](6-find.md), where the parser that needs them lives. Reserving them
+[batch 7](7-find.md), where the parser that needs them lives. Reserving them
 here would be spending names — permanently, by `structure.md`'s own arithmetic —
 for a batch that does not exist.
 
@@ -133,4 +133,4 @@ practice existing — see
 
 ---
 
-[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · 5 · [6](6-find.md)
+[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · 5 · [7](7-find.md)

@@ -1,4 +1,4 @@
-# Batch 6 — find
+# Batch 7 — find
 
 **Done when** you can ask which nodes match a condition over their properties.
 
@@ -43,7 +43,7 @@ unexpected end of expression — `and` needs something after it
 Every one refuses **before a file is opened**, by the rule that validation
 precedes lookup.
 
-**Will be backed by** `batch 6 — find`, as `6_test.ts` in
+**Will be backed by** `batch 7 — find`, as `7_test.ts` in
 [`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
 
 ## An action, not a flag
@@ -218,4 +218,4 @@ a flag.
 
 ---
 
-[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · [5](5-the-entry-point.md) · 6
+[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · [5](5-the-entry-point.md) · 7
