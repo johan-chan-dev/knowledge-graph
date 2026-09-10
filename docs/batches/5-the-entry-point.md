@@ -22,7 +22,7 @@ created is reserved — it is read from the id, and cannot be written
 $ kg nodes list --properties
 --properties belongs to `kg node <id>`
 
-$ kg node "$a" frobnicate x
+$ kg node "$a" rename x
 node <id> takes one action: write, set, unset, add, remove
 
 $ kg node "$a" set title
@@ -33,8 +33,9 @@ node <id> set takes one value — quote it if it contains spaces
 ```
 
 The unknown action is a correction rather than an addition — it used to say
-`node <id> frobnicate takes no arguments`, which told the caller `frobnicate`
-was a property that happened to take none.
+`node <id> rename takes no arguments`, which told the caller `rename` was a
+property that happened to take none, rather than an action that does not
+exist.
 
 **Backed by** `batch 5 — the entry point`, in
 [`tool/tests/batches/5_test.ts`](../../tool/tests/batches/5_test.ts).
@@ -66,16 +67,21 @@ for a batch that does not exist.
 a second positional is an id, its arity, which flags are legal on it, and what
 it runs. Help, matching, checking and dispatch all read that table.
 
-**Because that shape used to live in three places, and all four argument defects
-were disagreements between them.** Help read a `FORMS` table; dispatch was a
-chain of branches; arity was conditionals inside those branches.
+**Because that shape used to live in three places.** Help read a `FORMS` table;
+dispatch was a chain of branches; arity was conditionals inside those branches.
+Every argument defect the tool has had was a disagreement between them — all of
+these are fixed, and they are listed as the evidence that the arrangement, not
+the care taken with it, was the cause:
 
-| defect | which pair disagreed |
-|---|---|
-| `nodes list --properties` accepted and ignored | the flag was declared globally; nothing consulted the command |
-| `node <id> frobnicate x` reported as an argumentless property | the arity check ran before the action was validated |
-| `set title one two three` silently joined | no declared arity to violate |
-| `--where` hand-parsed into clauses | a shape with no declaration |
+| defect | fixed in | which pair disagreed |
+|---|---|---|
+| `--where` hand-parsed into clauses | 4 | a shape with no declaration |
+| `set title one two three` silently joined | 4 | no declared arity to violate |
+| `nodes list --properties` accepted and ignored | 4 | the flag was declared globally; nothing consulted the command |
+| `node <id> rename x` reported as an argumentless property | 5 | the arity check ran before the action was validated |
+
+Three of the four were caught one at a time by [batch 4](4-stops-guessing.md),
+which is the point: a fourth round of care would have found a fifth.
 
 One declaration removes those structurally rather than by being careful, which
 is what a fourth round of care would have been.
