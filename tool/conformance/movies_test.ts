@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { BINARY } from "../batches/spawn.ts";
+import { BINARY } from "../tests/batches/spawn.ts";
 import { dirname, fromFileUrl, join } from "@std/path";
 
 /**
@@ -41,6 +41,8 @@ Deno.test({
   async fn() {
     const dir = await Deno.makeTempDir({ prefix: "kg-movies-" });
     await new Deno.Command("git", { args: ["init", "-q", dir], stdout: "null" }).output();
+    // Setting up the fixture is the test's job; the script only adds material.
+    await kg(dir, ["space", "init"]);
     assertEquals(await sh(dir, join(here, "import.sh")), 0, "the import ran");
 
     // Neo4j's own figures for this dataset.

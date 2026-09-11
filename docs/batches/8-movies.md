@@ -12,8 +12,13 @@ and properties. Whether those claims hold is answerable, and this answers it.
 
 ```console
 $ deno task movies
-the movies graph imports, and nothing is lost ... ok (55s)
+the movies graph imports, and nothing is lost ... ok (1m2s)
 ```
+
+It lives in `tool/conformance/` rather than `tool/tests/`, because it answers a
+different question: not *does this code do what it says* but *does the borrowed
+model hold someone else's graph*. It has its own task and is not in the seven
+second suite.
 
 Neo4j's own movies example — 171 nodes, 253 relationships across six types —
 converted to a shell script of `kg` commands and replayed against the binary.
@@ -42,6 +47,17 @@ Three reasons. It can be **read before it runs**, which is what a conformance
 check is for. It is a **diffable artifact** — regenerate after a batch and the
 diff shows what changed about the surface. And it exercises what an agent
 actually touches: a process, arguments, stdin — not modules.
+
+**It requires a space and does not make one.** Every `kg` command treats a space
+as a precondition, so the script inherits the tool's own refusal — *no space
+here — run: kg space init* — rather than deciding for the caller. Setting up a
+space is the caller's job, or the test's.
+
+**Point it at a throwaway space.** The material merges cleanly — labels are open
+and materialised by use, so `person` simply appears beside whatever is already
+there — but node withdrawal does not exist, so adding 171 films to a space you
+care about is one-way short of `git reset`. That caveat goes when
+[`lifecycle`](../design/parked/lifecycle.md) is answered.
 
 **There is no `kg import`.** The converter reads one file's dialect, not Cypher:
 268 node `MERGE`s, 253 relationship `MERGE`s, six `MATCH` re-bindings, three
@@ -77,7 +93,7 @@ the original — have no counterpart in a property graph, so no public dataset
 exercises them. That fixture has to be built deliberately, and cannot be until
 withdrawal exists.
 
-**Speed.** 55 seconds is 800 process spawns, not the tool. Timing was measured
+**Speed.** A minute is 800 process spawns, not the tool. Timing was measured
 separately: a full scan is 55 ms at 1 000 nodes and 600 ms at 10 000.
 
 **Every dataset.** One file, one dialect. `northwind` and the rest would each

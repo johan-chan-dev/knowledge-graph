@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
+# Neo4j's movies example, as kg commands. Requires an existing space, and
+# adds to whatever is already in it.
 set -euo pipefail
-
-kg space init >/dev/null
 
 TheMatrix=$(kg node new --with-labels movie)
 kg node "$TheMatrix" set title 'The Matrix' >/dev/null

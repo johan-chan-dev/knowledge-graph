@@ -44,11 +44,14 @@ function properties(text: string): [string, string[]][] {
   return out;
 }
 
+// The script adds material and does not make a space. Every `kg` command treats
+// a space as a precondition, so this inherits the tool's own refusal —
+// `no space here — run: kg space init` — rather than deciding for the caller.
 const lines = [
   "#!/usr/bin/env bash",
+  "# Neo4j's movies example, as kg commands. Requires an existing space, and",
+  "# adds to whatever is already in it.",
   "set -euo pipefail",
-  "",
-  "kg space init >/dev/null",
   "",
 ];
 const seen = new Set<string>();

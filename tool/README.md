@@ -16,7 +16,7 @@ alternatives, and what would reverse the decision.
 | `deno task test` | compile, then everything |
 | `deno task verify` | compile, then the batch loops against the binary |
 | `deno task compile` | `build/kg` |
-| `deno task movies` | the conformance check — Neo4j's movies graph, ~55s |
+| `deno task movies` | the conformance check in `conformance/`, ~1m |
 
 `test` and `verify` compile first on purpose: `tests/batches.test.ts` runs the
 binary rather than the source, so a stale one would test the wrong program.
@@ -46,10 +46,10 @@ imports. Where a harder guarantee is wanted, the Deno-native lever is
 `helpers.ts` and `batches/spawn.ts` carry no `_test` in their names, so
 `deno test` does not collect them.
 
-`tests/movies/` is excluded from the default run and has its own task. It
-replays ~800 `kg` commands, which is 55 seconds of process spawning rather than
-55 seconds of tool — it answers whether the borrowed half of the model holds
-someone else's graph, not how fast anything is.
+`conformance/` sits outside `tests/` because it answers a different question:
+not *does this code do what it says* but *does the borrowed model hold someone
+else's graph*. It replays ~800 `kg` commands against the binary, which is a
+minute of process spawning rather than a minute of tool, and has its own task.
 
 ---
 
