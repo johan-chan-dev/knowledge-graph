@@ -29,6 +29,9 @@ $ kg labels list
 auth	12	how a request proves who it is
 decision	8
 pattern	3	a shape seen more than twice
+
+$ kg label pattern forget
+forgot pattern
 ```
 
 And the refusals:
@@ -75,17 +78,26 @@ value is only required to be single-line text. A word two people must arrive at
 independently cannot be one that needs quoting — and the same restriction makes
 a label safe as a filename, with nothing to escape.
 
-## A label is a file shaped like a node
+## A label is a file, and the file is the word
 
 ```
 .kg/labels/auth.md      frontmatter, then the description as the body
 .kg/labels/auth.json    which nodes carry it — rebuildable, unversioned
 ```
 
-Frontmatter and body, which is the format the tool already has, so `split`,
-`read` and `join` apply unchanged and meta properties have somewhere to live
-later without a redesign. It is not a second kind of thing; it is the same kind
-of thing somewhere else.
+**The file is created the first time the word is used.** `label auth` on a node
+ensures `labels/auth.md` exists, empty and ready for a description. So the
+vocabulary is materialised rather than derived, and `labels list` is a directory
+read — O(words), not O(nodes), and flat regardless of how large the space grows.
+
+It is the format a node already has, so `split`, `read` and `join` apply
+unchanged, meta properties have somewhere to live later, and a description is
+simply the body.
+
+**The word outlives its last use.** When the last node drops `auth`, the file
+stays: the vocabulary is a record of what has been said here, and a word that
+fell back to zero is still a word that was used. Only `label auth forget`
+removes it.
 
 **`label`, singular, is a scope** — `node`/`nodes` becoming `label`/`labels`.
 The word is also the verb on a node, and position tells them apart the way it
@@ -95,7 +107,7 @@ discovered.
 
 **Writing a description is `write --stdin`**, not a value, because a description
 is a body. [`api.md`](../spec/api.md) already says a value wanting several lines
-is content, and a one-line flag argument would have contradicted the storage it
+is content, and a one-line flag argument would have contradicted the file it
 writes to.
 
 ## The vocabulary stays open
@@ -104,9 +116,8 @@ A label file could have been two different things, and the batch has to pick:
 
 | | a controlled vocabulary | **an open one** |
 |---|---|---|
-| `kg node <id> label auth`, no `labels/auth.md` | refused — define it first | works |
-| what a label file is | permission to use the word | a description of a word |
-| `labels list` | the registry | words nodes carry, plus words with a file |
+| `kg node <id> label auth`, no file yet | refused — declare it first | **creates it** |
+| what a label file is | permission to use the word | the word itself, and what it means |
 
 **Open, and it is not a close call for a knowledge graph.**
 [`vocabulary.md`](../design/vocabulary.md) already argues it: which groupings
@@ -126,29 +137,16 @@ list` makes it *visible*, because `auth 12` beside `authn 1` is the answer and
 the fix in one line. Detection rather than prevention, which is the same trade
 the tool makes everywhere else it declines to guess.
 
-## A description and a membership are independent
-
-Neither creates or destroys the other:
-
-- `label auth write` — a description exists; nothing carries `auth` yet, and
-  `labels list` shows it with a count of `0`: *defined, not yet used*
-- `label auth forget` — the description goes; nodes carrying `auth` still do
-- the last node dropping `auth` — the description stays, the count falls to `0`
-
-That settles the lifecycle without needing a rule, because the description was
-never a fact about those nodes. `forget` is deletion, but not the deletion
-[`lifecycle.md`](../design/parked/lifecycle.md) parks: nothing can reference a
-label file, and removing it leaves the word intact wherever nodes carry it.
-
 ## What it does not do
 
-**No index yet.** `labels/{name}.json` is in the layout above because the shape
-is decided, not because this batch writes it. `labels list` walks the nodes and
-counts, which is a directory read and one parse per node —
+**No index yet.** `labels/{name}.json` is in the layout because the shape is
+decided, not because this batch writes it. Listing the words costs a directory
+read either way; what the index would remove is the **count**, which today means
+one parse per node — measured at 55 ms for 1 000 nodes and 600 ms for 10 000.
 [`vocabulary.md`](../design/vocabulary.md) argues an accelerator earns itself
-only once computing is measurably too slow, and nothing has measured that.
-Whenever it does arrive it is unversioned, because a rebuildable thing that can
-go stale must not be something a reader could mistake for the answer.
+only once computing is measurably too slow, and 600 ms is not that. Whenever it
+arrives it is unversioned, so nothing can mistake a rebuildable thing for the
+answer.
 
 **No finding by label.** That is [batch 7](7-find.md).
 [Batch 4](4-stops-guessing.md) removed `--where` for putting a query behind a
