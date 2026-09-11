@@ -26,7 +26,7 @@ its rules move to the spec and its durable argument, if it has one, moves up to
 | [lifecycle](lifecycle.md) | withdrawing a node, blocked on relations |
 | [relations](relations.md) | a link between two nodes in one space |
 | [sharing](sharing.md) | knowledge travels, and edges run toward the more-shared space |
-| [arguments](arguments.md) | the surface should decide the grammar, not the parser |
+| [arguments](arguments.md) | a flag belongs to a command — superseded by batch 7 |
 | [further-out](further-out.md) | relations, dependencies between spaces, integrity |
 
 ---

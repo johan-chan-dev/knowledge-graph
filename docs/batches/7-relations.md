@@ -37,7 +37,7 @@ $ kg node "$a" link --as supersedes --with-nodes 01a08000-0000-7000-8000-0000000
 no such node: 01a08000-… in knowledge-graph
 
 $ kg node "$a" link --with-nodes "$b"
---as needs a type
+link needs --as
 
 $ kg node "$a" set links.supersedes x
 links is reserved — a relation is written with `link`
@@ -46,17 +46,58 @@ links is reserved — a relation is written with `link`
 **Will be backed by** `batch 7 — relations`, as `7_test.ts` in
 [`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
 
-## It has to build the tokeniser first
+## It fixes how flags are declared first
 
-The surface above needs a variadic flag (`--with-nodes`) and a repeated
-two-value one (`--with-prop`). `parse-args` does neither.
-[`design/parked/arguments.md`](../design/parked/arguments.md) already argues the
-answer — let the table declare each flag's *shape* as well as its name, and
-tokenise from that, replacing `parse-args` rather than working around it.
+The surface above needs a variadic flag (`--with-nodes`), a repeated one
+(`--with-prop k=v`) and a valued one (`--as`). None of that is exotic; what
+blocks it is where the flag list lives.
 
-[Batch 6](6-labels.md) bent `--with-labels` around the parser it had. Doing that
-twice is how a workaround becomes the shape, and `--with-prop` has no plausible
-hack at all. So the tokeniser is the batch's first move, not a later tidy-up.
+**Today a flag is declared in six places**, and three of them exist only to undo
+a fourth. `parse-args` is handed a **union of every flag in the tool**, so each
+one is parseable on every command — and then a placement loop, a parameter type
+and a special case in `check` walk that back. Belonging is enforced afterwards
+instead of being the parse.
+
+That is [batch 5](5-the-entry-point.md)'s own defect table one level down: it
+consolidated a command's *shape* into the table and left its *flags* scattered,
+so `nodes list --properties` parsing cleanly and being rejected later is exactly
+`--where` parsing cleanly and being rejected later.
+
+**So a flag belongs to a command**, with its shape:
+
+```
+flags: {
+  stdin:         { kind: "boolean" },
+  "with-labels": { kind: "variadic" },
+}
+```
+
+Adding `--with-prop` to `link` then touches one entry. The `Flag` union goes,
+the placement loop goes, and the global spec goes — a flag not declared on a
+command is simply not a flag there. `--properties belongs to \`kg node <id>\``
+survives as a lookup across the table when phrasing the refusal, rather than as
+a rule policing a registry.
+
+**Parsing is ours, ~45 lines, and the decision was measured.** `@cliffy/flags`
+handles all four shapes correctly and its errors are catchable — the earlier
+claim here that no library fits was wrong. What decided it is that with a
+per-command spec the job is small and fully bounded: no short flags, no aliases,
+no negation, no coercion, flag names `[a-z-]+`, values that never begin with
+`-`. Cliffy would be four shapes out of many, plus translating its error voice
+into this tool's. **If short flags or aliases are ever wanted, that reverses.**
+
+**It fixes three defects [batch 6](6-labels.md) shipped**, which is why it comes
+first rather than after:
+
+| | today |
+|---|---|
+| `kg node new auth decision` | **silently labels the node** — no flag was given |
+| `--with-labels auth --stdin decision` | `decision` still becomes a label |
+| `kg node new --with-labels` | `not a label: ` rather than naming the flag |
+
+All three are the global parse leaking. Under a per-command spec the tokens are
+either consumed by a declared flag or they are positionals the table refuses,
+and the question never arises.
 
 ## And the dot rule, which nothing has ever used
 

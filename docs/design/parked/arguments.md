@@ -1,9 +1,12 @@
 # Parsing arguments
 
-**The surface should decide the grammar, and it currently doesn't.**
-`@std/cli/parse-args` handles boolean flags and single-value ones. It has no
-variadic flag — and the first command that wants one is `--with-labels auth
-decision` in [batch 6](../../batches/6-labels.md).
+> **Superseded.** [Batch 7](../../batches/7-relations.md) builds this. Kept
+> until then because the measurements are worth having, but the diagnosis below
+> was wrong in its premise and is corrected at the end.
+
+**A flag belongs to a command, and the tool declares it globally.**
+`@std/cli/parse-args` is handed a union of every flag there is, so each one
+parses on every command and three separate pieces of machinery walk that back.
 
 ## Why the variadic form is the one worth wanting
 
@@ -31,30 +34,37 @@ entirely, removes a dependency rather than adding one, and returns the flag
 rules to the table, which is where [batch 5](../../batches/5-the-entry-point.md)
 argued every part of a command's shape belongs. Roughly forty lines.
 
-## Why not a CLI framework
+## Why not a CLI framework — corrected
 
-Measured rather than assumed, against `@cliffy/command` and `@cliffy/flags`:
+The measurements below stand; the conclusion drawn from them did not.
 
-- **Positionals land in `unknown`** — the same bucket used to detect unknown
-  flags, so the separation this tool relies on would have to be rebuilt.
-- **It throws, in its own voice.** `Unknown option "--where". Did you mean option
-  "--stdin"?` against this tool's `unknown flag: --where`. Every refusal in
-  [`spec/api.md`](../../spec/api.md)'s table would become a translation at the
-  boundary, and the suggestion is the framework guessing — which is what
-  [batch 4](../../batches/4-stops-guessing.md) exists to have removed.
-- **Four exit codes.** `0` ok, `1` refused, `2` absent, `4` usage. A framework
-  has one error path.
+- `@cliffy/command` **cannot express this grammar** — `node <id> set <name>
+  <value>` comes back as `id` plus `rest=["set","kind","decision"]`, so the
+  table dispatches anyway, and an unknown flag after the id lands in `rest`
+  silently.
+- `@cliffy/flags` **does work**, and handles all four shapes. Its errors throw
+  and are catchable, so this tool's voice survives. The earlier claim here that
+  positionals and unknown flags share a bucket was wrong: an unknown flag
+  throws, so only positionals remain.
 
-The cost of adopting one grows with every refusal added to the spec, so *later*
-is the one answer that is definitely wrong. Either the surface's voice is worth
-owning, in which case own the tokeniser too, or it is not.
+What decides against it is not fit but size. With a per-command spec the job is
+about forty-five lines and fully bounded — no short flags, no aliases, no
+negation, no coercion, flag names `[a-z-]+`, values that never begin with `-`.
+Cliffy would be four shapes out of many plus an error-translation layer. **If
+short flags or aliases are ever wanted, that reverses.**
 
 ## The lesson worth keeping
 
-A library's capabilities were quietly deciding the grammar: the comma form was
-proposed because it was free to implement, and justified afterwards by the
-delimiter being safe. That is the wrong order. **The surface is decided first,
-and the parsing follows.**
+Two, and the second matters more.
+
+**A library's capabilities were quietly deciding the grammar.** The comma form
+was proposed because it was free to implement and justified afterwards by the
+delimiter being safe. The surface is decided first, and the parsing follows.
+
+**And the library question was downstream of a design flaw the whole time.**
+With a global flag union, variadic parsing looked hard enough to need help.
+Once flags belong to commands, it is four lines. Several rounds were spent
+comparing parsers for a problem that mostly dissolved when the union went.
 
 ## What would trigger it
 
