@@ -17,7 +17,8 @@ history: what a batch was for, what building it forced, what it settled.
 | 4 | [the tool stops guessing](4-stops-guessing.md) | shipped |
 | 5 | [the entry point](5-the-entry-point.md) | shipped |
 | 6 | [the labels system](6-labels.md) | shipped |
-| 7 | [find](7-find.md) | planned |
+| 7 | [relations](7-relations.md) | planned |
+| 8 | [find](8-find.md) | planned |
 
 ## Every batch shows its goal, and a test holds it there
 
