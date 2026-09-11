@@ -22,7 +22,20 @@ second suite.
 
 Neo4j's own movies example — 171 nodes, 253 relationships across six types —
 converted to a shell script of `kg` commands and replayed against the binary.
-The counts come out matching the source exactly.
+
+Then it is **asked**, rather than only counted. For all 171 nodes, the outgoing
+and incoming degree the tool reports is compared against the degree computed
+from the Cypher: 342 assertions, and counting files would have passed without
+any of them holding.
+
+```
+Keanu Reeves      7 out        A Few Good Men   14 in
+Tom Hanks        13 out        Cloud Atlas      10 in
+```
+
+That is what checks batch 7's claim. `links` and `backlinks` are one node read
+filtered on direction, and a graph someone else built is where that either works
+or does not.
 
 ## Why someone else's data
 
@@ -95,6 +108,11 @@ withdrawal exists.
 
 **Speed.** A minute is 800 process spawns, not the tool. Timing was measured
 separately: a full scan is 55 ms at 1 000 nodes and 600 ms at 10 000.
+
+**Anything needing `find`.** *Which films were released after 1999* and *which
+node is named Keanu Reeves* have no answer yet — the test locates a node by
+reading every one and matching a property, which is the workaround
+[batch 9](9-find.md) removes. Traversal is checkable today; selection is not.
 
 **Every dataset.** One file, one dialect. `northwind` and the rest would each
 need their own reading, and that is the honest limit of a fixture.

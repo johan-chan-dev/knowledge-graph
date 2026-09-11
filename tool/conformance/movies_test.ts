@@ -69,6 +69,48 @@ Deno.test({
       ["wrote", 10],
     ]);
 
+    // Traversal, asked of the tool and computed from the source. Counting
+    // files says the import landed; this says the graph answers.
+    const cypher = await Deno.readTextFile(join(here, "movies.cypher"));
+    const named = new Map<string, string>();
+    for (const m of cypher.matchAll(/^MERGE \((\w+):\w+ \{(.*?)\}\)/gm)) {
+      const shown =
+        /(?:title|name)\s*:\s*'((?:[^'\\]|\\.)*)'|(?:title|name)\s*:\s*"([^"]*)"/
+          .exec(m[2]!);
+      if (shown !== null) {
+        named.set(m[1]!, (shown[1] ?? shown[2]!).replaceAll("\\'", "'"));
+      }
+    }
+    const outward = new Map<string, number>();
+    const inward = new Map<string, number>();
+    for (const m of cypher.matchAll(/^MERGE \((\w+)\)-\[:\w+.*?\]->\((\w+)\)/gm)) {
+      const from = named.get(m[1]!) ?? m[1]!, to = named.get(m[2]!) ?? m[2]!;
+      outward.set(from, (outward.get(from) ?? 0) + 1);
+      inward.set(to, (inward.get(to) ?? 0) + 1);
+    }
+
+    let checked = 0;
+    for (const id of (await kg(dir, ["nodes", "list"])).trim().split("\n")) {
+      const shown = (await kg(dir, ["node", id, "--properties"]))
+        .split("\n").find((l) => l.startsWith("name: ") || l.startsWith("title: "))
+        ?.replace(/^(?:name|title): /, "").replace(/^'|'$/g, "");
+      if (shown === undefined) continue;
+      const rows = (text: string) =>
+        text.trim() === "" ? 0 : text.trim().split("\n").length;
+      assertEquals(
+        rows(await kg(dir, ["node", id, "links"])),
+        outward.get(shown) ?? 0,
+        `outgoing links for ${shown}`,
+      );
+      assertEquals(
+        rows(await kg(dir, ["node", id, "backlinks"])),
+        inward.get(shown) ?? 0,
+        `incoming links for ${shown}`,
+      );
+      checked++;
+    }
+    assertEquals(checked, 171, "every node was asked");
+
     await Deno.remove(dir, { recursive: true });
   },
 });
