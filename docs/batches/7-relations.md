@@ -28,6 +28,16 @@ supersedes	01a08e3f-4c21-…	01a084f0-631b-…
 
 $ kg node "$a" unlink --as supersedes --with-nodes "$b"
 unlinked 1
+
+$ kg link "$l" add roles "Bill Smoke" "Haskell Moore"
+added 2 to roles
+
+$ kg link "$l"
+type	cites
+from	01a084f0-631b-…
+to	01a084f0-63be-…
+roles	Bill Smoke, Haskell Moore
+since	2026-09-10
 ```
 
 Type, link id, other end — tab-separated, as `labels list` is. No arrows:
@@ -157,8 +167,21 @@ enforces precisely what the writing door produces.
 **A link carries properties and exactly one type**, both Neo4j's rules. That is
 why it cannot be a bare id in a list — there would be nowhere to put them.
 
-**The commands start from the node**, never from the link. A directed edge is
-not symmetric, and the source is where the caller is standing.
+**Making and breaking a link starts from the node**, never from the link. A
+directed edge is not symmetric, and the source is where the caller is standing.
+
+**A link's properties obey the same rules a node's do.** `kg link <id> set /
+unset / add / remove`, over the record instead of frontmatter, reusing the
+machinery that already exists. `--with-properties` is then a convenience at
+creation carrying one value per name, and a list is built with `add` — the shape
+follows from the verb, as [batch 3](3-lists.md) settled, rather than from a flag
+having to invent an accumulation rule.
+
+Making them write-once was considered and dropped: the reason was that
+`kg link <id>` reintroduces a scope the surface had shed, which is tidiness
+rather than an argument about the model. A record with an id and properties
+whose properties obey different rules than a node's is an asymmetry with nothing
+behind it.
 
 ## What it does not do
 
@@ -174,11 +197,6 @@ it. A word outlives its last use because vocabulary records what has been said;
 a link is not vocabulary, it is the relationship itself, so ending it ends the
 record — and an orphaned `links/<uuid>.json` nothing points at would be damage
 rather than history.
-
-**No editing a link after the fact.** The record has an id, so it is
-addressable, but every command here starts from a node and `kg link <id> set`
-would reintroduce a scope the surface shed. Set the properties at `link` time
-or make a new one.
 
 **No integrity checking.** A `link` touches three files and `atomically` renames
 one, so a half-failed write leaves an endpoint pointing at a link the other end

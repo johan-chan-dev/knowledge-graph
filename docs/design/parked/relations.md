@@ -38,6 +38,10 @@ weight — and JSON needs none of `frontmatter.ts`: no `2026-01-01` becoming a
 date, no five spellings of null, no quoting rules to preserve `'1.10'`. Not a
 speed argument: parsing is ~4% of a file read, measured.
 
+**A link's properties obey a node's rules** — `set`, `unset`, `add`, `remove`
+over the record. So a list is built with a verb, as batch 3 settled, and
+`--with-properties` need not invent an accumulation rule of its own.
+
 **A link carries properties**, as Neo4j's relationships do — *"can have
 properties, which further describe the relationship"* — and exactly one type,
 also Neo4j's rule. That is why an entry cannot be a bare id: there would be
@@ -79,10 +83,6 @@ not yet written.
 **Cycles.** [`sharing`](sharing.md) gets acyclicity from the sharing axis, which
 does not apply inside one space. Whether `a supersedes b supersedes a` is
 refused or merely wrong is undecided.
-
-**Editing a link's properties.** The record has an id, so it is addressable —
-but every command so far starts from a node, and `kg link <id> set` reintroduces
-a scope the surface had shed. Settled for now by setting them at `link` time.
 
 **Unlinking ends the link.** The record is deleted and both endpoints drop it. A
 label outlives its last use because vocabulary records what has been said; a
