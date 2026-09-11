@@ -1,6 +1,17 @@
 # Comparison and ordering
 
-`--where score>0.7`, and `--order-by score`.
+Comparing values, and ordering by one.
+
+> **Half of this is built.** The comparison operators are
+> [batch 9](../../batches/9-find.md)'s, and the rules below are binding on it —
+> what an operator does with a value that will not take its type is settled
+> here. Ordering has no caller yet and is what keeps the page parked.
+>
+> It was written when filtering was `--where`, a flag
+> [batch 4](../../batches/4-stops-guessing.md) removed. The rules did not change
+> with the spelling, but the old one made the page look like it was about
+> something that no longer exists — which is how batch 9 came to re-derive a
+> question answered here.
 
 **The shell decides this, not taste.** `set version 1.10`, `set version '1.10'`
 and `set version "1.10"` arrive as the same three arguments — the quotes are
@@ -12,8 +23,8 @@ Inside an expression the quotes survive, because the expression is one argument
 the tool parses itself. That is the whole of why the two sides differ: **the only
 place the tool can see a quote is where it does the quoting.**
 
-**The operator carries the type, not the storage.** `--where a=b` compares text;
-`--where a>b` compares numbers, and a value that is not numeric simply does not
+**The operator carries the type, not the storage.** `a = "b"` compares text;
+`a > b` compares numbers, and a value that is not numeric simply does not
 match. The file stays untyped — `set` still stores text and `--properties`
 still returns it — so two callers can disagree about whether `score` is a number
 without the node taking a side. That is mechanically different from typing the
@@ -27,9 +38,9 @@ there.
 
 **It waits on a practice.** Confidence scoring decides what corroboration is
 worth and how staleness decays; that is meaning, and it lives above this layer.
-The substrate's job is to narrow before the practice reads — `--where
-confidence<0.4` hands back a candidate set, and deciding what `confidence`
-should be is not its business.
+The substrate's job is to narrow before the practice reads —
+`kg nodes find 'confidence < 0.4'` hands back a candidate set, and deciding what
+`confidence` should be is not its business.
 
 ---
 

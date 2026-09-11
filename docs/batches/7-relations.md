@@ -3,9 +3,7 @@
 **Done when** a node can say how it stands to another node, and both ends can
 be asked.
 
-Built. The design and its argument are in
-[`design/parked/relations.md`](../design/parked/relations.md); this is what the
-batch builds and what it leaves.
+Built. What it built and what it left.
 
 ## What it should look like
 
@@ -106,7 +104,10 @@ command is simply not a flag there. `--properties belongs to \`kg node <id>\``
 survives as a lookup across the table when phrasing the refusal, rather than as
 a rule policing a registry.
 
-**Parsing is ours, ~45 lines, and the decision was measured.** `@cliffy/flags`
+**Parsing is ours, ~45 lines, and the decision was measured.** `@cliffy/command`
+cannot express this grammar at all — `node <id> set <name> <value>` comes back as
+an id plus `rest = ["set", "kind", "decision"]`, so the table would dispatch
+anyway, and an unknown flag after the id lands in `rest` silently. `@cliffy/flags`
 handles all four shapes correctly and its errors are catchable — the earlier
 claim here that no library fits was wrong. What decided it is that with a
 per-command spec the job is small and fully bounded: no short flags, no aliases,

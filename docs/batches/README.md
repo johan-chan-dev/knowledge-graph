@@ -21,6 +21,15 @@ history: what a batch was for, what building it forced, what it settled.
 | 8 | [someone else’s graph](8-movies.md) | shipped |
 | 9 | [find](9-find.md) | planned |
 
+## Read the parked pages before declaring a question open
+
+A batch stands on decisions taken earlier, and
+[`design/parked/`](../design/parked/) is where a good many of them are — parked
+for want of a caller, not for want of an answer. Batch 9 scoped itself around
+*what does `>` do against a value that is not a number*, which
+[comparison](../design/parked/comparison.md) had already settled thirty lines
+away.
+
 ## Every batch shows its goal, and a test holds it there
 
 Each document opens with a transcript of the loop that batch closes — what you

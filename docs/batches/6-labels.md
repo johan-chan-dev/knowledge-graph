@@ -52,6 +52,14 @@ not a label: Auth Pattern — expected a lowercase hyphenated token
 
 ## Why this earns a reserved name
 
+This reverses what `parked/labels.md` argued — *labels may not need to be a word
+the tool knows*, since every operation they wanted fell out of list properties.
+What decided it is that page's own closing line: **a vocabulary view, every word
+in use with counts, is the other piece.** That is `kg labels list`, and it cannot
+be computed over whichever property somebody chose. The page is retired; the
+argument is here.
+
+
 [`structure.md`](../design/structure.md) says the reserved list grows **when the
 format grows, and at no other time** — *if edges become part of a node's shape
 rather than a property of it, they qualify.* Classification becoming part of a
@@ -161,7 +169,7 @@ is untouched — only the word it had borrowed has moved.
 
 **`--with-labels` is served by the parser there is.** It takes its first value
 from the flag and the rest from the positionals that follow, which works and is
-not how it should be done. [`design/parked/arguments.md`](../design/parked/arguments.md)
+not how it should be done. [batch 7](7-relations.md)
 records the tokeniser that replaces it, and why the surface was chosen first.
 
 **No opinion about what a word means.** The tool holds a description the way it

@@ -1,7 +1,7 @@
 # Further out
 
-Relations moved out to [relations](relations.md) — they are one space's
-concern, and were only ever here because nothing had separated them.
+Relations were only ever here because nothing had separated them; they are one
+space's concern and were built as [batch 7](../../batches/7-relations.md).
 
 Dependencies between spaces — `mount`, `unmount`, `obtain`, and the
 manifest that declares them. Integrity checking. Whatever policy decides which

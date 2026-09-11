@@ -51,7 +51,7 @@ against the wrong side.
 **An extraction must be able to point at where it came from.** Without that the
 path above breaks at its second step — the pieces exist and nothing records that
 they were pieces *of* something. Relations are
-[`parked/relations`](parked/relations.md).
+[batch 7](../batches/7-relations.md).
 
 **Withdrawal has to be answerable.** Dropping the original is only safe if what
 still points at it can be found, which is why

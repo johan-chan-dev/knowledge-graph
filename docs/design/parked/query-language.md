@@ -2,7 +2,7 @@
 
 **Adopt openCypher's syntax rather than invent** — the same borrowing labels
 made from Neo4j. It waits on relations: `MATCH (n:Decision) WHERE n.score > 0.7`
-is a filter `--where` already covers, and the pattern syntax that justifies
+is a filter [`find`](../../batches/9-find.md) covers, and the pattern syntax that justifies
 Cypher has nothing to traverse until edges exist.
 
 **Hand-write the subset.** Researched 2026-09-08, measured on this machine with
