@@ -7,6 +7,7 @@ import * as label from "./label.ts";
 import * as link from "./link.ts";
 import type { Entry } from "./frontmatter.ts";
 import { amend, create, isId, read, replace, type Uuid } from "./node.ts";
+import { parse } from "./expression.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -62,6 +63,26 @@ export async function nodes(cwd: string): Promise<Outcome> {
   // The id is the filename, so this parses nothing. Filtering belonged to a
   // family whose vocabulary has not settled; see design/parked/search.md.
   return lines(await ids(resolved.space));
+}
+
+/**
+ * The expression is parsed before the space is resolved, so a malformed one
+ * refuses with no filesystem touched at all. *Validation precedes lookup* is
+ * then a property of this function rather than a claim about a transcript.
+ */
+export async function nodesFind(cwd: string, expression: string): Promise<Outcome> {
+  const parsed = parse(expression);
+  if (parsed.kind === "refused") return refused(parsed.message);
+
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+
+  // Refusing, not returning nothing: an empty answer to a well-formed query is
+  // indistinguishable from *no match*, which is the silent wrong answer batch 4
+  // removed `--where` for producing. An unbuilt half may say so; it may not lie.
+  return refused(
+    "find is not built yet — the expression is well formed, but nothing evaluates it",
+  );
 }
 
 /** A refusal shared by every command that names a node whose file will not

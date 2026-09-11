@@ -21,6 +21,7 @@ import {
   nodeRemove,
   nodes,
   nodeSet,
+  nodesFind,
   nodeUnlabel,
   nodeUnset,
   nodeWrite,
@@ -145,6 +146,19 @@ export const COMMANDS: readonly Command[] = [
     summary: "every id, in creation order",
     scope: "nodes",
     action: "list",
+    flags: {},
+  }),
+  command({
+    form: "nodes find <expression>",
+    run: ({ cwd, args }) => nodesFind(cwd, args[0]),
+    summary: "the ids of nodes matching a condition",
+    scope: "nodes",
+    action: "find",
+    args: z.tuple([z.string()]),
+    arity: {
+      few: "nodes find needs an expression — quote it",
+      many: "nodes find takes one expression — quote the whole of it",
+    },
     flags: {},
   }),
   command({
