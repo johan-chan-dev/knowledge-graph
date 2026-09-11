@@ -25,6 +25,7 @@ its rules move to the spec and its durable argument, if it has one, moves up to
 | [validation](validation.md) | declared schemas — immature, and blocked on a practice existing |
 | [lifecycle](lifecycle.md) | withdrawing a node, blocked on relations |
 | [sharing](sharing.md) | knowledge travels, and edges run toward the more-shared space |
+| [arguments](arguments.md) | the surface should decide the grammar, not the parser |
 | [further-out](further-out.md) | relations, dependencies between spaces, integrity |
 
 ---
