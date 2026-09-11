@@ -1,7 +1,8 @@
 # Searching
 
-Retrieval over prose, and presence tests over properties. Designed 2026-09-08,
-built by nothing.
+Retrieval over prose, and presence tests over properties. Designed 2026-09-08;
+[batch 9](../../batches/9-find.md) builds the presence and comparison half, and
+this page keeps the rest.
 
 ```
 kg nodes find <expression>
@@ -11,16 +12,21 @@ One action, one argument, one grammar — over authored properties and over the
 reserved names in [structure](../structure.md):
 
 ```
-decision in labels and not retired
-kind = decision
+"decision" in labels and not retired
+stage = "decision"
 body ~ "session.*handling"
-created > 2026-09-01
-(decision in labels or opinion in labels) and body.lines > 200
+created > "2026-09-01"
+("decision" in labels or "opinion" in labels) and body.lines > 200
 ```
 
 The first two are the same question under two modelling choices — a word
 carried, or a dimension with one value. Both are a practice's to make and
 neither is the tool's; see [vocabulary](../vocabulary.md).
+
+Both of those lines are within what [batch 9](../../batches/9-find.md) builds.
+The rest of the block is not: `~`, the reserved operands `body`, `body.lines`
+and `created`, and `date()`. Quoting follows the grammar settled there — a bare
+word is a name, a quoted string is a value.
 
 **Flags could not express combination, and that is why this churned.** It was
 designed four times as a set of them — `--where`, `--contains`, `--contain-any`,

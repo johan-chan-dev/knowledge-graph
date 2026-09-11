@@ -58,6 +58,24 @@ precedes lookup.
 **Will be backed by** `batch 9 — find`, as `9_test.ts` in
 [`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
 
+## What it returns
+
+**One id per line, as `nodes list` does.** An empty result prints nothing and
+exits `0`, by the same rule. Same scope, same output — the action names the cost
+and nothing else.
+
+**It cannot return properties, and that is the model rather than a limit.** A
+column per name is a slot, and a node carrying none of that name would need a
+cell holding something. There is nothing legitimate to put there: the empty
+string is a legal value, so an absent property and `title: ""` would render
+identically — the null [`absence.md`](../design/absence.md) argued out of the
+store, let back in at the output door. `spec/api.md` states the rule the other
+outputs already follow: tab-separated columns are fields, properties are rows.
+
+So values for a matched set come from a loop over `kg node <id> --properties`.
+That is composition, which is what *stdout is the answer* is for — a second
+command is not a missing feature.
+
 ## An action, not a flag
 
 ```
@@ -213,8 +231,12 @@ different query, silently.
 ## What it leaves
 
 `in`'s semantics beyond the reserved keyword · `~` and the reserved operands
-`body`, `body.lines`, `body.size`, `created` · the ordering comparisons ·
-`date()`.
+`body`, `body.lines`, `body.size`, `created` · ordering the results by a
+property · `date()`.
+
+*Ordering* here is sorting, not `>` and `<` — those are built, and question 1
+needs them. [`comparison.md`](../design/parked/comparison.md) holds both under
+one title, which is where the ambiguity came from.
 
 The family reversed five times in a single sitting before a grammar settled it.
 What ships is the part that stopped moving.

@@ -161,7 +161,7 @@ EOF
 never otherwise. `isTerminal()` answers *is something attached* rather than *is
 content coming*, so an open pipe with nothing in it blocked forever.
 
-**An empty node is legal** — one carrying `kind: decision` with no prose yet is
+**An empty node is legal** — one carrying the label `decision` with no prose yet is
 a real thing. So the absence of `--stdin` is how you ask for one, and there is
 nothing to refuse: `node new --stdin` with nothing produces exactly what `node
 new` produces.
@@ -211,7 +211,7 @@ shape follows from the verb rather than from how many arguments arrived, so `set
 x auth` is a scalar and `add x auth` is a one-element list, and neither has to
 be inferred.
 
-**`add` and `remove` refuse a scalar** — `cannot add to kind: not a list`.
+**`add` and `remove` refuse a scalar** — `cannot add to title: not a list`.
 Promoting `auth` to `[auth, pattern]` would be the tool deciding what was meant.
 
 **Both are idempotent, and report the effective count.** Adding one already
@@ -378,17 +378,37 @@ stop reading, which then costs you the lines that matter.
 | `node <id>` | the content, byte for byte | its properties, rendered |
 | `node <id> --properties` | one `name: value` per line | — |
 | `node <id> write` | — | `replaced 210 bytes` |
-| `node <id> set` | — | `set kind`, or `replaced kind` |
-| `node <id> unset` | — | `unset kind`, or `kind was not set` |
+| `node <id> set` | — | `set title`, or `replaced title` |
+| `node <id> unset` | — | `unset title`, or `title was not set` |
 | `node <id> add` | — | `added 1 to labels`, or nothing if nothing changed |
 | `node <id> remove` | — | `removed 1 from labels`, or `…, labels is now unset` |
+| `node <id> label` | — | `labelled 1`, or nothing if nothing changed |
+| `node <id> unlabel` | — | `unlabelled 1`, or nothing if nothing changed |
+| `label <word>` | the description | — |
+| `label <word> write` | — | `wrote 64 bytes` |
+| `label <word> forget` | — | `forgot auth` |
+| `labels list` | word, count, first line — tab-separated | — |
+| `node <id> link` | the new link ids, one per line | — |
+| `node <id> links` / `backlinks` | type, link id, the other end — tab-separated | — |
+| `link <id>` | `type`, `from`, `to`, then one property per row | — |
+| `link <id> forget` | — | `forgot <id>` |
+| `link <id> set` / `unset` / `add` / `remove` | — | as `node <id>`'s |
+
+**Tab-separated columns are fields; properties are rows.** A column is only
+safe where every row has one by construction — `type`, link id and the other end
+for `links`; word, count and first line for `labels list`. Properties are open
+vocabulary and differ per node, so a grid over them would need a cell for a node
+carrying none, and that cell has nothing legitimate to hold: the empty string is
+a legal value, so an absent property and `title: ""` would render identically.
+`link <id>` is the shape that follows — the three fields first, then one property
+per row, the way `node <id> --properties` already prints.
 
 **A targeted write prints nothing.** Only `new` returns an id, because only
 there is the id new information; echoing back one the caller just supplied is
 noise. Exit `0` says it worked, the way `git add` does.
 
 **What a write reports is what changed, not what you asked for.** `replaced 210
-bytes` carries the size you displaced; `replaced kind` says the property already
+bytes` carries the size you displaced; `replaced title` says the property already
 existed. Both are facts you could not have had in advance, and they are what
 catches a write that meant to extend and shrank instead.
 
@@ -448,7 +468,7 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | bad property name | `not a property name: Valid_Until — expected a lowercase hyphenated token` | `1` |
 | empty stdin | `no content on stdin — did the command before the pipe fail?` | `1` |
 | bad property value | `not a property value: contains a control character — a value is a single line` | `1` |
-| `add`/`remove` on a scalar | `cannot add to kind: not a list` | `1` |
+| `add`/`remove` on a scalar | `cannot add to title: not a list` | `1` |
 | `--properties` off `node <id>` | `--properties belongs to \`kg node <id>\`` | `4` |
 | `write` without a source | `node <id> write needs --stdin — that is where the content comes from` | `4` |
 | empty stdin on `write` | `no content on stdin — did the command before the pipe fail?` | `1` |

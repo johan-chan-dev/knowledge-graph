@@ -36,7 +36,8 @@ front of you and of nothing else.
 | | |
 |---|---|
 | batches 1–5 | shipped — a space, properties, lists, no guessing, a declared entry point |
-| batch 6 | planned — [`find`](docs/batches/6-find.md) |
+| batches 6–8 | shipped — labels, relations, and someone else's graph imported as a conformance check |
+| batch 9 | planned — [`find`](docs/batches/9-find.md) |
 | plugin | **none published.** The tool comes first |
 
 ## There is no plugin, deliberately
