@@ -13,22 +13,25 @@ batch builds and what it leaves.
 $ kg node "$a" link --as supersedes --with-nodes "$b"
 01a08e3f-4c21-7bb0-9e7a-5d2f8c1a4e90
 
-$ kg node "$a" link --as cites --with-nodes "$b" "$c" --with-prop since 2026-09-10
+$ kg node "$a" link --as cites --with-nodes "$b" "$c" --with-properties since=2026-09-10 why=drift
 01a08e40-1f77-7a3e-b2c4-9e81d5a0f3b2
 01a08e41-88b3-7c19-a7de-0b4f2e6c9d15
 
 $ kg node "$a" links
-cites        01a08e40-1f77-…  → 01a084f0-63be-…
-cites        01a08e41-88b3-…  → 01a084f0-6401-…
-supersedes   01a08e3f-4c21-…  → 01a084f0-63be-…
+cites	01a08e40-1f77-…	01a084f0-63be-…
+cites	01a08e41-88b3-…	01a084f0-6401-…
+supersedes	01a08e3f-4c21-…	01a084f0-63be-…
 
 $ kg node "$b" backlinks
-cites        01a08e40-1f77-…  ← 01a084f0-631b-…
-supersedes   01a08e3f-4c21-…  ← 01a084f0-631b-…
+cites	01a08e40-1f77-…	01a084f0-631b-…
+supersedes	01a08e3f-4c21-…	01a084f0-631b-…
 
 $ kg node "$a" unlink --as supersedes --with-nodes "$b"
 unlinked 1
 ```
+
+Type, link id, other end — tab-separated, as `labels list` is. No arrows:
+`links` and `backlinks` already say which way it runs.
 
 And the refusals:
 
@@ -39,6 +42,9 @@ no such node: 01a08000-… in knowledge-graph
 $ kg node "$a" link --with-nodes "$b"
 link needs --as
 
+$ kg node "$a" link --as cites --with-nodes "$b" --with-properties drift
+not a property: drift — expected name=value
+
 $ kg node "$a" set links.supersedes x
 links is reserved — a relation is written with `link`
 ```
@@ -48,9 +54,18 @@ links is reserved — a relation is written with `link`
 
 ## It fixes how flags are declared first
 
-The surface above needs a variadic flag (`--with-nodes`), a repeated one
-(`--with-prop k=v`) and a valued one (`--as`). None of that is exotic; what
+The surface above needs two variadic flags (`--with-nodes`,
+`--with-properties`) and a valued one (`--as`). None of that is exotic; what
 blocks it is where the flag list lives.
+
+**A property arrives as `name=value`**, and the split is unambiguous rather than
+lucky: a name is `[a-z0-9]+(-[a-z0-9]+)*` so it can never contain `=`, and a
+value is single-line text, so cutting at the first `=` always cuts in the right
+place. `k='v v v'` works because the shell has already removed the quotes, and
+`k=a=b` gives the value `a=b`.
+
+That makes all three multi-value flags the **same shape**, so the tokeniser
+needs three kinds and not four: boolean, value, variadic.
 
 **Today a flag is declared in six places**, and three of them exist only to undo
 a fourth. `parse-args` is handed a **union of every flag in the tool**, so each
@@ -127,10 +142,16 @@ not symmetric, and the source is where the caller is standing.
 
 **Nothing across spaces.** A cross-boundary reference is a URL, not a uuid, so
 links never leave a space — which is exactly what makes storing both halves
-safe. Multi-space is [batch 9](README.md).
+safe. Multi-space is a later batch, unwritten.
 
 **No querying by relation.** [Batch 8](8-find.md) asks about one node's
 properties, and says so: traversal arrives as a command, not as pattern syntax.
+
+**`unlink` removes the link.** The record is deleted and both endpoints drop
+it. A word outlives its last use because vocabulary records what has been said;
+a link is not vocabulary, it is the relationship itself, so ending it ends the
+record — and an orphaned `links/<uuid>.json` nothing points at would be damage
+rather than history.
 
 **No editing a link after the fact.** The record has an id, so it is
 addressable, but every command here starts from a node and `kg link <id> set`

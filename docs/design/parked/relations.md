@@ -51,12 +51,12 @@ what would.
 `structure.md`'s test they qualify: edges becoming part of a node's shape is
 named there as the example of the format growing.
 
-**A surface the parser cannot express.** The natural form is
-`kg node <a> link --as <type> --with-nodes <b> --with-prop since 2026-09-10` —
-a variadic flag and a two-value repeated one, neither of which `parse-args`
-does. [`arguments`](arguments.md) records the tokeniser that would, and
-relations lean on it much harder than `--with-labels` did. Either that comes
-first, or this ships a narrower surface.
+**Per-command flag sets.** The surface wants two variadic flags and a valued
+one — `--as <type> --with-nodes <b> <c> --with-properties k=v k2=v2`. What
+blocks it is not the shapes but that `parse-args` is handed a union of every
+flag in the tool, so belonging is enforced after the parse instead of being it.
+[`arguments`](arguments.md) has the diagnosis; [batch
+7](../../batches/7-relations.md) does it first.
 
 ## Open
 
@@ -76,7 +76,12 @@ refused or merely wrong is undecided.
 
 **Editing a link's properties.** The record has an id, so it is addressable —
 but every command so far starts from a node, and `kg link <id> set` reintroduces
-a scope the surface had shed.
+a scope the surface had shed. Settled for now by setting them at `link` time.
+
+**Unlinking ends the link.** The record is deleted and both endpoints drop it. A
+label outlives its last use because vocabulary records what has been said; a
+link is the relationship itself, so an orphaned record nothing points at is
+damage rather than history.
 
 ## What would trigger it
 
