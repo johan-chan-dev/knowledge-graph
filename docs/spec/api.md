@@ -99,19 +99,40 @@ ambiguous.
 
 ```
 kg nodes list                            every id, in creation order
+kg nodes find <expression>               the ids of nodes matching a condition
 ```
 
 **It parses nothing.** The id is the filename, so enumerating is a directory
 read — a damaged node lists like any other, and only a command naming it can
 tell.
 
-**There is no filter.** `--where` shipped in batch 2 and was removed in
-[batch 4](../batches/4-stops-guessing.md): it implemented one member of a family
-— presence, absence, comparison, searching the body — whose vocabulary reversed
-five times in a single sitting. Shipped code for a parked design anchors what
-comes next around an arbitrary survivor, and this one produced a silent wrong
-answer against a list. Finding a node by anything but its id waits for
-[search](../design/parked/search.md).
+**An action, not a flag.** `list` reads the directory and parses nothing;
+`find` opens and parses every node. A flag would hide a thousandfold cost behind
+an option, so the difference is in the command where it is visible.
+
+**The expression is one argument, and both it and the whole of it must be
+quoted** — `>` and `<` are redirects, so `find score > 0.7` truncates a file
+named `0.7` and runs a different query. Single quotes outside: double quotes let
+the shell expand `$VAR`, backticks and `$( )` into the text being searched.
+
+**A bare word is a name, a quoted string is a value**, and each operator
+declares its literal — `=` and `!=` take text, `>` `<` `>=` `<=` take a bare
+numeral, `in` takes a quoted value on the left and a name on the right. A
+mismatch refuses before a file is opened. `not` binds tightest, then `and`, then
+`or`; `and`, `or`, `not` and `in` are spent as property names.
+
+**Absence is two-valued.** A comparison against an absent property is false and
+`not` flips it, so a query and its negation always partition the space. A value
+that will not take its operator's type simply does not match, which is the same
+rule rather than a second one. [`absence.md`](../design/absence.md) argues the
+choice.
+
+**`--where` shipped in batch 2 and was removed in
+[batch 4](../batches/4-stops-guessing.md)**, because it implemented one member
+of this family while the vocabulary was still reversing, and produced a silent
+wrong answer against a list. What is still parked is
+[search](../design/parked/search.md): `~` over prose, the reserved operands
+`body` and `created`, and ordering the results.
 
 **No cap.** The space is the scope; one too large to enumerate is saying
 something about how the material is organised, and hiding that would hide the
@@ -374,6 +395,7 @@ stop reading, which then costs you the lines that matter.
 | `space` | the readout | — |
 | `space init` | the readout | `initialised a git repository at …` *(only when it did)* |
 | `nodes list` | one id per line | — |
+| `nodes find` | the matching ids, one per line | `3 nodes could not be read` *(only when some did not)* |
 | `node new` | the new id | — |
 | `node <id>` | the content, byte for byte | its properties, rendered |
 | `node <id> --properties` | one `name: value` per line | — |
@@ -499,10 +521,6 @@ contract.
 
 **No query language.** Expressive enough for the hardest view is a larger thing
 than the practices it would serve.
-
-**`find` is not `nodes list`.** Filtering narrows a known set; `find` would locate an
-unknown one. The name is kept free for retrieval, which is a different operation
-and an open question.
 
 **No index.** Membership is computed at read time and stored nowhere. Should one
 ever be built it is an accelerator that may be deleted without notice, and no

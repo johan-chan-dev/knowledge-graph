@@ -8,6 +8,7 @@ import * as link from "./link.ts";
 import type { Entry } from "./frontmatter.ts";
 import { amend, create, isId, read, replace, type Uuid } from "./node.ts";
 import { parse } from "./expression.ts";
+import { matches } from "./evaluate.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -76,13 +77,30 @@ export async function nodesFind(cwd: string, expression: string): Promise<Outcom
 
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
+  const space = resolved.space;
 
-  // Refusing, not returning nothing: an empty answer to a well-formed query is
-  // indistinguishable from *no match*, which is the silent wrong answer batch 4
-  // removed `--where` for producing. An unbuilt half may say so; it may not lie.
-  return refused(
-    "find is not built yet — the expression is well formed, but nothing evaluates it",
-  );
+  // One id per line, as `nodes list` returns — the id is the one thing every
+  // node has, which is why it is the only thing a set-shaped command can
+  // return without inventing a slot. `docs/batches/9-find.md` has the argument.
+  const matched: string[] = [];
+  let damaged = 0;
+  for (const id of await ids(space)) {
+    if (!isId(id)) continue;
+    const found = await read(space, id);
+    if (found.kind !== "read") {
+      damaged++;
+      continue;
+    }
+    if (matches(parsed.expr, found.properties)) matched.push(id);
+  }
+
+  // A node that will not parse cannot be tested, and dropping it in silence
+  // would shorten the answer without saying so. stdout stays the answer; the
+  // count goes to stderr, which is where what the caller could not have worked
+  // out belongs.
+  return damaged === 0
+    ? lines(matched)
+    : lines(matched, `${damaged} node${damaged === 1 ? "" : "s"} could not be read`);
 }
 
 /** A refusal shared by every command that names a node whose file will not

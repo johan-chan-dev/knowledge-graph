@@ -111,30 +111,65 @@ Deno.test({
     }
     assertEquals(checked, 171, "every node was asked");
 
-    // The guide's own questions — see `questions.md`. Four are answerable
-    // today; the rest turn on `find`, and the workaround each needs here is
-    // what batch 9 removes.
-    const scan = async (text: string) => {
-      for (const id of (await kg(dir, ["nodes", "list"])).trim().split("\n")) {
-        if ((await kg(dir, ["node", id, "--properties"])).includes(text)) return id;
-      }
-      throw new Error(`no node holding ${text}`);
-    };
+    // The guide's own questions — see `questions.md`. Nine of the thirteen
+    // turn on `find` and nothing else.
     const rows = (text: string) => text.trim() === "" ? [] : text.trim().split("\n");
+    const find = async (expression: string) =>
+      rows(await kg(dir, ["nodes", "find", expression]));
+    const only = async (expression: string) => {
+      const found = await find(expression);
+      assertEquals(found.length, 1, expression);
+      return found[0]!;
+    };
+    const shown = async (id: string, name: string) =>
+      (await kg(dir, ["node", id, "--properties"]))
+        .split("\n").find((l) => l.startsWith(`${name}: `))?.slice(name.length + 2);
 
-    const cloudAtlas = await scan("Cloud Atlas");
+    // Q1, Q2, Q3 — movies released after 2000: listed, and counted by `wc -l`
+    // on the caller's side, because one id per line is what stdout returns.
+    assertEquals((await find("released > 2000")).length, 12);
+
+    // Q6, Q7 — every person, and every film with its title and released year.
+    // The projection is the caller's loop; `find` selects and stops there.
+    assertEquals((await find('"person" in labels')).length, 133);
+    const films = await find('"movie" in labels');
+    assertEquals(films.length, 38);
+    for (const film of films) {
+      assertEquals(typeof await shown(film, "title"), "string", `title for ${film}`);
+    }
+
+    // Q8 — the film titled Cloud Atlas. 171 reads by hand before this.
+    const cloudAtlas = await only('title = "Cloud Atlas"');
+
+    // Q9 — films released between 2010 and 2015, which is that same film.
+    assertEquals(await find("released > 2010 and released < 2015"), [cloudAtlas]);
+
+    // Q4, Q5 — people who directed, and acted in, a film released after 2010.
+    // `find` chooses the films; the tab-separated backlinks do the rest.
+    const byRelation = async (film: string, type: string) => {
+      const people: string[] = [];
+      for (const row of rows(await kg(dir, ["node", film, "backlinks"]))) {
+        const [kind, , person] = row.split("\t");
+        if (kind === type) people.push((await shown(person!, "name"))!);
+      }
+      return people.sort();
+    };
+    const after2010 = await find("released > 2010");
+    assertEquals(after2010, [cloudAtlas]);
+    assertEquals(await byRelation(after2010[0]!, "directed"), [
+      "Lana Wachowski",
+      "Lilly Wachowski",
+      "Tom Tykwer",
+    ]);
+    assertEquals((await byRelation(after2010[0]!, "acted-in")).length, 4);
 
     // Q10 — directors of Cloud Atlas. Tab-separated output filters by pipe, so
     // `backlinks` needs no type flag of its own.
-    const directors: string[] = [];
-    for (const row of rows(await kg(dir, ["node", cloudAtlas, "backlinks"]))) {
-      const [type, , other] = row.split("\t");
-      if (type !== "directed") continue;
-      const name = (await kg(dir, ["node", other!, "--properties"]))
-        .split("\n").find((l) => l.startsWith("name: "))!.slice(6);
-      directors.push(name);
-    }
-    assertEquals(directors.sort(), ["Lana Wachowski", "Lilly Wachowski", "Tom Tykwer"]);
+    assertEquals(await byRelation(cloudAtlas, "directed"), [
+      "Lana Wachowski",
+      "Lilly Wachowski",
+      "Tom Tykwer",
+    ]);
 
     // Q12 — everyone connected to Cloud Atlas, and by what.
     const byType = new Map<string, number>();
@@ -151,8 +186,9 @@ Deno.test({
     ]);
 
     // Q11 — Tom Hanks' co-actors. Two hops, and the shape a script has to take
-    // while traversal lives in commands rather than in a pattern.
-    const tom = await scan("Tom Hanks");
+    // while traversal lives in commands rather than in a pattern. Q13, three
+    // hops from Kevin Bacon, is the one this deliberately cannot reach.
+    const tom = await only('name = "Tom Hanks"');
     const coactors = new Set<string>();
     for (const row of rows(await kg(dir, ["node", tom, "links"]))) {
       const [type, , film] = row.split("\t");

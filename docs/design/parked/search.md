@@ -1,7 +1,7 @@
 # Searching
 
 Retrieval over prose, and presence tests over properties. Designed 2026-09-08;
-[batch 9](../../batches/9-find.md) builds the presence and comparison half, and
+[batch 9](../../batches/9-find.md) built the presence and comparison half, and
 this page keeps the rest.
 
 ```
@@ -23,7 +23,7 @@ The first two are the same question under two modelling choices — a word
 carried, or a dimension with one value. Both are a practice's to make and
 neither is the tool's; see [vocabulary](../vocabulary.md).
 
-Both of those lines are within what [batch 9](../../batches/9-find.md) builds.
+Both of those lines are within what [batch 9](../../batches/9-find.md) built.
 The rest of the block is not: `~`, the reserved operands `body`, `body.lines`
 and `created`, and `date()`. Quoting follows the grammar settled there — a bare
 word is a name, a quoted string is a value.

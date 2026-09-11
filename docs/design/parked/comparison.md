@@ -2,10 +2,11 @@
 
 Comparing values, and ordering by one.
 
-> **Half of this is built.** The comparison operators are
-> [batch 9](../../batches/9-find.md)'s, and the rules below are binding on it —
-> what an operator does with a value that will not take its type is settled
-> here. Ordering has no caller yet and is what keeps the page parked.
+> **Half of this is built.** The comparison operators shipped with
+> [batch 9](../../batches/9-find.md), and the rule below is what it implements —
+> a value that will not take its operator's type simply does not match, held by
+> `src/evaluate_test.ts`. Ordering has no caller yet and is what keeps the page
+> parked.
 >
 > It was written when filtering was `--where`, a flag
 > [batch 4](../../batches/4-stops-guessing.md) removed. The rules did not change

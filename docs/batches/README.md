@@ -19,7 +19,7 @@ history: what a batch was for, what building it forced, what it settled.
 | 6 | [the labels system](6-labels.md) | shipped |
 | 7 | [relations](7-relations.md) | shipped |
 | 8 | [someone else’s graph](8-movies.md) | shipped |
-| 9 | [find](9-find.md) | planned |
+| 9 | [find](9-find.md) | shipped |
 
 ## Read the parked pages before declaring a question open
 

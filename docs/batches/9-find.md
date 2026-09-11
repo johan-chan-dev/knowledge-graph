@@ -2,7 +2,7 @@
 
 **Done when** you can ask which nodes match a condition over their properties.
 
-Planned. The fuller argument is in
+The fuller argument is in
 [`design/parked/search.md`](../design/parked/search.md); what this batch builds
 is below, and what it leaves is named at the end.
 
@@ -55,8 +55,8 @@ unexpected end of expression — `and` needs something after it
 Every one refuses **before a file is opened**, by the rule that validation
 precedes lookup.
 
-**Will be backed by** `batch 9 — find`, as `9_test.ts` in
-[`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
+**Backed by** [`9_test.ts`](../../tool/tests/batches/9_test.ts), and by the
+guide's nine questions in [`movies_test.ts`](../../tool/conformance/movies_test.ts).
 
 ## What it returns
 
