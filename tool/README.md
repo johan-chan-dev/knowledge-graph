@@ -4,6 +4,12 @@ Deno and TypeScript, compiled to a binary. `deno.json`'s imports are the whole
 dependency list: `@std/*`, and [Zod](https://jsr.io/@zod/zod), which holds the
 argument shapes in `src/surface.ts`.
 
+Argument parsing is `src/argv.ts` rather than a library, because **a flag
+belongs to a command**: there is no global flag list for a parser to be handed,
+so what is left is splitting one command line against one command's declared
+flags. `docs/design/parked/arguments.md` has the measurements against the
+alternatives, and what would reverse the decision.
+
 | | |
 |---|---|
 | `deno task check` | typecheck |

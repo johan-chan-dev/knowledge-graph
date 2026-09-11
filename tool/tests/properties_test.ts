@@ -78,9 +78,14 @@ Deno.test("a property name must be a lowercase hyphenated token", async () => {
     assertEquals(exitCode(outcome), 1, name);
     assertStringIncludes(message(outcome), "expected a lowercase hyphenated token");
   }
-  // A leading dash never reaches validation — the parser reads it as a flag,
-  // which is why a name shaped like one is unusable rather than merely refused.
-  assertEquals(exitCode(await kg("node", id, "set", "-leading", "x")), 4);
+  // A single dash is not a flag here: the tool's only one is `-C`, which is
+  // global and taken before a command is matched. So `-leading` reaches
+  // validation and is told what is wrong with it, and a negative value works.
+  const dashed = await kg("node", id, "set", "-leading", "x");
+  assertEquals(exitCode(dashed), 1);
+  assertStringIncludes(message(dashed), "not a property name: -leading");
+  assertEquals(exitCode(await kg("node", id, "set", "score", "-1.5")), 0);
+  assertEquals(exitCode(await kg("node", id, "unset", "score")), 0);
   assertEquals(
     stdout(await kg("node", id, "--properties")),
     "",

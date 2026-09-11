@@ -1,7 +1,7 @@
-import { parseArgs } from "@std/cli/parse-args";
 import { exitCode, lines, type Outcome, refused, usage } from "./outcome.ts";
 import { isDir } from "./space.ts";
-import { check, help, match } from "./surface.ts";
+import { check, declares, help, match } from "./surface.ts";
+import { globals, head, split } from "./argv.ts";
 
 /** Read only when told to. `isTerminal()` answers *is something attached*,
  * not *is content coming* — so an open pipe with nothing in it blocked forever,
@@ -19,52 +19,60 @@ async function readStdin(): Promise<string> {
   return new TextDecoder().decode(joined);
 }
 
-/** Parse, match, check, run. Each step's rules live in `surface.ts`, so what is
- * left here is the two things a table cannot hold: the process, and the shell. */
+/**
+ * Globals, then the command, then that command's own flags.
+ *
+ * The order is git's — `git -C path commit -m msg`, where `-C` is git's and
+ * `-m` is `commit`'s. It is also what lets a flag be parsed against the command
+ * that owns it, which is the whole of why a flag accepted where it means
+ * nothing is no longer possible.
+ */
 export async function run(argv: string[]): Promise<Outcome> {
-  let unknownFlag: string | undefined;
-  const flags = parseArgs(argv, {
-    boolean: ["help", "stdin", "properties"],
-    // `_` keeps positionals as text. Without it parseArgs runs
-    // `isNumber(arg) ? Number(arg) : arg` over every one, so `set version 1.10`
-    // stores 1.1 and a ticket past 2^53 gains invented digits. The value is
-    // stored as given, and that starts here rather than in the serialiser.
-    string: ["C", "with-labels", "_"],
-    collect: ["with-labels"],
-    unknown: (arg) => {
-      if (arg.startsWith("-")) unknownFlag = arg;
-      return true;
-    },
-  });
-  if (unknownFlag !== undefined) {
-    return usage(`unknown flag: ${unknownFlag}\n\n${help()}`);
-  }
+  const outer = globals(argv);
+  if (outer.bad !== undefined) return usage(`${outer.bad}\n\n${help()}`);
   // Asking for help is not a usage error: it answers on stdout and succeeds,
   // so `kg --help | less` works. Help shown *because* a call was wrong is the
   // other thing, and goes to stderr with the rest of the refusal.
-  if (flags.help) return lines([help()]);
+  if (outer.help) return lines([help()]);
 
   // `-C` is git's: run this as if from there, resolved before anything else.
-  const cwd = flags.C ?? Deno.cwd();
+  const cwd = outer.cwd ?? Deno.cwd();
   // Without this the throw from a missing cwd is caught downstream as a missing
   // git binary, and the tool reports the wrong thing entirely.
-  if (flags.C !== undefined && !await isDir(flags.C)) {
-    return refused(`not a directory: ${flags.C}`);
+  if (outer.cwd !== undefined && !await isDir(outer.cwd)) {
+    return refused(`not a directory: ${outer.cwd}`);
   }
 
-  const matched = match(flags._.map(String));
+  // What identifies a command carries no dashes and comes first, so the command
+  // is known before any of its flags are read.
+  const { path, rest } = head(outer.rest);
+  const matched = match([...path]);
   // Every usage message ends in the full help: the caller got the form wrong,
   // and the forms are the answer.
   if (matched.kind === "usage") {
     return usage(matched.message === "" ? help() : `${matched.message}\n\n${help()}`);
   }
 
-  const { command, args } = matched;
-  const checked = check(command, matched.id, args, {
-    stdin: flags.stdin,
-    properties: flags.properties,
-    "with-labels": flags["with-labels"] ?? [],
-  });
+  const { command } = matched;
+  const parsed = split(rest, command.flags);
+  if (parsed.kind === "unknown") {
+    const elsewhere = declares(parsed.flag.slice(2));
+    return usage(
+      elsewhere.length > 0
+        ? `${parsed.flag} belongs to ${elsewhere.join(" and ")}`
+        : `unknown flag: ${parsed.flag}\n\n${help()}`,
+    );
+  }
+  if (parsed.kind === "missing") {
+    return usage(`${parsed.flag} needs a value`);
+  }
+
+  const checked = check(
+    command,
+    matched.id,
+    [...matched.args, ...parsed.positionals],
+    parsed.flags,
+  );
   if (checked.kind === "refused") return refused(checked.message);
   if (checked.kind === "usage") return usage(checked.message);
 
@@ -76,8 +84,8 @@ export async function run(argv: string[]): Promise<Outcome> {
     id: checked.id ?? "",
     labels: checked.labels,
     args: checked.args,
-    properties: flags.properties,
-    stdin: () => flags.stdin ? readStdin() : Promise.resolve(""),
+    flags: parsed.flags,
+    stdin: () => parsed.flags.stdin === true ? readStdin() : Promise.resolve(""),
   });
 }
 

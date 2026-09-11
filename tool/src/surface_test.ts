@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "@std/assert";
-import { check, COMMANDS, help, match } from "./surface.ts";
+import { check, COMMANDS, declares, help, match } from "./surface.ts";
 
 const A = "01a08853-987c-74a6-8e1c-77aec205a942";
 
@@ -29,9 +29,7 @@ Deno.test("a command's form and its argument schema agree", () => {
     const matched = match(typed(command.form));
     assert(matched.kind === "matched");
     const checked = check(command, matched.id, matched.args, {
-      stdin: command.flags.includes("stdin"),
-      properties: false,
-      "with-labels": [],
+      ...(command.flags.stdin ? { stdin: true as const } : {}),
     });
     assertEquals(checked.kind, "ok", `${command.form}: ${JSON.stringify(checked)}`);
   }
@@ -52,18 +50,19 @@ Deno.test("no two commands answer to the same words", () => {
   assertEquals(new Set(keys).size, keys.length);
 });
 
-Deno.test("a flag is refused by every command that does not declare it", () => {
+// A flag belongs to a command, so one that does not is not parseable there at
+// all — `split` reports it unknown before `check` is reached. What remains
+// checkable here is that every flag a command declares has a shape, and that
+// `declares` can still say where a flag does belong.
+Deno.test("every declared flag has a shape, and can be traced to its commands", () => {
   for (const command of COMMANDS) {
-    for (const flag of ["stdin", "properties", "with-labels"] as const) {
-      if (command.flags.includes(flag)) continue;
-      const matched = match(typed(command.form));
-      assert(matched.kind === "matched");
-      const checked = check(command, matched.id, matched.args, {
-        stdin: flag === "stdin",
-        properties: flag === "properties",
-        "with-labels": flag === "with-labels" ? ["auth"] : [],
-      });
-      assertEquals(checked.kind, "usage", `${command.form} accepted --${flag}`);
+    for (const [name, shape] of Object.entries(command.flags)) {
+      assertEquals(
+        ["boolean", "value", "variadic"].includes(shape.kind),
+        true,
+        `${command.form}: --${name}`,
+      );
+      assert(declares(name).length > 0, `--${name} traces to no command`);
     }
   }
 });

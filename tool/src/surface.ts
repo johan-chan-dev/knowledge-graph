@@ -2,6 +2,7 @@ import { z } from "@zod/zod";
 import { isLabel, isName, isValue, reservedReason } from "./frontmatter.ts";
 import type { Label } from "./frontmatter.ts";
 import { isId } from "./node.ts";
+import type { Flags } from "./argv.ts";
 import type { Outcome } from "./outcome.ts";
 import {
   labelForget,
@@ -59,8 +60,6 @@ const Value = z.string().refine(isValue, {
   error: "not a property value: contains a control character — a value is a single line",
 });
 
-export type Flag = "stdin" | "properties" | "with-labels";
-
 /** What a checked call hands its command. `stdin` is a thunk so a command that
  * does not read it cannot block on a pipe that never closes.
  *
@@ -71,7 +70,8 @@ export type Call<A extends readonly unknown[] = readonly string[], I = string> =
   readonly cwd: string;
   readonly id: I;
   readonly args: A;
-  readonly properties: boolean;
+  /** What this command's own flags produced. */
+  readonly flags: Readonly<Record<string, true | string | string[]>>;
   readonly labels: Label[];
   readonly stdin: () => Promise<string>;
 };
@@ -92,8 +92,9 @@ export type Command<A extends readonly unknown[] = readonly string[], I = string
    * different things: too few is the form, too many is usually shell quoting.
    * `many` is absent where the schema accepts any number. */
   readonly arity?: { readonly few: string; readonly many?: string };
-  /** Flags this command accepts. Anywhere else the flag is refused. */
-  readonly flags: readonly Flag[];
+  /** This command's flags, with their shapes. A flag is parseable here and
+   * nowhere else — there is no global list. */
+  readonly flags: Flags;
   /** `--stdin` is not optional here. */
   readonly needsStdin?: boolean;
   /** The same command under a flag. Separate help lines because that is how a
@@ -123,7 +124,7 @@ export const COMMANDS: readonly Command[] = [
     run: ({ cwd }) => space(cwd),
     summary: "what and where this space is",
     scope: "space",
-    flags: [],
+    flags: {},
   }),
   command({
     form: "space init",
@@ -131,7 +132,7 @@ export const COMMANDS: readonly Command[] = [
     summary: "create one",
     scope: "space",
     action: "init",
-    flags: [],
+    flags: {},
   }),
   command({
     form: "nodes list",
@@ -139,7 +140,7 @@ export const COMMANDS: readonly Command[] = [
     summary: "every id, in creation order",
     scope: "nodes",
     action: "list",
-    flags: [],
+    flags: {},
   }),
   command({
     form: "node new",
@@ -147,7 +148,10 @@ export const COMMANDS: readonly Command[] = [
     summary: "create an empty one",
     scope: "node",
     action: "new",
-    flags: ["stdin", "with-labels"],
+    flags: {
+      stdin: { kind: "boolean" },
+      "with-labels": { kind: "variadic" },
+    },
     variants: [
       { form: "node new --stdin", summary: "…with content read from stdin" },
       { form: "node new --with-labels <word>...", summary: "…carrying those words" },
@@ -155,11 +159,11 @@ export const COMMANDS: readonly Command[] = [
   }),
   command({
     form: "node <id>",
-    run: ({ cwd, id, properties }) => node(cwd, id, properties),
+    run: ({ cwd, id, flags }) => node(cwd, id, flags.properties === true),
     summary: "the content, properties on stderr",
     scope: "node",
     id: Id,
-    flags: ["properties"],
+    flags: { properties: { kind: "boolean" } },
     variants: [{ form: "node <id> --properties", summary: "the properties instead" }],
   }),
   command({
@@ -169,7 +173,7 @@ export const COMMANDS: readonly Command[] = [
     scope: "node",
     id: Id,
     action: "write",
-    flags: ["stdin"],
+    flags: { stdin: { kind: "boolean" } },
     needsStdin: true,
   }),
   command({
@@ -184,7 +188,7 @@ export const COMMANDS: readonly Command[] = [
       few: "node <id> set needs a name and a value",
       many: "node <id> set takes one value — quote it if it contains spaces",
     },
-    flags: [],
+    flags: {},
   }),
   command({
     form: "node <id> unset <name>",
@@ -198,7 +202,7 @@ export const COMMANDS: readonly Command[] = [
       few: "node <id> unset needs a name",
       many: "node <id> unset takes one name",
     },
-    flags: [],
+    flags: {},
   }),
   command({
     form: "node <id> add <name> <value>...",
@@ -209,7 +213,7 @@ export const COMMANDS: readonly Command[] = [
     action: "add",
     args: z.tuple([Name]).rest(Value),
     arity: { few: "node <id> add needs a name and at least one value" },
-    flags: [],
+    flags: {},
   }),
   command({
     form: "node <id> remove <name> <value>...",
@@ -220,7 +224,7 @@ export const COMMANDS: readonly Command[] = [
     action: "remove",
     args: z.tuple([Name]).rest(Value),
     arity: { few: "node <id> remove needs a name and at least one value" },
-    flags: [],
+    flags: {},
   }),
   command({
     form: "node <id> label <word>...",
@@ -230,7 +234,7 @@ export const COMMANDS: readonly Command[] = [
     action: "label",
     args: z.tuple([Word]).rest(Word),
     arity: { few: "node <id> label needs at least one word" },
-    flags: [],
+    flags: {},
     run: ({ cwd, id, args }) => nodeLabel(cwd, id, args as Label[]),
   }),
   command({
@@ -241,7 +245,7 @@ export const COMMANDS: readonly Command[] = [
     action: "unlabel",
     args: z.tuple([Word]).rest(Word),
     arity: { few: "node <id> unlabel needs at least one word" },
-    flags: [],
+    flags: {},
     run: ({ cwd, id, args }) => nodeUnlabel(cwd, id, args as Label[]),
   }),
   command({
@@ -249,7 +253,7 @@ export const COMMANDS: readonly Command[] = [
     summary: "every word, its count, its first line",
     scope: "labels",
     action: "list",
-    flags: [],
+    flags: {},
     run: ({ cwd }) => labelsList(cwd),
   }),
   command({
@@ -257,7 +261,7 @@ export const COMMANDS: readonly Command[] = [
     summary: "what the word means here",
     scope: "label",
     id: Word,
-    flags: [],
+    flags: {},
     run: ({ cwd, id }) => labelRead(cwd, id),
   }),
   command({
@@ -266,7 +270,7 @@ export const COMMANDS: readonly Command[] = [
     scope: "label",
     id: Word,
     action: "write",
-    flags: ["stdin"],
+    flags: { stdin: { kind: "boolean" } },
     needsStdin: true,
     run: async ({ cwd, id, stdin }) => labelWrite(cwd, id, await stdin()),
   }),
@@ -276,7 +280,7 @@ export const COMMANDS: readonly Command[] = [
     scope: "label",
     id: Word,
     action: "forget",
-    flags: [],
+    flags: {},
     run: ({ cwd, id }) => labelForget(cwd, id),
   }),
 ];
@@ -381,32 +385,19 @@ export type Checked =
   | { readonly kind: "usage"; readonly message: string };
 
 /**
- * Flag placement, then the id, then the arguments — all read off the entry.
+ * The id, the flag values, then the arguments — all read off the entry.
  *
- * A flag accepted where it means nothing returned a plausible answer, which is
- * worse than refusing. Placement is checked here rather than at the flag's
- * declaration, because a flag is global to the parser and local to a command.
+ * There is no placement check any more. A flag belongs to a command, so one
+ * that does not belong was never parseable; `argv.ts` reports it unknown and
+ * `declares` says where it would have been legal.
  */
 export function check(
   command: Command,
   id: string | undefined,
   args: readonly string[],
-  given: {
-    readonly stdin: boolean;
-    readonly properties: boolean;
-    readonly "with-labels": readonly string[];
-  },
+  flags: Readonly<Record<string, true | string | string[]>>,
 ): Checked {
-  let checkedId: string | undefined;
-  for (const flag of ["stdin", "properties", "with-labels"] as const) {
-    const used = flag === "with-labels" ? given[flag].length > 0 : given[flag];
-    if (used && !command.flags.includes(flag)) {
-      const where = COMMANDS.filter((other) => other.flags.includes(flag))
-        .map((other) => `\`kg ${other.form.replace(` --${flag}`, "")}\``);
-      return { kind: "usage", message: `--${flag} belongs to ${where.join(" and ")}` };
-    }
-  }
-  if (command.needsStdin === true && !given.stdin) {
+  if (command.needsStdin === true && flags.stdin !== true) {
     return {
       kind: "usage",
       message: `${
@@ -415,6 +406,7 @@ export function check(
     };
   }
 
+  let checkedId: string | undefined;
   if (id !== undefined) {
     if (command.id === undefined) {
       return { kind: "usage", message: `${command.scope} takes no identifier` };
@@ -429,14 +421,12 @@ export function check(
     checkedId = parsed.data;
   }
 
-  const wanted = command.flags.includes("with-labels");
-  const words = wanted ? [...given["with-labels"], ...args] : [];
+  // A flag's values are checked here for the same reason an argument's are: the
+  // door is where a string becomes a checked thing.
   const labels: Label[] = [];
-  if (wanted) {
-    if (given["with-labels"].length > 0 && words.length === 0) {
-      return { kind: "usage", message: "--with-labels needs at least one word" };
-    }
-    for (const word of words) {
+  const given = flags["with-labels"];
+  if (given !== undefined) {
+    for (const word of Array.isArray(given) ? given : [String(given)]) {
       const parsed = Word.safeParse(word);
       if (!parsed.success) {
         return {
@@ -446,7 +436,6 @@ export function check(
       }
       labels.push(parsed.data as Label);
     }
-    return { kind: "ok", id: checkedId, args: [], labels };
   }
 
   if (command.args === undefined) {
@@ -461,8 +450,6 @@ export function check(
 
   // A wrong count is a usage error and a wrong argument is a refusal: one means
   // the caller does not know the form, the other that it broke a rule.
-  // A failed parse always carries an issue, but the type does not say so, and
-  // inventing a dead branch to prove it is worse than defaulting the message.
   const issue = parsed.error.issues[0];
   const missing = issue?.code === "too_small" ||
     (issue?.code === "invalid_type" && args[Number(issue.path[0])] === undefined);
@@ -471,4 +458,11 @@ export function check(
     return { kind: "usage", message: said ?? `kg ${command.form}` };
   }
   return { kind: "refused", message: issue?.message ?? `kg ${command.form}` };
+}
+
+/** Which commands declare a flag — so an unknown one is still answered with
+ * where it does belong, not only that it does not belong here. */
+export function declares(flag: string): string[] {
+  return COMMANDS.filter((command) => flag in command.flags)
+    .map((command) => `\`kg ${command.form.replace(` --${flag}`, "")}\``);
 }
