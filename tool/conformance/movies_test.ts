@@ -111,6 +111,59 @@ Deno.test({
     }
     assertEquals(checked, 171, "every node was asked");
 
+    // The guide's own questions — see `questions.md`. Four are answerable
+    // today; the rest turn on `find`, and the workaround each needs here is
+    // what batch 9 removes.
+    const scan = async (text: string) => {
+      for (const id of (await kg(dir, ["nodes", "list"])).trim().split("\n")) {
+        if ((await kg(dir, ["node", id, "--properties"])).includes(text)) return id;
+      }
+      throw new Error(`no node holding ${text}`);
+    };
+    const rows = (text: string) => text.trim() === "" ? [] : text.trim().split("\n");
+
+    const cloudAtlas = await scan("Cloud Atlas");
+
+    // Q10 — directors of Cloud Atlas. Tab-separated output filters by pipe, so
+    // `backlinks` needs no type flag of its own.
+    const directors: string[] = [];
+    for (const row of rows(await kg(dir, ["node", cloudAtlas, "backlinks"]))) {
+      const [type, , other] = row.split("\t");
+      if (type !== "directed") continue;
+      const name = (await kg(dir, ["node", other!, "--properties"]))
+        .split("\n").find((l) => l.startsWith("name: "))!.slice(6);
+      directors.push(name);
+    }
+    assertEquals(directors.sort(), ["Lana Wachowski", "Lilly Wachowski", "Tom Tykwer"]);
+
+    // Q12 — everyone connected to Cloud Atlas, and by what.
+    const byType = new Map<string, number>();
+    for (const row of rows(await kg(dir, ["node", cloudAtlas, "backlinks"]))) {
+      const type = row.split("\t")[0]!;
+      byType.set(type, (byType.get(type) ?? 0) + 1);
+    }
+    assertEquals([...byType.entries()].sort(), [
+      ["acted-in", 4],
+      ["directed", 3],
+      ["produced", 1],
+      ["reviewed", 1],
+      ["wrote", 1],
+    ]);
+
+    // Q11 — Tom Hanks' co-actors. Two hops, and the shape a script has to take
+    // while traversal lives in commands rather than in a pattern.
+    const tom = await scan("Tom Hanks");
+    const coactors = new Set<string>();
+    for (const row of rows(await kg(dir, ["node", tom, "links"]))) {
+      const [type, , film] = row.split("\t");
+      if (type !== "acted-in") continue;
+      for (const back of rows(await kg(dir, ["node", film!, "backlinks"]))) {
+        const [t, , person] = back.split("\t");
+        if (t === "acted-in" && person !== tom) coactors.add(person!);
+      }
+    }
+    assertEquals(coactors.size, 34);
+
     await Deno.remove(dir, { recursive: true });
   },
 });

@@ -5,6 +5,24 @@
 Planned, and deliberately the first two tiers of a design that has five —
 see [`design/parked/search.md`](../design/parked/search.md).
 
+## What it has to answer
+
+Neo4j ships the movies dataset with a guide, and the guide asks thirteen
+questions. They are this batch's acceptance criteria, listed with their expected
+answers in [`tool/conformance/questions.md`](../../tool/conformance/questions.md)
+— because a grammar designed from operators and precedence had never been
+checked against anything anyone wanted to know.
+
+**Nine of the thirteen turn on `find` and nothing else.** Four already work,
+because `links` and `backlinks` print tab-separated and pipe — no traversal
+command needs adding. And every selection they need is tiers 1 and 2 exactly as
+specified below: `title = "Cloud Atlas"`, `released > 2000`, `released > 2010 and
+released < 2015`. The grammar was right; it was unverified.
+
+One question — *everything three hops from Kevin Bacon* — stays out of reach,
+which is the measured price of putting traversal in a command rather than in
+pattern syntax.
+
 ## What it should look like
 
 ```console
