@@ -1,6 +1,9 @@
 # Further out
 
-Relations. Dependencies between spaces — `mount`, `unmount`, `obtain`, and the
+Relations moved out to [relations](relations.md) — they are one space's
+concern, and were only ever here because nothing had separated them.
+
+Dependencies between spaces — `mount`, `unmount`, `obtain`, and the
 manifest that declares them. Integrity checking. Whatever policy decides which
 properties are legitimate — a practice-blind tool cannot know a field is a
 forgery, and the guard for that lives above this layer.
