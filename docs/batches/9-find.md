@@ -2,8 +2,9 @@
 
 **Done when** you can ask which nodes match a condition over their properties.
 
-Planned, and deliberately the first two tiers of a design that has five —
-see [`design/parked/search.md`](../design/parked/search.md).
+Planned. The fuller argument is in
+[`design/parked/search.md`](../design/parked/search.md); what this batch builds
+is below, and what it leaves is named at the end.
 
 ## What it has to answer
 
@@ -15,8 +16,8 @@ checked against anything anyone wanted to know.
 
 **Nine of the thirteen turn on `find` and nothing else.** Four already work,
 because `links` and `backlinks` print tab-separated and pipe — no traversal
-command needs adding. And every selection they need is tiers 1 and 2 exactly as
-specified below: `title = "Cloud Atlas"`, `released > 2000`, `released > 2010 and
+command needs adding. And every selection they need is specified below exactly
+as it stands: `title = "Cloud Atlas"`, `released > 2000`, `released > 2010 and
 released < 2015`. The grammar was right; it was unverified.
 
 One question — *everything three hops from Kevin Bacon* — stays out of reach,
@@ -35,26 +36,19 @@ $ kg nodes find 'retired'
 $ kg nodes find '"decision" in labels and not retired'
 01a084f0-631b-7bba-a6fe-81d79faedbde
 
-$ kg nodes find 'kind = "decision" and score > 0.7'
+$ kg nodes find '"decision" in labels and score > 0.7'
 ```
-
-**Both classification shapes are above on purpose.** A practice that carries
-words asks `"decision" in labels`; a practice that chose a dimension asks
-`kind = "decision"`. [`design/vocabulary.md`](../design/vocabulary.md) names the
-query as exactly where the two diverge, so this document shows both rather than
-teaching one by using it everywhere. Neither `labels` nor `kind` is a word the
-tool knows — both are property names somebody picked.
 
 And the refusals, which are half of what it decides:
 
 ```console
-$ kg nodes find 'kind = decision'
-not a value: decision — `=` compares text, write "decision"
+$ kg nodes find 'title = Matrix'
+not a value: Matrix — `=` compares text, write "Matrix"
 
 $ kg nodes find 'score > "0.7"'
 not a number: "0.7" — `>` compares numbers, drop the quotes
 
-$ kg nodes find 'kind = "decision" and'
+$ kg nodes find 'retired and'
 unexpected end of expression — `and` needs something after it
 ```
 
@@ -82,7 +76,7 @@ have been.
 ## Names are bare, values are quoted
 
 ```
-kind = "decision"          a name, an operator, a value
+title = "Cloud Atlas"      a name, an operator, a value
 retired                    a name alone — presence
 "auth" in labels           a value, an operator, a name
 score > 0.7                a bare numeral is a number
@@ -94,8 +88,8 @@ value.** Nothing depends on where a token appears, so there are no contextual
 keywords and `not` needs no lookahead to tell a negation from a property called
 `not`.
 
-It also makes the two operand orders self-explaining: `kind = "decision"` and
-`"auth" in labels` read differently, and the quoting says which side is which
+It also makes the two operand orders self-explaining: `title = "Cloud Atlas"`
+and `"auth" in labels` read differently, and the quoting says which side is which
 without anyone having to remember.
 
 **Keywords are reserved as property names** — `and`, `or`, `not`, `in`. Four
@@ -125,8 +119,8 @@ as arithmetic.
 `not` binds tightest, then `and`, then `or`, both left-associative:
 
 ```
-not kind = "decision" and retired      →  (not kind = "decision") and retired
-not (kind = "decision" and retired)    →  the group
+not retired and archived               →  (not retired) and archived
+not (retired and archived)             →  the group
 ```
 
 `not` takes one optional prefix, not a chain. `not not x` is not a double
@@ -169,30 +163,29 @@ is `score and not score > 0.7`.
 natural way gets the right result for the wrong reason — and inherits every
 other thing that coercion decides.
 
-### Open: a value that is present and not comparable
+### A value that will not take the type
 
 ```
-score: abc          legal today
-kg nodes find 'score > 0.7'
+score: abc
+kg nodes find 'score > 0.7'     no match
 ```
 
-Each operator declares its literal, so `score > "0.7"` refuses at parse time.
-That checks *what was written*, not what is on disk — and this cannot be known
-before a file is opened, which makes it the first refusal in the design that
-cannot precede lookup.
+[`comparison.md`](../design/parked/comparison.md) settled this: *a value that is
+not numeric simply does not match*. It is the same two-valued rule as absence —
+a comparison that cannot be made is false, and `not` flips it — so nothing new
+is decided and nothing is guessed.
 
-**Blocks tier 2**, and should not be patched here. *What type is `score`?* is a
-schema question — general, prior, about a slot — and with no schema it can only
-be answered per node, after resolution. Answering it locally by coercing, the
-way JavaScript does, would be choosing a schema by accident and is the guessing
-[batch 4](4-stops-guessing.md) removed. The alternative is a place for a
-generalisation to live, which is
-[`design/parked/validation.md`](../design/parked/validation.md).
+It generalises to any operator meeting a value of the wrong shape. `"cites" in
+links` compares text against a list of maps, and does not match either.
+
+**What a literal declares is still checked at parse time.** `score > "0.7"` is
+refused before a file is opened, because that is a claim about the query rather
+than about the data.
 
 ## The shell is the outer grammar
 
 ```bash
-kg nodes find 'kind = "decision" and not retired'
+kg nodes find '"decision" in labels and not retired'
 ```
 
 **Single quotes outside**, measured rather than assumed: double quotes let the
@@ -217,7 +210,7 @@ and quote each value, which is friendlier until the operators: `>` and `<` are
 redirects, and `find score > 0.7` truncates a file named `0.7` and runs a
 different query, silently.
 
-## Parked — tiers three, four and five
+## What it leaves
 
 `in`'s semantics beyond the reserved keyword · `~` and the reserved operands
 `body`, `body.lines`, `body.size`, `created` · the ordering comparisons ·
@@ -228,8 +221,8 @@ What ships is the part that stopped moving.
 
 ## What it deliberately never grows
 
-**Traversal.** Relations arrive as a command — `kg node <id> neighbors` — not as
-pattern syntax. An expression asks about one node's properties; a relationship
+**Traversal.** Relations arrive as commands — `kg node <id> links` and
+`backlinks`, [batch 7](7-relations.md) — not as pattern syntax. An expression asks about one node's properties; a relationship
 is between nodes, which is a different subject and belongs to a different
 command, for the same reason `list` and `find` split rather than `list` growing
 a flag.
