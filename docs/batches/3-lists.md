@@ -12,19 +12,19 @@ The example property is `sources` rather than `labels`, which
 the name is no longer an author's to use. Nothing else about this batch changed.
 
 ```console
-$ kg node "$a" add sources auth pattern
+$ kg node "$a" add sources github-issue-412 rfc-7396
 added 2 to sources
 
-$ kg node "$a" add sources auth
+$ kg node "$a" add sources rfc-7396
 
 $ kg node "$a" --properties
 kind: decision
-sources: [auth, pattern]
+sources: [github-issue-412, rfc-7396]
 
-$ kg node "$a" remove sources auth
+$ kg node "$a" remove sources rfc-7396
 removed 1 from sources
 
-$ kg node "$a" remove sources pattern
+$ kg node "$a" remove sources github-issue-412
 removed 1 from sources, sources is now unset
 ```
 
@@ -77,7 +77,7 @@ otherwise change meaning:
 
 ```
 bracketed: '[auth, pattern]'      a scalar
-sources: [auth, pattern]          a list
+sources: [github-issue-412, rfc-7396]   a list
 single: [auth]                    a one-element list, not `single: auth`
 ```
 

@@ -11,18 +11,25 @@ Deno.test("batch 3 — a property can hold a list", async () => {
     .out.trim();
   await kg(dir, ["node", id, "set", "kind", "decision"]);
 
-  const added = await kg(dir, ["node", id, "add", "sources", "auth", "pattern"]);
+  const added = await kg(dir, [
+    "node",
+    id,
+    "add",
+    "sources",
+    "github-issue-412",
+    "rfc-7396",
+  ]);
   assertEquals(added.out, "", "a targeted write prints nothing");
   assertEquals(added.err.trim(), "added 2 to sources");
 
   // Idempotent, and nothing changed is worth no words.
-  assertEquals((await kg(dir, ["node", id, "add", "sources", "auth"])).err, "");
+  assertEquals((await kg(dir, ["node", id, "add", "sources", "rfc-7396"])).err, "");
 
   // YAML, so a list and a scalar that looks like one are distinguishable.
   await kg(dir, ["node", id, "set", "looks", "[auth, pattern]"]);
   assertEquals(
     (await kg(dir, ["node", id, "--properties"])).out,
-    "kind: decision\nlooks: '[auth, pattern]'\nsources: [auth, pattern]\n",
+    "kind: decision\nlooks: '[auth, pattern]'\nsources: [github-issue-412, rfc-7396]\n",
   );
 
   // The content is untouched by all of it, and carries the same YAML on stderr.
@@ -31,11 +38,11 @@ Deno.test("batch 3 — a property can hold a list", async () => {
   assertEquals(read.err, (await kg(dir, ["node", id, "--properties"])).out);
 
   assertEquals(
-    (await kg(dir, ["node", id, "remove", "sources", "auth"])).err.trim(),
+    (await kg(dir, ["node", id, "remove", "sources", "rfc-7396"])).err.trim(),
     "removed 1 from sources",
   );
   assertEquals(
-    (await kg(dir, ["node", id, "remove", "sources", "pattern"])).err.trim(),
+    (await kg(dir, ["node", id, "remove", "sources", "github-issue-412"])).err.trim(),
     "removed 1 from sources, sources is now unset",
   );
   // A property emptied is indistinguishable from one never set.
