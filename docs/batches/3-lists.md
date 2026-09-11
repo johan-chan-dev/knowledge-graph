@@ -7,21 +7,25 @@ Shipped. The commands are in [`spec/api.md`](../spec/api.md).
 
 ## What it looks like
 
-```console
-$ kg node "$a" add labels auth pattern
-added 2 to labels
+The example property is `sources` rather than `labels`, which
+[batch 6](6-labels.md) took: classification is a slot the tool knows about, so
+the name is no longer an author's to use. Nothing else about this batch changed.
 
-$ kg node "$a" add labels auth
+```console
+$ kg node "$a" add sources auth pattern
+added 2 to sources
+
+$ kg node "$a" add sources auth
 
 $ kg node "$a" --properties
 kind: decision
-labels: [auth, pattern]
+sources: [auth, pattern]
 
-$ kg node "$a" remove labels auth
-removed 1 from labels
+$ kg node "$a" remove sources auth
+removed 1 from sources
 
-$ kg node "$a" remove labels pattern
-removed 1 from labels, labels is now unset
+$ kg node "$a" remove sources pattern
+removed 1 from sources, sources is now unset
 ```
 
 The second `add` says nothing: `auth` was already there, so nothing changed and
@@ -73,7 +77,7 @@ otherwise change meaning:
 
 ```
 bracketed: '[auth, pattern]'      a scalar
-labels: [auth, pattern]           a list
+sources: [auth, pattern]          a list
 single: [auth]                    a one-element list, not `single: auth`
 ```
 
@@ -108,7 +112,7 @@ which is the argument for the filters churning now rather than then.
 
 ## What it deliberately does not do
 
-**A list still cannot be filtered by value.** `--where labels=auth` refuses; the
+**A list still cannot be filtered by value.** `--where sources=auth` refuses; the
 question *which nodes carry auth* has no answer in this batch.
 
 That is not an oversight, it is the lesson of the sitting that designed it. The
@@ -148,8 +152,8 @@ unordered by definition; a sequence is ordered by definition, so sorting one
 discards what the author supplied. Insertion order stands.
 
 **What a nested structure does.** A map or a list of lists inside a property has
-no meaning here and cannot round-trip — `cannot read <id>: labels is neither a
-value nor a list`.
+no meaning here and cannot round-trip — the block is refused, naming the
+property at fault.
 
 ---
 

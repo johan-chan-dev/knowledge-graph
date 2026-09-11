@@ -46,6 +46,7 @@ export const isName = (s: string): s is Name => NAME.test(s);
 const RESERVED: Record<string, string> = {
   body: "it is the node's content, written with `write`",
   created: "it is read from the id, and cannot be written",
+  labels: "it is how a node classifies, written with `label`",
 };
 
 export const reservedReason = (name: string): string | undefined => RESERVED[name];
@@ -67,10 +68,15 @@ export type Branded<T extends string> = string & { readonly [brand]: T };
 
 /** A property name the tool could write: a lowercase hyphenated token. */
 export type Name = Branded<"Name">;
+/** A word a node carries. Same shape as a name — a word two people must arrive
+ * at independently cannot be one that needs quoting — but a different thing, and
+ * a different namespace: a label may be called `body` without shadowing anything. */
+export type Label = Branded<"Label">;
 /** One value: a single line of printable text. */
 export type Text = Branded<"Text">;
 
 export const isValue = (s: string): s is Text => !CONTROL.test(s);
+export const isLabel = (s: string): s is Label => NAME.test(s);
 
 /** A property holds one value or several. Several is multiplicity on one
  * dimension, not a container — which is why the shape follows from the verb

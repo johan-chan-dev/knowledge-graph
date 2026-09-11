@@ -1,14 +1,21 @@
 import { z } from "@zod/zod";
-import { isName, isValue, reservedReason } from "./frontmatter.ts";
-import { isId, type Uuid } from "./node.ts";
+import { isLabel, isName, isValue, reservedReason } from "./frontmatter.ts";
+import type { Label } from "./frontmatter.ts";
+import { isId } from "./node.ts";
 import type { Outcome } from "./outcome.ts";
 import {
+  labelForget,
+  labelRead,
+  labelsList,
+  labelWrite,
   node,
   nodeAdd,
+  nodeLabel,
   nodeNew,
   nodeRemove,
   nodes,
   nodeSet,
+  nodeUnlabel,
   nodeUnset,
   nodeWrite,
   space,
@@ -32,6 +39,10 @@ const Id = z.string().refine(isId, {
   error: (issue) => `not an id: ${issue.input} — expected a uuid`,
 });
 
+const Word = z.string().refine(isLabel, {
+  error: (issue) => `not a label: ${issue.input} — expected a lowercase hyphenated token`,
+});
+
 const Name = z.string()
   .refine(isName, {
     error: (issue) =>
@@ -48,7 +59,7 @@ const Value = z.string().refine(isValue, {
   error: "not a property value: contains a control character — a value is a single line",
 });
 
-export type Flag = "stdin" | "properties";
+export type Flag = "stdin" | "properties" | "with-labels";
 
 /** What a checked call hands its command. `stdin` is a thunk so a command that
  * does not read it cannot block on a pipe that never closes.
@@ -56,21 +67,23 @@ export type Flag = "stdin" | "properties";
  * `args` is the command's own tuple — `set` receives `[Name, Text]`, not two
  * strings — so a handler cannot index past the arity the table declared, and
  * cannot be handed a value that never passed a guard. */
-export type Call<A extends readonly unknown[] = readonly string[]> = {
+export type Call<A extends readonly unknown[] = readonly string[], I = string> = {
   readonly cwd: string;
-  readonly id: Uuid;
+  readonly id: I;
   readonly args: A;
   readonly properties: boolean;
+  readonly labels: Label[];
   readonly stdin: () => Promise<string>;
 };
 
-export type Command<A extends readonly unknown[] = readonly string[]> = {
+export type Command<A extends readonly unknown[] = readonly string[], I = string> = {
   /** The form as `--help` prints it, and as a reader recognises it. */
   readonly form: string;
   readonly summary: string;
-  readonly scope: "space" | "nodes" | "node";
-  /** A second positional that is an id rather than a literal. */
-  readonly id: boolean;
+  readonly scope: "space" | "nodes" | "node" | "label" | "labels";
+  /** A second positional that identifies rather than naming an action — a uuid
+   * for a node, a word for a label. Absent means the scope takes none. */
+  readonly id?: z.ZodType<I>;
   /** The literal that names the action, if any. Absent means a bare read. */
   readonly action?: string;
   /** Arguments after the action. Absent means none are accepted. */
@@ -83,12 +96,12 @@ export type Command<A extends readonly unknown[] = readonly string[]> = {
   readonly flags: readonly Flag[];
   /** `--stdin` is not optional here. */
   readonly needsStdin?: boolean;
-  /** The same command under a flag. A separate help line because that is how a
-   * reader looks it up, not a separate command. */
-  readonly variant?: { readonly form: string; readonly summary: string };
+  /** The same command under a flag. Separate help lines because that is how a
+   * reader looks them up, not separate commands. */
+  readonly variants?: readonly { readonly form: string; readonly summary: string }[];
   /** What it does. Held here so dispatch cannot reach a command the table does
    * not declare, nor declare one dispatch cannot reach. */
-  readonly run: (call: Call<A>) => Promise<Outcome>;
+  readonly run: (call: Call<A, I>) => Promise<Outcome>;
 };
 
 /**
@@ -101,7 +114,7 @@ export type Command<A extends readonly unknown[] = readonly string[]> = {
  * sound in fact: `check` parses against the same schema before `run` is
  * reached, so the tuple it validated is the tuple the handler receives.
  */
-const command = <A extends readonly unknown[]>(entry: Command<A>): Command =>
+const command = <A extends readonly unknown[], I>(entry: Command<A, I>): Command =>
   entry as unknown as Command;
 
 export const COMMANDS: readonly Command[] = [
@@ -110,7 +123,6 @@ export const COMMANDS: readonly Command[] = [
     run: ({ cwd }) => space(cwd),
     summary: "what and where this space is",
     scope: "space",
-    id: false,
     flags: [],
   }),
   command({
@@ -118,7 +130,6 @@ export const COMMANDS: readonly Command[] = [
     run: ({ cwd }) => spaceInit(cwd),
     summary: "create one",
     scope: "space",
-    id: false,
     action: "init",
     flags: [],
   }),
@@ -127,35 +138,36 @@ export const COMMANDS: readonly Command[] = [
     run: ({ cwd }) => nodes(cwd),
     summary: "every id, in creation order",
     scope: "nodes",
-    id: false,
     action: "list",
     flags: [],
   }),
   command({
     form: "node new",
-    run: async ({ cwd, stdin }) => nodeNew(cwd, await stdin()),
+    run: async ({ cwd, stdin, labels }) => nodeNew(cwd, await stdin(), labels),
     summary: "create an empty one",
     scope: "node",
-    id: false,
     action: "new",
-    flags: ["stdin"],
-    variant: { form: "node new --stdin", summary: "…with content read from stdin" },
+    flags: ["stdin", "with-labels"],
+    variants: [
+      { form: "node new --stdin", summary: "…with content read from stdin" },
+      { form: "node new --with-labels <word>...", summary: "…carrying those words" },
+    ],
   }),
   command({
     form: "node <id>",
     run: ({ cwd, id, properties }) => node(cwd, id, properties),
     summary: "the content, properties on stderr",
     scope: "node",
-    id: true,
+    id: Id,
     flags: ["properties"],
-    variant: { form: "node <id> --properties", summary: "the properties instead" },
+    variants: [{ form: "node <id> --properties", summary: "the properties instead" }],
   }),
   command({
     form: "node <id> write --stdin",
     run: async ({ cwd, id, stdin }) => nodeWrite(cwd, id, await stdin()),
     summary: "stdin replaces the content",
     scope: "node",
-    id: true,
+    id: Id,
     action: "write",
     flags: ["stdin"],
     needsStdin: true,
@@ -165,7 +177,7 @@ export const COMMANDS: readonly Command[] = [
     run: ({ cwd, id, args }) => nodeSet(cwd, id, args[0], args[1]),
     summary: "write one property",
     scope: "node",
-    id: true,
+    id: Id,
     action: "set",
     args: z.tuple([Name, Value]),
     arity: {
@@ -179,7 +191,7 @@ export const COMMANDS: readonly Command[] = [
     run: ({ cwd, id, args }) => nodeUnset(cwd, id, args[0]),
     summary: "remove one",
     scope: "node",
-    id: true,
+    id: Id,
     action: "unset",
     args: z.tuple([Name]),
     arity: {
@@ -193,7 +205,7 @@ export const COMMANDS: readonly Command[] = [
     run: ({ cwd, id, args: [name, ...values] }) => nodeAdd(cwd, id, name, values),
     summary: "values into a property's list",
     scope: "node",
-    id: true,
+    id: Id,
     action: "add",
     args: z.tuple([Name]).rest(Value),
     arity: { few: "node <id> add needs a name and at least one value" },
@@ -204,11 +216,68 @@ export const COMMANDS: readonly Command[] = [
     run: ({ cwd, id, args: [name, ...values] }) => nodeRemove(cwd, id, name, values),
     summary: "values out of it",
     scope: "node",
-    id: true,
+    id: Id,
     action: "remove",
     args: z.tuple([Name]).rest(Value),
     arity: { few: "node <id> remove needs a name and at least one value" },
     flags: [],
+  }),
+  command({
+    form: "node <id> label <word>...",
+    summary: "carry these words",
+    scope: "node",
+    id: Id,
+    action: "label",
+    args: z.tuple([Word]).rest(Word),
+    arity: { few: "node <id> label needs at least one word" },
+    flags: [],
+    run: ({ cwd, id, args }) => nodeLabel(cwd, id, args as Label[]),
+  }),
+  command({
+    form: "node <id> unlabel <word>...",
+    summary: "stop carrying them",
+    scope: "node",
+    id: Id,
+    action: "unlabel",
+    args: z.tuple([Word]).rest(Word),
+    arity: { few: "node <id> unlabel needs at least one word" },
+    flags: [],
+    run: ({ cwd, id, args }) => nodeUnlabel(cwd, id, args as Label[]),
+  }),
+  command({
+    form: "labels list",
+    summary: "every word, its count, its first line",
+    scope: "labels",
+    action: "list",
+    flags: [],
+    run: ({ cwd }) => labelsList(cwd),
+  }),
+  command({
+    form: "label <word>",
+    summary: "what the word means here",
+    scope: "label",
+    id: Word,
+    flags: [],
+    run: ({ cwd, id }) => labelRead(cwd, id),
+  }),
+  command({
+    form: "label <word> write --stdin",
+    summary: "stdin becomes the description",
+    scope: "label",
+    id: Word,
+    action: "write",
+    flags: ["stdin"],
+    needsStdin: true,
+    run: async ({ cwd, id, stdin }) => labelWrite(cwd, id, await stdin()),
+  }),
+  command({
+    form: "label <word> forget",
+    summary: "drop it from the vocabulary",
+    scope: "label",
+    id: Word,
+    action: "forget",
+    flags: [],
+    run: ({ cwd, id }) => labelForget(cwd, id),
   }),
 ];
 
@@ -224,9 +293,7 @@ export const scopes =
 export function help(): string {
   const forms: [string, string][] = COMMANDS.flatMap((command) => [
     [command.form, command.summary],
-    ...(command.variant
-      ? [[command.variant.form, command.variant.summary] as [string, string]]
-      : []),
+    ...(command.variants ?? []).map((v) => [v.form, v.summary] as [string, string]),
   ]);
   const width = Math.max(...forms.map(([form]) => form.length));
   return [
@@ -304,7 +371,12 @@ export function match(positionals: string[]): Matched {
 }
 
 export type Checked =
-  | { readonly kind: "ok"; readonly id?: Uuid; readonly args: readonly string[] }
+  | {
+    readonly kind: "ok";
+    readonly id?: string;
+    readonly args: readonly string[];
+    readonly labels: Label[];
+  }
   | { readonly kind: "refused"; readonly message: string }
   | { readonly kind: "usage"; readonly message: string };
 
@@ -319,11 +391,16 @@ export function check(
   command: Command,
   id: string | undefined,
   args: readonly string[],
-  given: Readonly<Record<Flag, boolean>>,
+  given: {
+    readonly stdin: boolean;
+    readonly properties: boolean;
+    readonly "with-labels": readonly string[];
+  },
 ): Checked {
-  let checkedId: Uuid | undefined;
-  for (const flag of ["stdin", "properties"] as const) {
-    if (given[flag] && !command.flags.includes(flag)) {
+  let checkedId: string | undefined;
+  for (const flag of ["stdin", "properties", "with-labels"] as const) {
+    const used = flag === "with-labels" ? given[flag].length > 0 : given[flag];
+    if (used && !command.flags.includes(flag)) {
       const where = COMMANDS.filter((other) => other.flags.includes(flag))
         .map((other) => `\`kg ${other.form.replace(` --${flag}`, "")}\``);
       return { kind: "usage", message: `--${flag} belongs to ${where.join(" and ")}` };
@@ -339,7 +416,10 @@ export function check(
   }
 
   if (id !== undefined) {
-    const parsed = Id.safeParse(id);
+    if (command.id === undefined) {
+      return { kind: "usage", message: `${command.scope} takes no identifier` };
+    }
+    const parsed = command.id.safeParse(id);
     if (!parsed.success) {
       return {
         kind: "refused",
@@ -349,15 +429,35 @@ export function check(
     checkedId = parsed.data;
   }
 
+  const wanted = command.flags.includes("with-labels");
+  const words = wanted ? [...given["with-labels"], ...args] : [];
+  const labels: Label[] = [];
+  if (wanted) {
+    if (given["with-labels"].length > 0 && words.length === 0) {
+      return { kind: "usage", message: "--with-labels needs at least one word" };
+    }
+    for (const word of words) {
+      const parsed = Word.safeParse(word);
+      if (!parsed.success) {
+        return {
+          kind: "refused",
+          message: parsed.error.issues[0]?.message ?? `not a label: ${word}`,
+        };
+      }
+      labels.push(parsed.data as Label);
+    }
+    return { kind: "ok", id: checkedId, args: [], labels };
+  }
+
   if (command.args === undefined) {
     if (args.length > 0) {
       return { kind: "usage", message: `${command.form} takes no arguments` };
     }
-    return { kind: "ok", id: checkedId, args: [] };
+    return { kind: "ok", id: checkedId, args: [], labels };
   }
 
   const parsed = command.args.safeParse(args);
-  if (parsed.success) return { kind: "ok", id: checkedId, args: parsed.data };
+  if (parsed.success) return { kind: "ok", id: checkedId, args: parsed.data, labels };
 
   // A wrong count is a usage error and a wrong argument is a refusal: one means
   // the caller does not know the form, the other that it broke a rule.

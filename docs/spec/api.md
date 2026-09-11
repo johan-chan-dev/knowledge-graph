@@ -28,6 +28,8 @@ understates it.** That is the whole test, and it decides every name here:
 | `space` | the space |
 | `nodes` | the collection — membership changes here |
 | `node <id>` | that node |
+| `labels` | the vocabulary |
+| `label <word>` | that word |
 
 So `nodes list` rather than `node list`: enumerating touches the collection, and
 a singular scope would claim otherwise.
@@ -281,6 +283,43 @@ that was asked for.
 **Everything else about a node is untouched.** `set` rewrites one key; the
 content and every other property survive it, and so does the reverse — `write`
 replaces content and leaves properties alone.
+
+## labels
+
+**Classification is a slot, not a property.** `labels` is reserved: `set`,
+`add`, `unset` and `remove` refuse it, and `label` / `unlabel` write it instead.
+That is what makes `kg labels list` possible — a count over *whichever property
+somebody chose* is not computable.
+
+```
+kg node new --with-labels auth decision   born carrying those words
+kg node <id> label <word>...              carry these too
+kg node <id> unlabel <word>...            stop carrying them
+kg labels list                            every word, its count, its first line
+kg label <word>                           what the word means here
+kg label <word> write --stdin             set that description
+kg label <word> forget                    drop the word from the vocabulary
+```
+
+**A word is a lowercase hyphenated token** — the rule property names follow. A
+word two people must arrive at independently cannot be one that needs quoting,
+and the same restriction makes it safe as a filename.
+
+**Using a word creates it.** `label auth` ensures the vocabulary holds `auth`,
+so nothing has to be declared before it can be used. Listing the words is a
+directory read; the count is what costs a parse per node.
+
+**A word outlives its last use.** When the last node drops `auth`, the word
+stays with a count of `0` — the vocabulary records what has been said here, not
+only what is said now. Only `forget` removes it, and forgetting the word leaves
+every node still carrying it.
+
+**`label` is both a scope and a verb**, told apart by position, as `new`,
+`list` and `init` already are.
+
+**`labels list` is tab-separated**, sorted alphabetically — which is what puts
+`auth` beside `authn`, where drift is visible. The third column is the
+description's **first line**; the tool takes it without reading it.
 
 ## Across every command
 

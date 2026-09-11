@@ -75,9 +75,16 @@ export type Replaced =
  * is no file to load, so `absent` and the parse failures are not among its
  * outcomes — which is why these are two functions and not one with a nullable
  * id saying which was meant. */
-export async function create(space: Space, content: string): Promise<Created> {
+export async function create(
+  space: Space,
+  content: string,
+  properties: Properties = {},
+): Promise<Created> {
   const id = mint();
-  const wrote = await atomically(fileOf(space, id), frontmatter.join("", content));
+  const wrote = await atomically(
+    fileOf(space, id),
+    frontmatter.join(frontmatter.write(properties), content),
+  );
   if (wrote.kind === "unwritable") return wrote;
   return { kind: "created", id };
 }

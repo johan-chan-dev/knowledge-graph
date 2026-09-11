@@ -9,7 +9,9 @@ const typed = (form: string): string[] =>
   form.split(" ")
     .filter((token) => !token.startsWith("--"))
     .map((token) => token.replace(/\.\.\.$/, ""))
-    .map((token) => ({ "<id>": A, "<name>": "x", "<value>": "v" }[token] ?? token));
+    .map((
+      token,
+    ) => ({ "<id>": A, "<name>": "x", "<value>": "v", "<word>": "w" }[token] ?? token));
 
 Deno.test("every declared command is reachable by the form it prints", () => {
   for (const command of COMMANDS) {
@@ -29,6 +31,7 @@ Deno.test("a command's form and its argument schema agree", () => {
     const checked = check(command, matched.id, matched.args, {
       stdin: command.flags.includes("stdin"),
       properties: false,
+      "with-labels": [],
     });
     assertEquals(checked.kind, "ok", `${command.form}: ${JSON.stringify(checked)}`);
   }
@@ -38,7 +41,9 @@ Deno.test("help prints every command, and nothing it cannot dispatch", () => {
   const printed = help();
   for (const command of COMMANDS) {
     assert(printed.includes(`kg ${command.form}`), `help omits ${command.form}`);
-    if (command.variant) assert(printed.includes(`kg ${command.variant.form}`));
+    for (const v of command.variants ?? []) {
+      assert(printed.includes(`kg ${v.form}`), `help omits ${v.form}`);
+    }
   }
 });
 
@@ -49,13 +54,14 @@ Deno.test("no two commands answer to the same words", () => {
 
 Deno.test("a flag is refused by every command that does not declare it", () => {
   for (const command of COMMANDS) {
-    for (const flag of ["stdin", "properties"] as const) {
+    for (const flag of ["stdin", "properties", "with-labels"] as const) {
       if (command.flags.includes(flag)) continue;
       const matched = match(typed(command.form));
       assert(matched.kind === "matched");
       const checked = check(command, matched.id, matched.args, {
         stdin: flag === "stdin",
         properties: flag === "properties",
+        "with-labels": flag === "with-labels" ? ["auth"] : [],
       });
       assertEquals(checked.kind, "usage", `${command.form} accepted --${flag}`);
     }

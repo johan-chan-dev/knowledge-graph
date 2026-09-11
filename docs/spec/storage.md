@@ -98,6 +98,10 @@ refuses the node rather than loading — otherwise it would display a property n
 command could then unset. [`design/boundaries.md`](../design/boundaries.md)
 argues why, and names the one exception: a reserved name still reads.
 
+**A label is a file, and the file is the word.** `.kg/labels/<word>.md`, with
+the description as its body — the same format a node has. Created the first time
+the word is used, so the vocabulary is materialised rather than derived.
+
 **A property's value is stored as a string, always.** The serialiser quotes
 only what would otherwise change type on the way back — `hello world` stays
 bare, `'42'` and `'2027-01-01'` keep their quotes. Those quotes are the tool

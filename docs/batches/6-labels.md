@@ -3,11 +3,11 @@
 **Done when** classification is a slot the tool knows about, and a space can be
 asked what words are in play.
 
-Planned. [`vocabulary.md`](../design/vocabulary.md) borrowed a sentence in batch
+Built. [`vocabulary.md`](../design/vocabulary.md) borrowed a sentence in batch
 2 — **labels classify, properties hold data** — and then flattened it. `labels`
 became an ordinary property, indistinguishable from `tags` or `topics`.
 
-## What it should look like
+## The loop
 
 ```console
 $ kg node new --with-labels auth decision --stdin
@@ -20,35 +20,35 @@ $ kg node "$a" unlabel decision
 unlabelled 1
 
 $ kg label auth write --stdin
-wrote 34 bytes
+wrote 30 bytes
 
 $ kg label auth
 how a request proves who it is
 
 $ kg labels list
-auth	12	how a request proves who it is
-decision	8
-pattern	3	a shape seen more than twice
+auth	1	how a request proves who it is
+decision	0
+pattern	1
 
 $ kg label pattern forget
 forgot pattern
 ```
 
+`decision` survives at `0` because the word outlives its last use. The columns
+are tab-separated, and alphabetical order is what puts `auth` beside `authn`.
+
 And the refusals:
 
 ```console
 $ kg node "$a" add labels auth
-labels is reserved — use `label`
+labels is reserved — it is how a node classifies, written with `label`
 
 $ kg node "$a" label "Auth Pattern"
 not a label: Auth Pattern — expected a lowercase hyphenated token
-
-$ kg node new --with-labels --stdin
---with-labels needs at least one word
 ```
 
-**Will be backed by** `batch 6 — the labels system`, as `6_test.ts` in
-[`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
+**Backed by** `batch 6 — the labels system`, in
+[`tool/tests/batches/6_test.ts`](../../tool/tests/batches/6_test.ts).
 
 ## Why this earns a reserved name
 
@@ -154,6 +154,15 @@ flag, and `nodes list --label auth` would be the same mistake in a smaller coat.
 
 **No renaming across the space.** `auth` will want to become `authn` one day,
 and a rename touches every node carrying the word.
+
+**It takes a name batch 3 was using.** That batch's example list property was
+`labels`; its transcript and test now say `sources`. The capability it settled
+is untouched — only the word it had borrowed has moved.
+
+**`--with-labels` is served by the parser there is.** It takes its first value
+from the flag and the rest from the positionals that follow, which works and is
+not how it should be done. [`design/parked/arguments.md`](../design/parked/arguments.md)
+records the tokeniser that replaces it, and why the surface was chosen first.
 
 **No opinion about what a word means.** The tool holds a description the way it
 holds a body: it stores the text and never reads it.

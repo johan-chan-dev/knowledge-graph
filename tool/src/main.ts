@@ -1,7 +1,6 @@
 import { parseArgs } from "@std/cli/parse-args";
 import { exitCode, lines, type Outcome, refused, usage } from "./outcome.ts";
 import { isDir } from "./space.ts";
-import type { Uuid } from "./node.ts";
 import { check, help, match } from "./surface.ts";
 
 /** Read only when told to. `isTerminal()` answers *is something attached*,
@@ -30,7 +29,8 @@ export async function run(argv: string[]): Promise<Outcome> {
     // `isNumber(arg) ? Number(arg) : arg` over every one, so `set version 1.10`
     // stores 1.1 and a ticket past 2^53 gains invented digits. The value is
     // stored as given, and that starts here rather than in the serialiser.
-    string: ["C", "_"],
+    string: ["C", "with-labels", "_"],
+    collect: ["with-labels"],
     unknown: (arg) => {
       if (arg.startsWith("-")) unknownFlag = arg;
       return true;
@@ -63,6 +63,7 @@ export async function run(argv: string[]): Promise<Outcome> {
   const checked = check(command, matched.id, args, {
     stdin: flags.stdin,
     properties: flags.properties,
+    "with-labels": flags["with-labels"] ?? [],
   });
   if (checked.kind === "refused") return refused(checked.message);
   if (checked.kind === "usage") return usage(checked.message);
@@ -72,7 +73,8 @@ export async function run(argv: string[]): Promise<Outcome> {
     // `check` returns an id only for a command that declares one, and the three
     // that do not never read it. This stands in for those, next to the check
     // that would have refused anything else.
-    id: checked.id ?? ("" as Uuid),
+    id: checked.id ?? "",
+    labels: checked.labels,
     args: checked.args,
     properties: flags.properties,
     stdin: () => flags.stdin ? readStdin() : Promise.resolve(""),

@@ -2,8 +2,9 @@ import { absent, lines, ok, type Outcome, refused } from "./outcome.ts";
 import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
 import * as frontmatter from "./frontmatter.ts";
-import type { Name, Properties, Text } from "./frontmatter.ts";
-import { amend, create, read, replace, type Uuid } from "./node.ts";
+import type { Label, Name, Properties, Text } from "./frontmatter.ts";
+import * as label from "./label.ts";
+import { amend, create, isId, read, replace, type Uuid } from "./node.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -108,11 +109,22 @@ export async function node(
  * a real thing. So the absence of `--stdin` is how you ask for one, and there
  * is nothing here to refuse: `node new --stdin` with nothing produces exactly
  * what `node new` produces. */
-export async function nodeNew(cwd: string, content: string): Promise<Outcome> {
+export async function nodeNew(
+  cwd: string,
+  content: string,
+  words: Label[] = [],
+): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
 
-  const result = await create(resolved.space, content);
+  for (const word of words) {
+    const made = await label.ensure(resolved.space, word);
+    if (made.kind === "unwritable") {
+      return refused(`cannot create a label: ${made.reason}`);
+    }
+  }
+  const born: Properties = words.length === 0 ? {} : { [LABELS]: words.map(asText) };
+  const result = await create(resolved.space, content, born);
   if (result.kind === "unwritable") {
     return refused(`cannot create a node: ${result.reason}`);
   }
@@ -260,4 +272,137 @@ async function change(
       return note === undefined ? ok("") : ok("", note);
     }
   }
+}
+
+/** The reserved slot classification lives in. Grammatically a name like any
+ * other — `labels` is reserved from *authoring*, not from the tool. */
+const LABELS = "labels" as Name;
+
+/** A label's shape is a subset of a value's, so a checked word is a checked
+ * value; the brands differ because the things do. */
+const asText = (word: Label): Text => word as unknown as Text;
+
+/** Carrying a word is what brings it into the vocabulary, so each one is
+ * ensured before the node records it. Idempotent, and the count reported is
+ * the effective one. */
+export async function nodeLabel(cwd: string, id: Uuid, words: Label[]): Promise<Outcome> {
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  for (const word of words) {
+    const made = await label.ensure(resolved.space, word);
+    if (made.kind === "unwritable") {
+      return refused(`cannot create a label: ${made.reason}`);
+    }
+  }
+  return await change(cwd, id, (properties) => {
+    const existing = properties[LABELS];
+    if (existing !== undefined && !frontmatter.isList(existing)) {
+      return { refuse: `cannot label ${id}: labels is not a list` };
+    }
+    const carried = existing ?? [];
+    const fresh = words.filter((word) => !carried.includes(asText(word)));
+    if (fresh.length === 0) return undefined;
+    properties[LABELS] = [...carried, ...fresh.map(asText)];
+    return `labelled ${fresh.length}`;
+  });
+}
+
+/** The word survives being dropped — the vocabulary records what has been said
+ * here, not only what is said now. */
+export async function nodeUnlabel(
+  cwd: string,
+  id: Uuid,
+  words: Label[],
+): Promise<Outcome> {
+  return await change(cwd, id, (properties) => {
+    const existing = properties[LABELS];
+    if (existing === undefined) return undefined;
+    if (!frontmatter.isList(existing)) {
+      return { refuse: `cannot unlabel ${id}: labels is not a list` };
+    }
+    const kept = existing.filter((word) => !words.includes(word as unknown as Label));
+    if (kept.length === existing.length) return undefined;
+    const gone = existing.length - kept.length;
+    if (kept.length === 0) delete properties[LABELS];
+    else properties[LABELS] = kept;
+    return `unlabelled ${gone}`;
+  });
+}
+
+export async function labelRead(cwd: string, word: Label): Promise<Outcome> {
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const found = await label.read(resolved.space, word);
+  switch (found.kind) {
+    case "absent":
+      return absent(`no such label: ${word} in ${resolved.space.name}`);
+    case "malformed":
+      return refused(`cannot read label ${word}: no frontmatter block`);
+    case "read":
+      return ok(found.description);
+  }
+}
+
+export async function labelWrite(
+  cwd: string,
+  word: Label,
+  description: string,
+): Promise<Outcome> {
+  if (description === "") {
+    return refused("no content on stdin — did the command before the pipe fail?");
+  }
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const wrote = await label.write(resolved.space, word, description);
+  if (wrote.kind === "unwritable") {
+    return refused(`cannot write label ${word}: ${wrote.reason}`);
+  }
+  return ok("", `wrote ${new TextEncoder().encode(description).length} bytes`);
+}
+
+export async function labelForget(cwd: string, word: Label): Promise<Outcome> {
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const gone = await label.forget(resolved.space, word);
+  switch (gone.kind) {
+    case "absent":
+      return absent(`no such label: ${word} in ${resolved.space.name}`);
+    case "unwritable":
+      return refused(`cannot forget ${word}: ${gone.reason}`);
+    case "forgotten":
+      return ok("", `forgot ${word}`);
+  }
+}
+
+/**
+ * Word, count, and the description's first line — the first line is the summary
+ * by convention, and the tool takes it without reading it.
+ *
+ * Listing the words is a directory read. The **count** is what costs a parse per
+ * node, and it is what an index would later remove.
+ */
+export async function labelsList(cwd: string): Promise<Outcome> {
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const space = resolved.space;
+
+  const counts = new Map<string, number>();
+  for (const id of await ids(space)) {
+    if (!isId(id)) continue;
+    const found = await read(space, id);
+    if (found.kind !== "read") continue;
+    const carried = found.properties[LABELS];
+    if (!frontmatter.isList(carried)) continue;
+    for (const word of carried) counts.set(word, (counts.get(word) ?? 0) + 1);
+  }
+
+  const rows: string[] = [];
+  for (const word of await label.words(space)) {
+    const found = await label.read(space, word);
+    const summary = found.kind === "read"
+      ? (found.description.split("\n")[0] ?? "").trim()
+      : "";
+    rows.push([word, String(counts.get(word) ?? 0), summary].join("\t").trimEnd());
+  }
+  return lines(rows);
 }
