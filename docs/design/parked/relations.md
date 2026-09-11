@@ -38,8 +38,9 @@ weight — and JSON needs none of `frontmatter.ts`: no `2026-01-01` becoming a
 date, no five spellings of null, no quoting rules to preserve `'1.10'`. Not a
 speed argument: parsing is ~4% of a file read, measured.
 
-**A link's properties obey a node's rules** — `set`, `unset`, `add`, `remove`
-over the record. So a list is built with a verb, as batch 3 settled, and
+**A record has fields and properties.** `type`, `from` and `to` are the link's
+own data and are immutable; the rest are properties obeying a node's rules —
+`set`, `unset`, `add`, `remove` over the record. So a list is built with a verb, as batch 3 settled, and
 `--with-properties` need not invent an accumulation rule of its own.
 
 **A link carries properties**, as Neo4j's relationships do — *"can have

@@ -26,8 +26,8 @@ $ kg node "$b" backlinks
 cites	01a08e40-1f77-…	01a084f0-631b-…
 supersedes	01a08e3f-4c21-…	01a084f0-631b-…
 
-$ kg node "$a" unlink --as supersedes --with-nodes "$b"
-unlinked 1
+$ kg link "$l" forget
+forgot 01a08e3f-4c21-…
 
 $ kg link "$l" add roles "Bill Smoke" "Haskell Moore"
 added 2 to roles
@@ -57,6 +57,9 @@ not a property: drift — expected name=value
 
 $ kg node "$a" add links x
 links is reserved — a relation is written with `link`
+
+$ kg link "$l" set type cites
+type is the link's own data, not a property
 ```
 
 **Will be backed by** `batch 7 — relations`, as `7_test.ts` in
@@ -167,12 +170,20 @@ enforces precisely what the writing door produces.
 **A link carries properties and exactly one type**, both Neo4j's rules. That is
 why it cannot be a bare id in a list — there would be nowhere to put them.
 
-**Making and breaking a link starts from the node**, never from the link. A
-directed edge is not symmetric, and the source is where the caller is standing.
+**Making a link starts from the node; breaking it starts from the link.** A
+directed edge is not symmetric, so creating one needs a source — you are standing
+at A saying something about B. Destroying one needs only the thing destroyed, and
+`link` handed back its id.
+
+**A record has fields and properties, and only properties are writable.**
+`type`, `from` and `to` are the link's own data and cannot be set; everything
+else is a property obeying a node's rules. So there are no reserved names inside
+a record, and `direction` on an endpoint cannot go stale — the ends it names
+cannot change.
 
 **A link's properties obey the same rules a node's do.** `kg link <id> set /
 unset / add / remove`, over the record instead of frontmatter, reusing the
-machinery that already exists. `--with-properties` is then a convenience at
+machinery that already exists — on the properties, never on the three fields. `--with-properties` is then a convenience at
 creation carrying one value per name, and a list is built with `add` — the shape
 follows from the verb, as [batch 3](3-lists.md) settled, rather than from a flag
 having to invent an accumulation rule.
