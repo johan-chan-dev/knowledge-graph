@@ -2,6 +2,16 @@
 
 `--where score>0.7`, and `--order-by score`.
 
+**The shell decides this, not taste.** `set version 1.10`, `set version '1.10'`
+and `set version "1.10"` arrive as the same three arguments — the quotes are
+gone before the tool sees anything. So at write time it cannot know whether a
+number or a version string was meant, and storing the text it was handed is the
+only honest answer to information that no longer exists.
+
+Inside an expression the quotes survive, because the expression is one argument
+the tool parses itself. That is the whole of why the two sides differ: **the only
+place the tool can see a quote is where it does the quoting.**
+
 **The operator carries the type, not the storage.** `--where a=b` compares text;
 `--where a>b` compares numbers, and a value that is not numeric simply does not
 match. The file stays untyped — `set` still stores text and `--properties`
