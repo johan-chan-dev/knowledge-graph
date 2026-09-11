@@ -18,7 +18,8 @@ history: what a batch was for, what building it forced, what it settled.
 | 5 | [the entry point](5-the-entry-point.md) | shipped |
 | 6 | [the labels system](6-labels.md) | shipped |
 | 7 | [relations](7-relations.md) | shipped |
-| 8 | [find](8-find.md) | planned |
+| 8 | [someone else’s graph](8-movies.md) | shipped |
+| 9 | [find](9-find.md) | planned |
 
 ## Every batch shows its goal, and a test holds it there
 

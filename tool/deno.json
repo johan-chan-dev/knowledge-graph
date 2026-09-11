@@ -10,7 +10,8 @@
     "test": "deno task compile && deno test --allow-read --allow-write --allow-run --parallel src tests",
     "verify": "deno task compile && deno test --allow-read --allow-write --allow-run --parallel tests/batches",
     "ok": "deno fmt --check && deno lint && deno task check && deno task test",
-    "compile": "deno compile --allow-read --allow-write --allow-run --output build/kg src/main.ts"
+    "compile": "deno compile --allow-read --allow-write --allow-run --output build/kg src/main.ts",
+    "movies": "deno task compile && deno test --allow-all tests/movies"
   },
   "imports": {
     "@std/yaml": "jsr:@std/yaml@^1",
@@ -23,6 +24,11 @@
     "lineWidth": 90,
     "exclude": [
       "**/*.md"
+    ]
+  },
+  "test": {
+    "exclude": [
+      "tests/movies"
     ]
   }
 }

@@ -206,7 +206,7 @@ behind it.
 links never leave a space — which is exactly what makes storing both halves
 safe. Multi-space is a later batch, unwritten.
 
-**No querying by relation.** [Batch 8](8-find.md) asks about one node's
+**No querying by relation.** [Batch 8](9-find.md) asks about one node's
 properties, and says so: traversal arrives as a command, not as pattern syntax.
 
 **`unlink` removes the link.** The record is deleted and both endpoints drop
@@ -227,4 +227,4 @@ sharing axis, which does not apply inside one space.
 
 ---
 
-[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · [5](5-the-entry-point.md) · [6](6-labels.md) · 7 · [8](8-find.md)
+[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · [5](5-the-entry-point.md) · [6](6-labels.md) · 7 · [9](9-find.md)

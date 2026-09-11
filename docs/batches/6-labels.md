@@ -148,7 +148,7 @@ only once computing is measurably too slow, and 600 ms is not that. Whenever it
 arrives it is unversioned, so nothing can mistake a rebuildable thing for the
 answer.
 
-**No finding by label.** That is [batch 8](8-find.md).
+**No finding by label.** That is [batch 9](9-find.md).
 [Batch 4](4-stops-guessing.md) removed `--where` for putting a query behind a
 flag, and `nodes list --label auth` would be the same mistake in a smaller coat.
 
@@ -169,4 +169,4 @@ holds a body: it stores the text and never reads it.
 
 ---
 
-[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · [5](5-the-entry-point.md) · 6 · [8](8-find.md)
+[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · [5](5-the-entry-point.md) · 6 · [9](9-find.md)
