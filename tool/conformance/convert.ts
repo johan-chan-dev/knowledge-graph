@@ -51,10 +51,19 @@ const lines = [
   "#!/usr/bin/env bash",
   "# Neo4j's movies example, as kg commands. Requires an existing space, and",
   "# adds to whatever is already in it.",
+  "#",
+  "# One line of output per thing made. `set` and `add` acknowledge on stderr",
+  "# and are silenced; a failure still stops the script, since `set -e` does not",
+  "# need the message to do it.",
   "set -euo pipefail",
   "",
 ];
 const seen = new Set<string>();
+/** What to call a node in the progress line — its title or name, not the
+ * dataset's variable. */
+const names = new Map<string, string>();
+let nodes = 0;
+let links = 0;
 
 for (
   const raw of (await Deno.readTextFile(new URL("./movies.cypher", import.meta.url)))
@@ -71,15 +80,21 @@ for (
     const [, variable, label, inline, sets] = node;
     if (seen.has(variable!)) continue;
     seen.add(variable!);
-    lines.push(`${variable}=$(kg node new --with-labels ${word(label!)})`);
     // The dataset writes properties two ways — inline in the map, or in an
     // `ON CREATE SET` list — and some nodes use both.
     const all = [
       ...properties(inline ?? ""),
       ...properties((sets ?? "").replace(/\w+\./g, "")),
     ];
+    const shown = all.find(([n]) => n === "title" || n === "name")?.[1][0] ?? variable!;
+    names.set(variable!, shown);
+    nodes++;
+    lines.push(
+      `printf '[%3d/__NODES__] %-6s %s\\n' ${nodes} ${sh(word(label!))} ${sh(shown)}`,
+    );
+    lines.push(`${variable}=$(kg node new --with-labels ${word(label!)})`);
     for (const [name, values] of all) {
-      lines.push(`kg node "$${variable}" set ${name} ${sh(values[0]!)} >/dev/null`);
+      lines.push(`kg node "$${variable}" set ${name} ${sh(values[0]!)} >/dev/null 2>&1`);
     }
     continue;
   }
@@ -92,21 +107,29 @@ for (
     const withProps = scalars.length > 0
       ? ` --with-properties ${scalars.map(([n, v]) => sh(`${n}=${v[0]}`)).join(" ")}`
       : "";
+    links++;
+    lines.push(
+      `printf '[%3d/__LINKS__] %-10s %s -> %s\\n' ${links} ${sh(word(type!))} ` +
+        `${sh(names.get(from!) ?? from!)} ${sh(names.get(to!) ?? to!)}`,
+    );
     lines.push(
       `l=$(kg node "$${from}" link --as ${
         word(type!)
       } --with-nodes "$${to}"${withProps})`,
     );
     for (const [name, values] of pairs.filter(([, v]) => v.length > 1)) {
-      lines.push(`kg link "$l" add ${name} ${values.map(sh).join(" ")} >/dev/null`);
+      lines.push(`kg link "$l" add ${name} ${values.map(sh).join(" ")} >/dev/null 2>&1`);
     }
     continue;
   }
   throw new Error(`unrecognised: ${line}`);
 }
 
+lines.push("", `printf '\\n%s nodes, %s relations\\n' ${nodes} ${links}`);
 await Deno.writeTextFile(
   new URL("./import.sh", import.meta.url),
-  lines.join("\n") + "\n",
+  lines.join("\n")
+    .replaceAll("__NODES__", String(nodes))
+    .replaceAll("__LINKS__", String(links)) + "\n",
 );
-console.log(`  ${lines.length} lines, ${seen.size} nodes`);
+console.log(`  ${nodes} nodes, ${links} relations, ${lines.length} lines`);
