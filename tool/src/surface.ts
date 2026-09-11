@@ -1,6 +1,6 @@
 import { z } from "@zod/zod";
 import { isLabel, isName, isValue, reservedReason } from "./frontmatter.ts";
-import type { Label } from "./frontmatter.ts";
+import type { Label, Text, Uuid } from "./frontmatter.ts";
 import { isId } from "./node.ts";
 import type { Flags } from "./argv.ts";
 import type { Outcome } from "./outcome.ts";
@@ -9,9 +9,14 @@ import {
   labelRead,
   labelsList,
   labelWrite,
+  linkChange,
+  linkForget,
+  linkRead,
   node,
   nodeAdd,
   nodeLabel,
+  nodeLink,
+  nodeLinks,
   nodeNew,
   nodeRemove,
   nodes,
@@ -80,7 +85,7 @@ export type Command<A extends readonly unknown[] = readonly string[], I = string
   /** The form as `--help` prints it, and as a reader recognises it. */
   readonly form: string;
   readonly summary: string;
-  readonly scope: "space" | "nodes" | "node" | "label" | "labels";
+  readonly scope: "space" | "nodes" | "node" | "label" | "labels" | "link";
   /** A second positional that identifies rather than naming an action — a uuid
    * for a node, a word for a label. Absent means the scope takes none. */
   readonly id?: z.ZodType<I>;
@@ -275,6 +280,154 @@ export const COMMANDS: readonly Command[] = [
     run: async ({ cwd, id, stdin }) => labelWrite(cwd, id, await stdin()),
   }),
   command({
+    form: "node <id> link --as <type> --with-nodes <id>...",
+    run: ({ cwd, id, flags }) =>
+      nodeLink(
+        cwd,
+        id,
+        flags.as as Label,
+        (flags["with-nodes"] as string[]).map((t) => t as Uuid),
+        Object.fromEntries(
+          ((flags["with-properties"] as string[]) ?? []).map((pair) => {
+            const at = pair.indexOf("=");
+            return [pair.slice(0, at), pair.slice(at + 1) as Text];
+          }),
+        ),
+      ),
+    summary: "relate it to those nodes",
+    scope: "node",
+    id: Id,
+    action: "link",
+    flags: {
+      as: { kind: "value", required: true },
+      "with-nodes": { kind: "variadic", required: true },
+      "with-properties": { kind: "variadic" },
+    },
+  }),
+  command({
+    form: "node <id> links",
+    run: ({ cwd, id }) => nodeLinks(cwd, id, "out"),
+    summary: "what it points at",
+    scope: "node",
+    id: Id,
+    action: "links",
+    flags: {},
+  }),
+  command({
+    form: "node <id> backlinks",
+    run: ({ cwd, id }) => nodeLinks(cwd, id, "in"),
+    summary: "what points at it",
+    scope: "node",
+    id: Id,
+    action: "backlinks",
+    flags: {},
+  }),
+  command({
+    form: "link <id>",
+    run: ({ cwd, id }) => linkRead(cwd, id),
+    summary: "its fields and properties",
+    scope: "link",
+    id: Id,
+    flags: {},
+  }),
+  command({
+    form: "link <id> forget",
+    run: ({ cwd, id }) => linkForget(cwd, id),
+    summary: "end the relation",
+    scope: "link",
+    id: Id,
+    action: "forget",
+    flags: {},
+  }),
+  command({
+    form: "link <id> set <name> <value>",
+    run: ({ cwd, id, args }) =>
+      linkChange(cwd, id, args[0], (properties) => {
+        const had = args[0] in properties;
+        properties[args[0]] = args[1] as Text;
+        return had ? `replaced ${args[0]}` : `set ${args[0]}`;
+      }),
+    summary: "write one property",
+    scope: "link",
+    id: Id,
+    action: "set",
+    args: z.tuple([Name, Value]),
+    arity: {
+      few: "link <id> set needs a name and a value",
+      many: "link <id> set takes one value — quote it if it contains spaces",
+    },
+    flags: {},
+  }),
+  command({
+    form: "link <id> unset <name>",
+    run: ({ cwd, id, args }) =>
+      linkChange(cwd, id, args[0], (properties) => {
+        const had = args[0] in properties;
+        delete properties[args[0]];
+        return had ? `unset ${args[0]}` : `${args[0]} was not set`;
+      }),
+    summary: "remove one",
+    scope: "link",
+    id: Id,
+    action: "unset",
+    args: z.tuple([Name]),
+    arity: {
+      few: "link <id> unset needs a name",
+      many: "link <id> unset takes one name",
+    },
+    flags: {},
+  }),
+  command({
+    form: "link <id> add <name> <value>...",
+    run: ({ cwd, id, args: [name, ...values] }) =>
+      linkChange(cwd, id, name, (properties) => {
+        const held = properties[name];
+        if (held !== undefined && !Array.isArray(held)) {
+          return { refuse: `cannot add to ${name}: not a list` };
+        }
+        const list = (held ?? []) as string[];
+        const fresh = values.filter((value) => !list.includes(value));
+        if (fresh.length === 0) return undefined;
+        properties[name] = [...list, ...fresh] as Text[];
+        return `added ${fresh.length} to ${name}`;
+      }),
+    summary: "values into a property's list",
+    scope: "link",
+    id: Id,
+    action: "add",
+    args: z.tuple([Name]).rest(Value),
+    arity: { few: "link <id> add needs a name and at least one value" },
+    flags: {},
+  }),
+  command({
+    form: "link <id> remove <name> <value>...",
+    run: ({ cwd, id, args: [name, ...values] }) =>
+      linkChange(cwd, id, name, (properties) => {
+        const held = properties[name];
+        if (held === undefined) return undefined;
+        if (!Array.isArray(held)) {
+          return { refuse: `cannot remove from ${name}: not a list` };
+        }
+        const kept = (held as string[]).filter((value) =>
+          !values.includes(value as Text)
+        );
+        if (kept.length === held.length) return undefined;
+        const gone = held.length - kept.length;
+        if (kept.length === 0) delete properties[name];
+        else properties[name] = kept as Text[];
+        return kept.length === 0
+          ? `removed ${gone} from ${name}, ${name} is now unset`
+          : `removed ${gone} from ${name}`;
+      }),
+    summary: "values out of it",
+    scope: "link",
+    id: Id,
+    action: "remove",
+    args: z.tuple([Name]).rest(Value),
+    arity: { few: "link <id> remove needs a name and at least one value" },
+    flags: {},
+  }),
+  command({
     form: "label <word> forget",
     summary: "drop it from the vocabulary",
     scope: "label",
@@ -374,6 +527,22 @@ export function match(positionals: string[]): Matched {
   return { kind: "matched", command: found, id: second, args };
 }
 
+/** What a flag's values must be, checked at the door beside everything else. */
+const Pair = z.string().refine(
+  (p) => {
+    const at = p.indexOf("=");
+    return at > 0 && isName(p.slice(0, at)) && isValue(p.slice(at + 1));
+  },
+  { error: (issue) => `not a property: ${issue.input} — expected name=value` },
+);
+
+const FLAG_VALUES: Readonly<Record<string, z.ZodType<string>>> = {
+  "with-labels": Word,
+  as: Word,
+  "with-nodes": Id,
+  "with-properties": Pair,
+};
+
 export type Checked =
   | {
     readonly kind: "ok";
@@ -397,6 +566,20 @@ export function check(
   args: readonly string[],
   flags: Readonly<Record<string, true | string | string[]>>,
 ): Checked {
+  // A flag the command cannot do without. Declared beside the flag rather than
+  // discovered by a handler, which is how `--as` once reached the serialiser as
+  // `undefined` and threw a stack trace out of the tool.
+  for (const [name, shape] of Object.entries(command.flags)) {
+    if (
+      shape.kind !== "boolean" && shape.required === true && flags[name] === undefined
+    ) {
+      return {
+        kind: "usage",
+        message: `${command.action ?? command.scope} needs --${name}`,
+      };
+    }
+  }
+
   if (command.needsStdin === true && flags.stdin !== true) {
     return {
       kind: "usage",
@@ -422,19 +605,23 @@ export function check(
   }
 
   // A flag's values are checked here for the same reason an argument's are: the
-  // door is where a string becomes a checked thing.
+  // door is where a string becomes a checked thing. The writing door must refuse
+  // what the reading door would — otherwise a link record is written that its
+  // own reader will not load.
   const labels: Label[] = [];
-  const given = flags["with-labels"];
-  if (given !== undefined) {
-    for (const word of Array.isArray(given) ? given : [String(given)]) {
-      const parsed = Word.safeParse(word);
+  for (const [name, value] of Object.entries(flags)) {
+    if (value === true) continue;
+    const schema = FLAG_VALUES[name];
+    if (schema === undefined) continue;
+    for (const each of Array.isArray(value) ? value : [value]) {
+      const parsed = schema.safeParse(each);
       if (!parsed.success) {
         return {
           kind: "refused",
-          message: parsed.error.issues[0]?.message ?? `not a label: ${word}`,
+          message: parsed.error.issues[0]?.message ?? `not valid: ${each}`,
         };
       }
-      labels.push(parsed.data as Label);
+      if (name === "with-labels") labels.push(parsed.data as Label);
     }
   }
 

@@ -30,6 +30,7 @@ understates it.** That is the whole test, and it decides every name here:
 | `node <id>` | that node |
 | `labels` | the vocabulary |
 | `label <word>` | that word |
+| `link <id>` | that relation |
 
 So `nodes list` rather than `node list`: enumerating touches the collection, and
 a singular scope would claim otherwise.
@@ -320,6 +321,42 @@ every node still carrying it.
 **`labels list` is tab-separated**, sorted alphabetically — which is what puts
 `auth` beside `authn`, where drift is visible. The third column is the
 description's **first line**; the tool takes it without reading it.
+
+## links
+
+**A relation is a record**, `.kg/links/<uuid>.json`, holding its type, both
+endpoints and its properties once. `links` is reserved: `set`, `add`, `unset`
+and `remove` refuse it, and `link` writes it.
+
+```
+kg node <id> link --as <type> --with-nodes <id>...   relate it to those nodes
+kg node <id> links                                   what it points at
+kg node <id> backlinks                               what points at it
+kg link <id>                                         its fields and properties
+kg link <id> forget                                  end the relation
+kg link <id> set / unset / add / remove              its properties
+```
+
+**Both ends carry an entry**, `{type, link, direction}`, so `links` and
+`backlinks` are the same node read filtered on direction — no scan, whatever the
+size of the space. `type` and `direction` are duplicated from the record so that
+grouping costs no record reads; the record stays authoritative.
+
+**A record has fields and properties.** `type`, `from` and `to` are the link's
+own data and cannot be set — a link's identity *is* those three, so altering one
+would make it a different link. Everything else is a property obeying a node's
+rules, which is why a list is built with `add` rather than by a flag inventing an
+accumulation rule.
+
+**Both ends must exist.** A link to an id that is not here is refused, `2`, the
+same way `write` refuses one — a dangling edge is never written.
+
+**`forget` ends the relation**: the record is deleted and both ends drop it. A
+label outlives its last use because vocabulary records what has been said; a
+link is the relationship itself.
+
+**One command may make several links.** `--with-nodes <id>...` makes one per
+target, each with the same type and properties, and prints their ids in order.
 
 ## Across every command
 

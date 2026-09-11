@@ -98,6 +98,12 @@ refuses the node rather than loading — otherwise it would display a property n
 command could then unset. [`design/boundaries.md`](../design/boundaries.md)
 argues why, and names the one exception: a reserved name still reads.
 
+**A link is a record.** `.kg/links/<uuid>.json` — JSON, not markdown, because a
+link carries no prose, so a body would be dead weight and none of frontmatter's
+coercion applies. Each endpoint holds an entry under the reserved `links`
+property; that is the one nested shape in the format, validated against exactly
+`{type, link, direction}`, and nothing authored may nest.
+
 **A label is a file, and the file is the word.** `.kg/labels/<word>.md`, with
 the description as its body — the same format a node has. Created the first time
 the word is used, so the vocabulary is materialised rather than derived.

@@ -10,8 +10,8 @@
 
 export type Shape =
   | { readonly kind: "boolean" }
-  | { readonly kind: "value" }
-  | { readonly kind: "variadic" };
+  | { readonly kind: "value"; readonly required?: true }
+  | { readonly kind: "variadic"; readonly required?: true };
 
 export type Flags = Readonly<Record<string, Shape>>;
 

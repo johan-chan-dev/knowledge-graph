@@ -3,15 +3,26 @@ import { check, COMMANDS, declares, help, match } from "./surface.ts";
 
 const A = "01a08853-987c-74a6-8e1c-77aec205a942";
 
-/** The form as a caller would type it: placeholders filled, `...` dropped, and
- * flags left to the flag argument since they do not arrive as positionals. */
-const typed = (form: string): string[] =>
-  form.split(" ")
-    .filter((token) => !token.startsWith("--"))
+/** The form as a caller would type it, up to its first flag — which is exactly
+ * what `head` hands `match`, since a command is identified before its flags are
+ * read. Placeholders are filled and `...` dropped. */
+const typed = (form: string): string[] => {
+  const tokens = form.split(" ");
+  const at = tokens.findIndex((token) => token.startsWith("-"));
+  return (at === -1 ? tokens : tokens.slice(0, at))
     .map((token) => token.replace(/\.\.\.$/, ""))
     .map((
       token,
-    ) => ({ "<id>": A, "<name>": "x", "<value>": "v", "<word>": "w" }[token] ?? token));
+    ) => ({
+      "<id>": A,
+      "<name>": "x",
+      "<value>": "v",
+      "<word>": "w",
+      "<type>": "t",
+    }[token] ??
+      token)
+    );
+};
 
 Deno.test("every declared command is reachable by the form it prints", () => {
   for (const command of COMMANDS) {
@@ -28,9 +39,16 @@ Deno.test("a command's form and its argument schema agree", () => {
   for (const command of COMMANDS) {
     const matched = match(typed(command.form));
     assert(matched.kind === "matched");
-    const checked = check(command, matched.id, matched.args, {
-      ...(command.flags.stdin ? { stdin: true as const } : {}),
-    });
+    // Typing the form means supplying its flags too, with values its own
+    // declaration would accept.
+    const flags: Record<string, true | string | string[]> = {};
+    for (const [name, shape] of Object.entries(command.flags)) {
+      if (shape.kind === "boolean") flags[name] = true;
+      else if (name === "with-nodes") flags[name] = [A];
+      else if (name === "with-properties") flags[name] = ["a=b"];
+      else flags[name] = shape.kind === "variadic" ? ["w"] : "w";
+    }
+    const checked = check(command, matched.id, matched.args, flags);
     assertEquals(checked.kind, "ok", `${command.form}: ${JSON.stringify(checked)}`);
   }
 });

@@ -1,4 +1,5 @@
 import { parse as parseYaml, stringify as toYaml } from "@std/yaml";
+import { validate as isUuid } from "@std/uuid";
 
 /**
  * What a node file is made of, and nothing about where it lives.
@@ -47,6 +48,7 @@ const RESERVED: Record<string, string> = {
   body: "it is the node's content, written with `write`",
   created: "it is read from the id, and cannot be written",
   labels: "it is how a node classifies, written with `label`",
+  links: "it is how a node relates, written with `link`",
 };
 
 export const reservedReason = (name: string): string | undefined => RESERVED[name];
@@ -75,14 +77,38 @@ export type Label = Branded<"Label">;
 /** One value: a single line of printable text. */
 export type Text = Branded<"Text">;
 
+export type Uuid = Branded<"Uuid">;
+
 export const isValue = (s: string): s is Text => !CONTROL.test(s);
 export const isLabel = (s: string): s is Label => NAME.test(s);
+/** Any uuid is well formed, not only the v7 this tool mints — a v4 is a
+ * plausible id it never issued, which makes it honestly absent rather than
+ * refused. */
+export const isId = (s: string): s is Uuid => isUuid(s);
 
 /** A property holds one value or several. Several is multiplicity on one
  * dimension, not a container — which is why the shape follows from the verb
  * that wrote it rather than from anything the tool infers. */
-export type Value = Text | Text[];
+/** A node's end of a relation. The record holds the relation itself; this entry
+ * is what makes both directions a single node read. `type` and `direction` are
+ * duplicated from the record deliberately — grouping then costs no record reads,
+ * and the record stays authoritative if they ever disagree. */
+export type Direction = "out" | "in";
+export type Entry = {
+  readonly type: Label;
+  readonly link: Uuid;
+  readonly direction: Direction;
+};
+
+export type Value = Text | Text[] | Entry[];
 export type Properties = Record<Name, Value>;
+
+/** A list of values, which a list of relations is not. */
+export const isList = (value: Value | undefined): value is Text[] =>
+  Array.isArray(value) && value.every((each) => typeof each === "string");
+
+export const isLinks = (value: Value | undefined): value is Entry[] =>
+  Array.isArray(value) && value.every((each) => typeof each === "object");
 
 export type Split = { readonly frontmatter: string; readonly content: string };
 
@@ -141,6 +167,15 @@ export function read(frontmatter: string): Read {
     if (!isName(name)) {
       return unreadable(`${name} is not a property name`);
     }
+    // `links` is the one nested shape in the format, and the format owns it:
+    // an author still cannot nest, and this is validated against exactly the
+    // three fields the tool writes.
+    if (name === "links") {
+      const entries = readLinks(value);
+      if (typeof entries === "string") return unreadable(entries);
+      out[name] = entries;
+      continue;
+    }
     if (Array.isArray(value)) {
       // An empty list is a key carrying nothing — present, with no value on
       // that dimension. `remove` deletes a key rather than leaving one, so the
@@ -179,4 +214,29 @@ export const write = (properties: Properties): string =>
     ? ""
     : toYaml(properties, { sortKeys: true, flowLevel: 1, lineWidth: -1 });
 
-export const isList = (value: Value | undefined): value is Text[] => Array.isArray(value);
+/** The entries, or why they will not read. */
+function readLinks(value: unknown): Entry[] | string {
+  if (!Array.isArray(value)) return "links is not a list of relations";
+  const entries: Entry[] = [];
+  for (const each of value) {
+    if (each === null || typeof each !== "object" || Array.isArray(each)) {
+      return "links holds something that is not a relation";
+    }
+    const { type, link, direction, ...rest } = each as Record<string, unknown>;
+    const extra = Object.keys(rest)[0];
+    if (extra !== undefined) return `a relation has no field ${extra}`;
+    if (typeof type !== "string" || !isLabel(type)) {
+      return `not a relation type: ${
+        String(type)
+      } — expected a lowercase hyphenated token`;
+    }
+    if (typeof link !== "string" || !isId(link)) {
+      return `not a link id: ${String(link)} — expected a uuid`;
+    }
+    if (direction !== "out" && direction !== "in") {
+      return `not a direction: ${String(direction)} — expected out or in`;
+    }
+    entries.push({ type, link, direction });
+  }
+  return entries;
+}

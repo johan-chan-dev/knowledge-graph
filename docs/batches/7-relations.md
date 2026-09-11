@@ -3,7 +3,7 @@
 **Done when** a node can say how it stands to another node, and both ends can
 be asked.
 
-Planned. The design and its argument are in
+Built. The design and its argument are in
 [`design/parked/relations.md`](../design/parked/relations.md); this is what the
 batch builds and what it leaves.
 
@@ -26,18 +26,18 @@ $ kg node "$b" backlinks
 cites	01a08e40-1f77-…	01a084f0-631b-…
 supersedes	01a08e3f-4c21-…	01a084f0-631b-…
 
-$ kg link "$l" forget
-forgot 01a08e3f-4c21-…
-
 $ kg link "$l" add roles "Bill Smoke" "Haskell Moore"
 added 2 to roles
 
 $ kg link "$l"
 type	cites
-from	01a084f0-631b-…
-to	01a084f0-63be-…
+from	01a08fe5-7ea8-…
+to	01a08fe5-7ede-…
 roles	Bill Smoke, Haskell Moore
 since	2026-09-10
+
+$ kg link "$l" forget
+forgot 01a08fe5-7f4a-…
 ```
 
 Type, link id, other end — tab-separated, as `labels list` is. No arrows:
@@ -62,8 +62,8 @@ $ kg link "$l" set type cites
 type is the link's own data, not a property
 ```
 
-**Will be backed by** `batch 7 — relations`, as `7_test.ts` in
-[`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
+**Backed by** `batch 7 — relations`, in
+[`tool/tests/batches/7_test.ts`](../../tool/tests/batches/7_test.ts).
 
 ## It fixes how flags are declared first
 
@@ -174,6 +174,12 @@ why it cannot be a bare id in a list — there would be nowhere to put them.
 directed edge is not symmetric, so creating one needs a source — you are standing
 at A saying something about B. Destroying one needs only the thing destroyed, and
 `link` handed back its id.
+
+**A flag the command cannot do without is declared beside it.** `--as` and
+`--with-nodes` are `required` in the table, so a missing one is a usage error —
+found once by `--as` reaching the serialiser as `undefined` and throwing a stack
+trace out of the tool, which is the shape of defect the declared table exists to
+make impossible.
 
 **A record has fields and properties, and only properties are writable.**
 `type`, `from` and `to` are the link's own data and cannot be set; everything

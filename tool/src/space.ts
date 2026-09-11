@@ -12,6 +12,7 @@ export type Space = {
   readonly name: string;
   readonly nodes: string;
   readonly labels: string;
+  readonly links: string;
 };
 
 /**
@@ -35,6 +36,7 @@ const at = (root: string): Space => ({
   name: basename(root),
   nodes: join(root, ".kg", "nodes"),
   labels: join(root, ".kg", "labels"),
+  links: join(root, ".kg", "links"),
 });
 
 export type Found =
@@ -76,6 +78,7 @@ export async function init(cwd: string): Promise<Init> {
   try {
     await Deno.mkdir(space.nodes, { recursive: true });
     await Deno.mkdir(space.labels, { recursive: true });
+    await Deno.mkdir(space.links, { recursive: true });
     await Deno.writeTextFile(join(root, ".kg", ".gitattributes"), GITATTRIBUTES);
   } catch (error) {
     return { kind: "unwritable", reason: reason(error) };

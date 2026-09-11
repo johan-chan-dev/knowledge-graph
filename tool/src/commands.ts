@@ -4,6 +4,8 @@ import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
 import * as frontmatter from "./frontmatter.ts";
 import type { Label, Name, Properties, Text } from "./frontmatter.ts";
 import * as label from "./label.ts";
+import * as link from "./link.ts";
+import type { Entry } from "./frontmatter.ts";
 import { amend, create, isId, read, replace, type Uuid } from "./node.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
@@ -405,4 +407,175 @@ export async function labelsList(cwd: string): Promise<Outcome> {
     rows.push([word, String(counts.get(word) ?? 0), summary].join("\t").trimEnd());
   }
   return lines(rows);
+}
+
+/** The reserved slot relations live in. */
+const LINKS = "links" as Name;
+
+const entriesOf = (properties: Properties): Entry[] => {
+  const held = properties[LINKS];
+  return frontmatter.isLinks(held) ? [...held] : [];
+};
+
+/**
+ * Three files: the record, then both endpoints. The record goes first because
+ * it is authoritative — a torn write then leaves an orphan record, which is a
+ * repairable index, rather than an endpoint pointing at nothing.
+ */
+export async function nodeLink(
+  cwd: string,
+  from: Uuid,
+  type: Label,
+  targets: Uuid[],
+  properties: Record<string, Text>,
+): Promise<Outcome> {
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const space = resolved.space;
+
+  // Both ends must exist before anything is written: a link to a node that is
+  // not here is a dangling edge, and `write` already refuses an unknown id.
+  for (const id of [from, ...targets]) {
+    const found = await read(space, id);
+    if (found.kind === "absent") return absent(`no such node: ${id} in ${space.name}`);
+    if (found.kind !== "read") return unreadable(id, found);
+  }
+
+  const made: string[] = [];
+  for (const to of targets) {
+    const record = await link.create(space, type, from, to, properties);
+    if (record.kind === "unwritable") {
+      return refused(`cannot create a link: ${record.reason}`);
+    }
+    const out = await carry(space, from, { type, link: record.id, direction: "out" });
+    if (out !== undefined) return out;
+    const back = await carry(space, to, { type, link: record.id, direction: "in" });
+    if (back !== undefined) return back;
+    made.push(record.id);
+  }
+  return lines(made);
+}
+
+/** Add one entry to a node's `links`. */
+async function carry(space: Space, id: Uuid, entry: Entry): Promise<Outcome | undefined> {
+  const result = await amend(space, id, (properties) => {
+    properties[LINKS] = [...entriesOf(properties), entry];
+  });
+  if (result.kind === "amended") return undefined;
+  if (result.kind === "absent") return absent(`no such node: ${id} in ${space.name}`);
+  if (result.kind === "unwritable") {
+    return refused(`cannot write ${id}: ${result.reason}`);
+  }
+  return unreadable(
+    id,
+    result as { kind: "malformed" } | { kind: "unparseable"; reason: string },
+  );
+}
+
+/** Type, link id, the other end — tab-separated, as `labels list` is. */
+export async function nodeLinks(
+  cwd: string,
+  id: Uuid,
+  direction: "out" | "in",
+): Promise<Outcome> {
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const space = resolved.space;
+
+  const found = await read(space, id);
+  if (found.kind === "absent") return absent(`no such node: ${id} in ${space.name}`);
+  if (found.kind !== "read") return unreadable(id, found);
+
+  const rows: string[] = [];
+  for (const entry of entriesOf(found.properties)) {
+    if (entry.direction !== direction) continue;
+    const record = await link.read(space, entry.link);
+    const other = record.kind === "read"
+      ? (direction === "out" ? record.record.to : record.record.from)
+      : "";
+    rows.push([entry.type, entry.link, other].join("\t").trimEnd());
+  }
+  return lines(rows.sort());
+}
+
+export async function linkRead(cwd: string, id: Uuid): Promise<Outcome> {
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const found = await link.read(resolved.space, id);
+  if (found.kind === "absent") {
+    return absent(`no such link: ${id} in ${resolved.space.name}`);
+  }
+  if (found.kind === "unreadable") {
+    return refused(`cannot read link ${id}: ${found.reason}`);
+  }
+
+  const r = found.record;
+  const rows = [["type", r.type], ["from", r.from], ["to", r.to]];
+  for (const name of Object.keys(r.properties).sort()) {
+    const value = r.properties[name];
+    rows.push([name, Array.isArray(value) ? value.join(", ") : String(value)]);
+  }
+  return lines(rows.map((row) => row.join("\t")));
+}
+
+/** Ending a link ends the record. A label outlives its last use because
+ * vocabulary records what has been said; a link is the relationship itself. */
+export async function linkForget(cwd: string, id: Uuid): Promise<Outcome> {
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const space = resolved.space;
+
+  const found = await link.read(space, id);
+  if (found.kind === "absent") return absent(`no such link: ${id} in ${space.name}`);
+  if (found.kind === "unreadable") {
+    return refused(`cannot read link ${id}: ${found.reason}`);
+  }
+
+  for (const end of [found.record.from, found.record.to]) {
+    const dropped = await amend(space, end, (properties) => {
+      const kept = entriesOf(properties).filter((entry) => entry.link !== id);
+      if (kept.length === 0) delete properties[LINKS];
+      else properties[LINKS] = kept;
+    });
+    if (dropped.kind === "unwritable") {
+      return refused(`cannot write ${end}: ${dropped.reason}`);
+    }
+  }
+  const gone = await link.forget(space, id);
+  if (gone.kind === "unwritable") return refused(`cannot forget ${id}: ${gone.reason}`);
+  return ok("", `forgot ${id}`);
+}
+
+/** A link's properties obey a node's rules — on the properties, never on the
+ * three fields, which are the link's own data. */
+export async function linkChange(
+  cwd: string,
+  id: Uuid,
+  name: string,
+  edit: (properties: link.Properties) => string | undefined | { refuse: string },
+): Promise<Outcome> {
+  // A link's identity *is* its type and its two ends, so altering one would
+  // make it a different link. They are fields, not properties.
+  if ((link.FIELDS as readonly string[]).includes(name)) {
+    return refused(`${name} is the link's own data, not a property`);
+  }
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const space = resolved.space;
+
+  const found = await link.read(space, id);
+  if (found.kind === "absent") return absent(`no such link: ${id} in ${space.name}`);
+  if (found.kind === "unreadable") {
+    return refused(`cannot read link ${id}: ${found.reason}`);
+  }
+
+  const properties = { ...found.record.properties };
+  const said = edit(properties);
+  if (said !== undefined && typeof said === "object") return refused(said.refuse);
+
+  const wrote = await link.write(space, id, { ...found.record, properties });
+  if (wrote.kind === "unwritable") {
+    return refused(`cannot write link ${id}: ${wrote.reason}`);
+  }
+  return said === undefined ? ok("") : ok("", said);
 }

@@ -1,21 +1,16 @@
 import { join as joinPath } from "@std/path";
-import { validate as isUuid } from "@std/uuid";
 import { generate as generateV7 } from "@std/uuid/v7";
 import * as frontmatter from "./frontmatter.ts";
-import type { Branded, Properties } from "./frontmatter.ts";
+import type { Properties, Uuid } from "./frontmatter.ts";
+import { isId } from "./frontmatter.ts";
 import type { Space } from "./space.ts";
 
 /** Reading and writing node files. What a node file *is* belongs to
  * `frontmatter.ts`; this knows only where they live and how to replace one
  * without ever leaving a half-written file behind. */
 
-/** A node's id. */
-export type Uuid = Branded<"Uuid">;
-
-/** Any uuid is well formed, not only the v7 this tool mints — a v4 is a
- * plausible id it never issued, which makes it honestly absent rather than
- * refused. */
-export const isId = (s: string): s is Uuid => isUuid(s);
+export { isId };
+export type { Uuid };
 
 /** The other way to obtain a checked value: generated legal by construction,
  * rather than checked on arrival. A door is not the only manufacturer. */
