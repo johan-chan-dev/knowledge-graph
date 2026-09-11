@@ -269,10 +269,10 @@ yet.
 Everything else is legal, including spaces, punctuation, and `= & ? ;`, because
 a URL alone needs most of them.
 
-The restriction comes from the output contract rather than from storage: this
-prints one property per line, so a value spanning lines makes the output
-unreadable to anything, including a person. And a value wanting several lines is
-content, which is what the body is for.
+The restriction is about what a property is for, not about storage or output —
+**a value wanting several lines is content, and content is what the body is
+for.** A node has two halves precisely so that the long half has somewhere to
+live.
 
 Tab is refused for a different reason — it renders identically to spaces, so two
 values that look the same would not match a filter.
