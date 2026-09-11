@@ -14,8 +14,11 @@ Until now relations were one word inside
 ```
 
 ```yaml
-# in A                            # in B
-links.supersedes: [<link-uuid>]   backlinks.supersedes: [<link-uuid>]
+# in both A and B, under one reserved name
+links:
+  - type: supersedes
+    link: <link-uuid>
+    direction: out        # `in` on the other end
 ```
 
 Three properties fall out of that arrangement, and no other one has all three:
@@ -23,33 +26,36 @@ Three properties fall out of that arrangement, and no other one has all three:
 | | |
 |---|---|
 | the link's own data exists **once** | so nothing can disagree about `since` |
-| both directions are **one node read** | `backlinks` costs ~70 µs, not a scan |
-| both endpoints have the **same shape** | no authoritative side to remember |
+| both directions are **one node read** | `backlinks` is the same read filtered on `direction` |
+| type and direction sit on the node | grouping costs no record reads |
 
 The alternative measured against it is a scan: 7 s over 100 000 nodes, 600 ms
-over 10 000. Storing the back half is what buys that back, and the reason
-Neo4j's index-free adjacency links relationships from both ends.
+over 10 000. Storing an entry at both ends is what buys that back, and the
+reason Neo4j's index-free adjacency links relationships from both ends.
 
-**JSON, not markdown with frontmatter.** A link carries no prose, so a body
-would be dead weight — and JSON needs none of `frontmatter.ts`: no `2026-01-01`
-becoming a date, no five spellings of null, no quoting rules to preserve
-`'1.10'`. Not a speed argument: parsing is ~4% of a file read, measured.
+**JSON for the record.** A link carries no prose, so a body would be dead
+weight — and JSON needs none of `frontmatter.ts`: no `2026-01-01` becoming a
+date, no five spellings of null, no quoting rules to preserve `'1.10'`. Not a
+speed argument: parsing is ~4% of a file read, measured.
 
 **A link carries properties**, as Neo4j's relationships do — *"can have
 properties, which further describe the relationship"* — and exactly one type,
-also Neo4j's rule. That is why a link cannot be a list element: there would be
+also Neo4j's rule. That is why an entry cannot be a bare id: there would be
 nowhere to put them.
+
+**The entries are a materialised index.** `type` appears on the node and in the
+record, so they can disagree; the record wins and the entry is repaired.
 
 ## What it needs that does not exist
 
-**The dot rule.** `links.supersedes` is refused today — `not a property name`.
-[`structure.md`](../structure.md) designed the rule (*a dot can only follow a
-reserved name*) for `body.lines` and nothing has implemented it. Relations are
-what would.
+**A nested shape under one reserved name.** The reader refuses a list of maps
+today and goes on refusing it for authored names; `links` is validated against
+exactly `{type, link, direction}`. A reserved name's shape belongs to the
+format, which is the same argument `body` rests on.
 
-**Two reserved names**, `links` and `backlinks`, spent permanently. By
-`structure.md`'s test they qualify: edges becoming part of a node's shape is
-named there as the example of the format growing.
+**One reserved name**, `links`, spent permanently. By
+[`structure.md`](../structure.md)'s test it qualifies: edges becoming part of a
+node's shape is named there as the example of the format growing.
 
 **Per-command flag sets.** The surface wants two variadic flags and a valued
 one — `--as <type> --with-nodes <b> <c> --with-properties k=v k2=v2`. What

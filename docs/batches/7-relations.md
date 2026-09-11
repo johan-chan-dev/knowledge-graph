@@ -45,7 +45,7 @@ link needs --as
 $ kg node "$a" link --as cites --with-nodes "$b" --with-properties drift
 not a property: drift — expected name=value
 
-$ kg node "$a" set links.supersedes x
+$ kg node "$a" add links x
 links is reserved — a relation is written with `link`
 ```
 
@@ -114,26 +114,48 @@ All three are the global parse leaking. Under a per-command spec the tokens are
 either consumed by a declared flag or they are positionals the table refuses,
 and the question never arises.
 
-## And the dot rule, which nothing has ever used
-
-`links.supersedes` is refused today — *not a property name*.
-[`structure.md`](../design/structure.md) designed the rule that a dot may follow
-a reserved name, for `body.lines`, and nothing has exercised it since. Relations
-are what make it real.
-
 ## What it decides
 
-**A link is a record**, `.kg/links/<uuid>.json`, holding its type, both
-endpoints and its properties **once**. Each endpoint carries the link's id under
-`links.<type>` or `backlinks.<type>`, so both directions are a single node read
-rather than a scan — ~70 µs against 7 s over 100 000 nodes.
+**A link is a record**, `.kg/links/<uuid>.json`, holding its type, both endpoints
+and its properties **once**:
 
-**Two reserved names**, `links` and `backlinks`. By `structure.md`'s test they
-qualify: edges becoming part of a node's shape is named there as the example of
-the format growing.
+```json
+{ "type": "supersedes", "from": "<A>", "to": "<B>", "since": "2026-09-10" }
+```
+
+**Both endpoints carry an entry for it**, under one reserved name:
+
+```yaml
+links:
+  - type: supersedes
+    link: 01a08e3f-4c21-7bb0-9e7a-5d2f8c1a4e90
+    direction: out
+  - type: cites
+    link: 01a08e40-1f77-7a3e-b2c4-9e81d5a0f3b2
+    direction: in
+```
+
+So both directions are a single node read — ~70 µs against 7 s over 100 000
+nodes — and `links` and `backlinks` are the same read filtered on `direction`.
+Type and direction sit on the node, so grouping costs no record reads.
+
+**One reserved name**, `links`. By `structure.md`'s test it qualifies: edges
+becoming part of a node's shape is named there as the example of the format
+growing.
+
+**The entries are a materialised index; the record is authoritative.** `type`
+appears in both, so they can disagree — and when they do the record wins and the
+entry is repaired, the same relationship `labels/<word>.json` has to the nodes.
+
+**`links` holds a list of maps, and nothing else may.** The reader refuses a
+nested structure today and goes on refusing it for authored names. A reserved
+name's shape belongs to the format — the same argument as `body` — so `links` is
+validated against exactly `{type, link, direction}` and authors still cannot
+nest. [`boundaries.md`](../design/boundaries.md) is satisfied: the reading door
+enforces precisely what the writing door produces.
 
 **A link carries properties and exactly one type**, both Neo4j's rules. That is
-why it cannot be a list element — there would be nowhere to put them.
+why it cannot be a bare id in a list — there would be nowhere to put them.
 
 **The commands start from the node**, never from the link. A directed edge is
 not symmetric, and the source is where the caller is standing.
