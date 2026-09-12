@@ -92,6 +92,35 @@ addressable — `find '"person" in labels and not born'` returns exactly those
 five. Under three-valued logic they would fall out of both the query and its
 negation, and be genuinely lost.
 
+**An absent key, never a null.** JSON has no `undefined`, so omitting the key
+*is* undefined to the consumer — `o.born === undefined`, which is what
+[`absence.md`](../design/absence.md) settled. `null` is not merely unwanted
+here, it is **unstorable**: the read door refuses YAML null in every spelling,
+so emitting one would be output the tool cannot read back. And `"null"` the
+string is a legal value, which JSON tells apart from `null` and YAML cannot —
+which is why the read door has to refuse null outright.
+
+## A name nothing carries
+
+Property names are open, so nothing validates the one you asked for. A typo
+therefore answers successfully:
+
+```console
+$ kg nodes find '"movie" in labels' | kg nodes properties tilte --stdin
+[{"id":"01a0…"}, {"id":"01a0…"}, … ]
+```
+
+Thirty-eight objects carrying only `id`, exit `0`, and indistinguishable from a
+name no node happens to use. That is the silence
+[batch 4](4-stops-guessing.md) removed `--where` for.
+
+It cannot be a refusal — `tilte` is unused, not invalid. So the tool says so on
+stderr: **`no node carries tilte`**, and only when the count is zero. Where five
+of 133 lack `born` the caller can count the objects missing the key, and
+repeating it is telling them what they already hold. Zero is different: it reads
+as a typo, and the tool knows something the caller does not — that the name is
+unused across the whole set it just read.
+
 ## `--stdin` means what this command needs
 
 It already does: content for `write`, ids for a resolver. One reading, not two,
