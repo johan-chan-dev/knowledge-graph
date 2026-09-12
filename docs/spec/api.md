@@ -119,11 +119,14 @@ the shell expand `$VAR`, backticks and `$( )` into the text being searched.
 declares its literal — `=` and `!=` take text, `>` `<` `>=` `<=` take a bare
 numeral, `in` takes a quoted value on the left and a name on the right. A
 mismatch refuses before a file is opened. `not` binds tightest, then `and`, then
-`or`; `and`, `or`, `not`, `in` and `has` are spent as property names.
+`or`; `and`, `or`, `not`, `in`, `has`, `is` and `no` are spent as property names.
 
-**Presence is spelled `has <name>`.** A name alone is refused — it would be a
+**Presence is spelled, with the auxiliary English gives the name** — `has
+tagline` / `has no tagline` for a noun, `is retired` / `is not retired` for an
+adjective. Both build the same test. A name alone is refused: it would be a
 proposition in one place and an operand in another with nothing on the line to
-say which, as `has score and not score > 0.7` shows.
+say which, as `has score and not score > 0.7` shows. `not has` and the crossed
+pairs are refused too, each naming the spelling that reads.
 
 **Absence is two-valued.** A comparison against an absent property is false and
 `not` flips it, so a query and its negation always partition the space. A value

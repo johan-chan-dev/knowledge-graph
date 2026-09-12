@@ -20,7 +20,9 @@ Deno.test("batch 9 — find", async () => {
   // 1. The transcript the document shows.
   assertEquals(await ids('"decision" in labels'), [decided, retired]);
   assertEquals(await ids("has retired"), [retired]);
-  assertEquals(await ids('"decision" in labels and not has retired'), [decided]);
+  // `is` is the same test, spelled for a name that reads as a state.
+  assertEquals(await ids("is retired"), [retired]);
+  assertEquals(await ids('"decision" in labels and has no retired'), [decided]);
   assertEquals(await ids('"decision" in labels and score > 0.7'), [decided]);
 
   // 2. One id per line, in creation order, as `nodes list` returns.
@@ -45,7 +47,13 @@ Deno.test("batch 9 — find", async () => {
   const bare = await kg(dir, ["nodes", "find", "retired"]);
   assertEquals(bare.code, 1);
   assertStringIncludes(bare.err, "retired alone is not a test");
-  assertStringIncludes(bare.err, "write `has retired`");
+  assertStringIncludes(bare.err, "`has retired`");
+  assertStringIncludes(bare.err, "`is retired`");
+
+  // And the auxiliary carries its own negative — `not has` reads as nothing.
+  const crossed = await kg(dir, ["nodes", "find", "not has retired"]);
+  assertEquals(crossed.code, 1);
+  assertStringIncludes(crossed.err, "write `has no retired`");
 
   // 6. Each refusal names which side to fix, and exits `1` — the argument
   //    broke a rule, so nothing was looked at.

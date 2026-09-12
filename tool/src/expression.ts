@@ -16,8 +16,13 @@ import type { Name, Text } from "./frontmatter.ts";
 /** A bare word is always a name or a keyword; a quoted string is always a
  * value. Nothing depends on where a token appears, so there are no contextual
  * keywords and `not` needs no lookahead to tell a negation from a property
- * called `not`. */
-const KEYWORDS = ["and", "or", "not", "in", "has"] as const;
+ * called `not`.
+ *
+ * `has`/`is` and `no`/`not` are two spellings of one test, because English
+ * predicates a noun with *having* and an adjective with *being*. They build the
+ * same node — aliases that cannot diverge — and which one reads correctly is
+ * decided by the name the author chose, which the grammar cannot know. */
+const KEYWORDS = ["and", "or", "not", "in", "has", "is", "no"] as const;
 
 /** Operands the design names and this batch does not build. They would
  * otherwise lex as ordinary names and test the presence of a property that can
@@ -192,6 +197,16 @@ function parser(tokens: Token[]) {
       if (token.kind === "keyword" && token.text === "not") {
         refuse("not takes one prefix — `not not` is not a double negation");
       }
+      // `not has x` parses mechanically and reads as nothing anyone says. The
+      // auxiliary carries its own negative, so the refusal names it.
+      if (token.kind === "keyword" && (token.text === "has" || token.text === "is")) {
+        const negative = token.text === "has" ? "no" : "not";
+        const after = tokens[i + 1];
+        const shown = after?.kind === "name" ? ` ${after.text}` : "";
+        refuse(
+          `not ${token.text} is not how it reads — write \`${token.text} ${negative}${shown}\``,
+        );
+      }
       return { kind: "not", of: primary() };
     }
     return primary();
@@ -233,20 +248,45 @@ function parser(tokens: Token[]) {
     // otherwise be a proposition here and an operand three words later —
     // `score and not score > 0.7` — with only the parser's lookahead to say
     // which, and nothing on the line to show it.
-    if (token.kind === "keyword" && token.text === "has") {
+    if (token.kind === "keyword" && (token.text === "has" || token.text === "is")) {
+      const auxiliary = token.text;
+      const negative = auxiliary === "has" ? "no" : "not";
       i++;
+
+      let negated = false;
+      const particle = peek();
+      if (
+        particle?.kind === "keyword" &&
+        (particle.text === "no" || particle.text === "not")
+      ) {
+        // `has not` and `is no` are the crossed pairs — each reads as the other's
+        // half, so the refusal names the one that was meant.
+        if (particle.text !== negative) {
+          const after = tokens[i + 1];
+          const shown = after?.kind === "name" ? ` ${after.text}` : "";
+          refuse(
+            `${auxiliary} ${particle.text} is not how it reads — write \`${auxiliary} ${negative}${shown}\``,
+          );
+        }
+        negated = true;
+        i++;
+      }
+
       const subject = peek();
-      if (subject === undefined) ended("has");
+      if (subject === undefined) ended(negated ? `${auxiliary} ${negative}` : auxiliary);
       if (subject.kind !== "name") {
-        refuse(`not a name: ${subject.text} — \`has\` asks about a property`);
+        refuse(`not a name: ${subject.text} — \`${auxiliary}\` asks about a property`);
       }
       const held = name(subject);
       i++;
-      return { kind: "presence", name: held };
+      const test: Expr = { kind: "presence", name: held };
+      return negated ? { kind: "not", of: test } : test;
     }
 
     if (token.kind !== "name") {
-      refuse(`unexpected ${token.text} — a test begins with \`has\`, a name or a value`);
+      refuse(
+        `unexpected ${token.text} — a test begins with \`has\`, \`is\`, a name or a value`,
+      );
     }
     const subject = name(token);
     i++;
@@ -254,7 +294,7 @@ function parser(tokens: Token[]) {
     const op = peek();
     if (op === undefined || op.kind !== "op") {
       refuse(
-        `${subject} alone is not a test — write \`has ${subject}\` to ask whether it is there`,
+        `${subject} alone is not a test — write \`has ${subject}\` or \`is ${subject}\`, whichever reads`,
       );
     }
     i++;

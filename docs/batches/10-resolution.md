@@ -98,7 +98,7 @@ Five of the movies graph's 133 people carry no `born`. They are objects with one
 key fewer, and no reader has to know which absence a blank meant.
 
 **Two-valued absence is what makes that safe.** The set that was quiet is still
-addressable — `find '"person" in labels and not has born'` returns exactly those
+addressable — `find '"person" in labels and has no born'` returns exactly those
 five. Under three-valued logic they would fall out of both the query and its
 negation, and be genuinely lost.
 
