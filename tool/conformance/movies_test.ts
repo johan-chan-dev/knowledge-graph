@@ -125,9 +125,27 @@ Deno.test({
       (await kg(dir, ["node", id, "--properties"]))
         .split("\n").find((l) => l.startsWith(`${name}: `))?.slice(name.length + 2);
 
-    // Q1, Q2, Q3 — movies released after 2000: listed, and counted by `wc -l`
-    // on the caller's side, because one id per line is what stdout returns.
-    assertEquals((await find("released > 2000")).length, 12);
+    // Q1, Q2 and Q3 are one selection asked for three ways, and the difference
+    // between them is the whole of what `find` returns: the ids are the answer,
+    // a loop turns them into titles, a pipe reduces them to a number.
+    const recent = await find("released > 2000");
+    assertEquals(recent.length, 12);
+    const titles: string[] = [];
+    for (const id of recent) titles.push((await shown(id, "title"))!);
+    assertEquals(titles.sort(), [
+      "Charlie Wilson's War",
+      "Cloud Atlas",
+      "Frost/Nixon",
+      "Ninja Assassin",
+      "RescueDawn",
+      "Something's Gotta Give",
+      "Speed Racer",
+      "The Da Vinci Code",
+      "The Matrix Reloaded",
+      "The Matrix Revolutions",
+      "The Polar Express",
+      "V for Vendetta",
+    ]);
 
     // Q6, Q7 — every person, and every film with its title and released year.
     // The projection is the caller's loop; `find` selects and stops there.

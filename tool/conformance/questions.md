@@ -10,9 +10,9 @@ Expected answers are computed from `movies.cypher`, not remembered.
 
 | | question | needs | today |
 |---|---|---|---|
-| 1 | movies released after 2000 — **12** | `find` | ✓ |
-| 2 | the same, listed | `find` | ✓ |
-| 3 | the same, counted | `find` piped to `wc -l` | ✓ |
+| 1 | which movies were released after 2000 — **12 ids** | `find` | ✓ |
+| 2 | their titles — **12 titles** | `find` + a loop | ✓ |
+| 3 | how many there are — **12** | `find` piped to `wc -l` | ✓ |
 | 4 | people who directed a film released after 2010 | `find` + `backlinks` | ✓ |
 | 5 | actors in films released after 2010 | `find` + `backlinks` | ✓ |
 | 6 | `name` and `born` for every person | `find` + a loop | ✓ |
@@ -23,6 +23,12 @@ Expected answers are computed from `movies.cypher`, not remembered.
 | 11 | Tom Hanks' co-actors — **34** | two hops, scripted | ✓ awkward |
 | 12 | everyone connected to *Cloud Atlas* — **10** | `backlinks \| cut -f1` | ✓ |
 | 13 | everything three hops from Kevin Bacon | variable-length traversal | ✗ **and out of scope** |
+
+**1, 2 and 3 are one selection asked for three ways**, and they are kept apart
+because the difference is the whole of what `find` returns. It hands back ids:
+the set. A loop turns those into titles; a pipe reduces them to a number.
+Neither is something the command does, which is why the projection question and
+the counting question are the caller's and not a flag.
 
 ## What they settle
 
