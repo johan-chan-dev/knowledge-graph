@@ -424,10 +424,9 @@ grid over them needs a cell for a node carrying none, and that cell has nothing
 legitimate to hold: the empty string is a legal value, so an absent property and
 `title: ""` would render identically.
 
-**Closed is not the same as immutable.** `labels list`'s count is recomputed by
-scanning every node and its summary is prose someone typed — neither is a
-link's kind of field, and both tabulate. What decides the shape is whether the
-names are known ahead of time, not whether the values can be written.
+**Nothing about writing enters this.** A column works because its name is known
+ahead of time, not because its value is fixed — none of `labels list`'s three is
+fixed, and all three tabulate.
 
 **A targeted write prints nothing.** Only `new` returns an id, because only
 there is the id new information; echoing back one the caller just supplied is

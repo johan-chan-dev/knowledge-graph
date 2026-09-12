@@ -59,12 +59,11 @@ the flag; what it was really waiting for was this distinction.
 every row. That is what lets `backlinks | grep '^directed' | cut -f3` answer two
 of the guide's questions in one line each.
 
-**Closed is not immutable**, and only the first decides the shape. A link's
-`type`, `from` and `to` are [fields](../spec/api.md) in the batch 7 sense —
-its identity, refused by `set` — but that is a rule about writing. `labels
-list`'s count is recomputed on every call and tabulates just as well. So
-`link <id>`, which returns three known names beside however many authored ones,
-is an object.
+**Only that question decides the shape**, and it is not the question `set`
+answers. A link's `type`, `from` and `to` are [fields](../spec/api.md) in the
+batch 7 sense — its identity, which is a rule about writing and leaves the
+output shape alone. So `link <id>`, which returns three known names beside
+however many authored ones, is an object.
 
 **`node <id>` still returns content byte for byte.** Wrapping prose in an
 escaped string is strictly worse than handing it over, and an agent that asked
