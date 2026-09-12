@@ -31,9 +31,9 @@ $ kg nodes find '"decision" in labels'
 01a084f0-631b-7bba-a6fe-81d79faedbde
 01a084f0-63be-732e-b44e-f9029a874a5f
 
-$ kg nodes find 'is retired'
+$ kg nodes find 'has retired'
 
-$ kg nodes find '"decision" in labels and is not retired'
+$ kg nodes find '"decision" in labels and not has retired'
 01a084f0-631b-7bba-a6fe-81d79faedbde
 
 $ kg nodes find '"decision" in labels and score > 0.7'
@@ -48,7 +48,7 @@ not a value: Matrix — `=` compares text, write "Matrix"
 $ kg nodes find 'score > "0.7"'
 not a number: "0.7" — `>` compares numbers, drop the quotes
 
-$ kg nodes find 'is retired and'
+$ kg nodes find 'has retired and'
 unexpected end of expression — `and` needs something after it
 ```
 
@@ -95,7 +95,7 @@ have been.
 
 ```
 title = "Cloud Atlas"      a name, an operator, a value
-has tagline / is retired   presence — the name alone is not a test
+has retired                presence — the name alone is not a test
 "auth" in labels           a value, an operator, a name
 score > 0.7                a bare numeral is a number
 version = "1.10"           quoted, and the trailing zero survives
@@ -110,7 +110,7 @@ It also makes the two operand orders self-explaining: `title = "Cloud Atlas"`
 and `"auth" in labels` read differently, and the quoting says which side is which
 without anyone having to remember.
 
-## Presence is spelled, and English decides how
+## Presence is spelled
 
 A bare name was a presence test in the first draft, and that was wrong — not
 ambiguous to the parser, but silent about what it meant:
@@ -122,50 +122,26 @@ has score and not score > 0.7      and now the line says so
 
 The parser told them apart by looking one token ahead: a name followed by an
 operator is a comparison, a name followed by nothing is a presence test. It
-worked, and nothing on the line showed it. Every other query language spells
-presence out — `IS NOT NULL`, `EXISTS()`, `BOUND(?x)` — and none settles for the
-bare name.
+worked, and nothing on the line showed it. `not retired` read as a negated
+value rather than a missing key — which is also how every other query language
+sees it, since all of them spell presence out: `IS NOT NULL`, `EXISTS()`,
+`BOUND(?x)`. None settles for the bare name.
 
-**Two auxiliaries, because English has two.** A noun is predicated with *having*
-and an adjective with *being*, and which one a property takes is decided by the
-name its author chose — which the grammar cannot know:
-
-```
-has tagline        has no tagline           a noun
-is retired         is not retired           a participle or adjective
-```
-
-Both build the same node. They are aliases that **cannot diverge**, because
-there is one presence test and two ways to say it, not two features. The reason
-to carry both is the primary caller: a model generating a query produces the
-correct auxiliary for the word without being told, and forcing the other one
-makes it write against the language it already knows.
-
-**The auxiliary carries its own negative.** `not has tagline` parses
-mechanically and reads as nothing anyone says, so it is refused, as are the
-crossed pairs:
+So a name alone refuses, and the refusal teaches the form:
 
 ```console
-$ kg nodes find 'not has tagline'
-not has is not how it reads — write `has no tagline`
-
-$ kg nodes find 'is no retired'
-is no is not how it reads — write `is not retired`
-
 $ kg nodes find 'retired'
-retired alone is not a test — write `has retired` or `is retired`, whichever reads
+retired alone is not a test — write `has retired` to ask whether it is there
 ```
 
-`not` still composes everywhere it belongs — `not score > 0.7`, and `not (has a
-and is b)` over a group. What it may not do is stand in front of an auxiliary
-that already has a negative.
+The cost is a fifth reserved word, which [`structure.md`](../design/structure.md)
+says is spent permanently and should be deliberate. This one is: it buys the
+one construct in the grammar that could be read two ways.
 
-**Mechanically correct is not the standard here; grammatical is.** A uniform
-`not has` would have been one keyword fewer and one rule simpler, and would have
-read like nothing anyone writes. Three names spent — `has`, `is`, `no` — buys a
-grammar that reads aloud, and [`structure.md`](../design/structure.md) says a
-reserved name is spent permanently, so this is deliberate: none of the three is
-a plausible property name.
+**Keywords are reserved as property names** — `and`, `or`, `not`, `in`, `has`.
+Five names spent, which `structure.md` says is permanent and should be deliberate.
+It is deliberate: the alternative is resolving the ambiguity by position, which
+does not remove it so much as hide it.
 
 ## Each operator declares its literal
 
@@ -211,8 +187,8 @@ for the thing that really does contain something, the body.
 `not` binds tightest, then `and`, then `or`, both left-associative:
 
 ```
-is not retired and is archived         →  (is not retired) and is archived
-not (is retired and is archived)       →  the group
+not has retired and has archived       →  (not has retired) and has archived
+not (has retired and has archived)     →  the group
 ```
 
 `not` takes one optional prefix, not a chain. `not not x` is not a double
@@ -227,7 +203,7 @@ it; `!=` is exactly `not =`. So `not score > 0.7` matches a node with no
 0.7* is true when there is no score.
 
 **A choice with a name.** Absence reading as false is the Closed World
-Assumption, and `not` is negation as failure: `is not retired` means *the corpus
+Assumption, and `not` is negation as failure: `not has retired` means *the corpus
 does not say retired*, not *retired is false*. Slotlessness does not force it —
 SPARQL has no slots and is three-valued anyway — so
 [`design/absence.md`](../design/absence.md) argues why it is chosen here, and
@@ -277,7 +253,7 @@ than about the data.
 ## The shell is the outer grammar
 
 ```bash
-kg nodes find '"decision" in labels and is not retired'
+kg nodes find '"decision" in labels and not has retired'
 ```
 
 **Single quotes outside**, measured rather than assumed: double quotes let the

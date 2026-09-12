@@ -12,7 +12,7 @@ One action, one argument, one grammar — over authored properties and over the
 reserved names in [structure](../structure.md):
 
 ```
-"decision" in labels and is not retired
+"decision" in labels and not has retired
 stage = "decision"
 body ~ "session.*handling"
 created > "2026-09-01"

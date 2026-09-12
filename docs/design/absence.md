@@ -9,7 +9,7 @@ the format forced.
 
 Absence reads as false and `not` flips it. That is the **Closed World
 Assumption** (Reiter, *On Closed World Data Bases*, 1978), implemented as
-**negation as failure** (Clark, 1978). `is not retired` means *the corpus does not
+**negation as failure** (Clark, 1978). `not has retired` means *the corpus does not
 say retired* — never *retired is false*. It is the semantics of Datalog, Prolog
 and ordinary database query answering, so the company is orthodox rather than
 eccentric.
