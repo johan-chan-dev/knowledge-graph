@@ -15,8 +15,10 @@ function why(source: string): string {
   return parsed.message;
 }
 
-Deno.test("a bare name is a presence test", () => {
-  assertEquals(tree("retired"), { kind: "presence", name: "retired" } as Expr);
+Deno.test("presence is spelled, and a bare name is not a test", () => {
+  assertEquals(tree("has retired"), { kind: "presence", name: "retired" } as Expr);
+  assertStringIncludes(why("retired"), "retired alone is not a test");
+  assertStringIncludes(why("retired"), "write `has retired`");
 });
 
 Deno.test("each operator declares its literal", () => {
@@ -59,16 +61,19 @@ Deno.test("a bare numeral is a number, and a negative one is not a name", () => 
 });
 
 Deno.test("a hyphen inside a name is not arithmetic", () => {
-  assertEquals(tree("valid-until"), { kind: "presence", name: "valid-until" } as Expr);
+  assertEquals(
+    tree("has valid-until"),
+    { kind: "presence", name: "valid-until" } as Expr,
+  );
 });
 
 Deno.test("not binds tightest, then and, then or", () => {
-  assertEquals(tree("not a and b"), {
+  assertEquals(tree("not has a and has b"), {
     kind: "and",
     left: { kind: "not", of: { kind: "presence", name: "a" } },
     right: { kind: "presence", name: "b" },
   } as Expr);
-  assertEquals(tree("a or b and c"), {
+  assertEquals(tree("has a or has b and has c"), {
     kind: "or",
     left: { kind: "presence", name: "a" },
     right: {
@@ -80,7 +85,7 @@ Deno.test("not binds tightest, then and, then or", () => {
 });
 
 Deno.test("a group overrides precedence", () => {
-  assertEquals(tree("not (a and b)"), {
+  assertEquals(tree("not (has a and has b)"), {
     kind: "not",
     of: {
       kind: "and",
@@ -91,7 +96,7 @@ Deno.test("a group overrides precedence", () => {
 });
 
 Deno.test("and is left-associative", () => {
-  assertEquals(tree("a and b and c"), {
+  assertEquals(tree("has a and has b and has c"), {
     kind: "and",
     left: {
       kind: "and",
@@ -103,13 +108,13 @@ Deno.test("and is left-associative", () => {
 });
 
 Deno.test("a keyword is never a name", () => {
-  assertStringIncludes(why("retired and"), "unexpected end of expression");
-  assertStringIncludes(why("retired and"), "`and` needs something after it");
-  assertStringIncludes(why("not not a"), "not takes one prefix");
+  assertStringIncludes(why("has retired and"), "unexpected end of expression");
+  assertStringIncludes(why("has retired and"), "`and` needs something after it");
+  assertStringIncludes(why("not not has a"), "not takes one prefix");
 });
 
 Deno.test("an unclosed group refuses", () => {
-  assertStringIncludes(why("(a and b"), "unclosed group");
+  assertStringIncludes(why("(has a and has b"), "unclosed group");
 });
 
 Deno.test("both quote characters are accepted inside", () => {
@@ -124,15 +129,15 @@ Deno.test("both quote characters are accepted inside", () => {
 
 Deno.test("what this batch leaves says so, rather than lying", () => {
   assertStringIncludes(why('body ~ "session"'), "not built yet");
-  assertStringIncludes(why("created"), "not built yet");
+  assertStringIncludes(why("has created"), "not built yet");
   assertStringIncludes(why('title ~ "x"'), "~ is not built yet");
 });
 
 Deno.test("a trailing token is not silently ignored", () => {
-  assertStringIncludes(why("a b"), "already complete");
+  assertStringIncludes(why("has a has b"), "already complete");
   assertStringIncludes(why(""), "empty expression");
 });
 
 Deno.test("a name that could not be written is refused", () => {
-  assertStringIncludes(why("Title"), "not a name: Title");
+  assertStringIncludes(why("has Title"), "not a name: Title");
 });

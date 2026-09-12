@@ -14,9 +14,9 @@ function hits(source: string, properties: Properties): boolean {
 }
 
 Deno.test("presence is asked of the record, not of the value", () => {
-  assertEquals(hits("retired", like({ retired: "no" })), true);
-  assertEquals(hits("retired", like({ retired: "" })), true);
-  assertEquals(hits("retired", like({})), false);
+  assertEquals(hits("has retired", like({ retired: "no" })), true);
+  assertEquals(hits("has retired", like({ retired: "" })), true);
+  assertEquals(hits("has retired", like({})), false);
 });
 
 Deno.test("a comparison against an absent property is false, and not flips it", () => {
@@ -35,8 +35,8 @@ Deno.test("the known asymmetry: not (a > b) is not a <= b", () => {
   assertEquals(hits("score <= 0.7", like({})), false);
   assertEquals(hits("not (score > 0.7)", like({})), true);
   // The idiom for the other question.
-  assertEquals(hits("score and not score > 0.7", like({})), false);
-  assertEquals(hits("score and not score > 0.7", like({ score: "0.1" })), true);
+  assertEquals(hits("has score and not score > 0.7", like({})), false);
+  assertEquals(hits("has score and not score > 0.7", like({ score: "0.1" })), true);
 });
 
 Deno.test("a value that will not take the type simply does not match", () => {
@@ -81,13 +81,16 @@ Deno.test("a list of relations is not a list of values", () => {
     }],
   });
   assertEquals(hits('"cites" in links', linked), false);
-  assertEquals(hits("links", linked), true);
+  assertEquals(hits("has links", linked), true);
 });
 
 Deno.test("and, or and grouping combine as the grammar says", () => {
   const node = like({ labels: ["decision"], score: "0.9" });
   assertEquals(hits('"decision" in labels and score > 0.7', node), true);
-  assertEquals(hits('"decision" in labels and retired', node), false);
-  assertEquals(hits('retired or "decision" in labels', node), true);
-  assertEquals(hits('(retired or archived) and "decision" in labels', node), false);
+  assertEquals(hits('"decision" in labels and has retired', node), false);
+  assertEquals(hits('has retired or "decision" in labels', node), true);
+  assertEquals(
+    hits('(has retired or has archived) and "decision" in labels', node),
+    false,
+  );
 });

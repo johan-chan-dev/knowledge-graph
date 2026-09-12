@@ -17,7 +17,7 @@ import type { Name, Text } from "./frontmatter.ts";
  * value. Nothing depends on where a token appears, so there are no contextual
  * keywords and `not` needs no lookahead to tell a negation from a property
  * called `not`. */
-const KEYWORDS = ["and", "or", "not", "in"] as const;
+const KEYWORDS = ["and", "or", "not", "in", "has"] as const;
 
 /** Operands the design names and this batch does not build. They would
  * otherwise lex as ordinary names and test the presence of a property that can
@@ -229,14 +229,34 @@ function parser(tokens: Token[]) {
       return { kind: "member", value: token.value as Text, name: name(target) };
     }
 
+    // Presence is spelled, never implied by a bare name. The same token would
+    // otherwise be a proposition here and an operand three words later —
+    // `score and not score > 0.7` — with only the parser's lookahead to say
+    // which, and nothing on the line to show it.
+    if (token.kind === "keyword" && token.text === "has") {
+      i++;
+      const subject = peek();
+      if (subject === undefined) ended("has");
+      if (subject.kind !== "name") {
+        refuse(`not a name: ${subject.text} — \`has\` asks about a property`);
+      }
+      const held = name(subject);
+      i++;
+      return { kind: "presence", name: held };
+    }
+
     if (token.kind !== "name") {
-      refuse(`unexpected ${token.text} — a test begins with a name or a value`);
+      refuse(`unexpected ${token.text} — a test begins with \`has\`, a name or a value`);
     }
     const subject = name(token);
     i++;
 
     const op = peek();
-    if (op === undefined || op.kind !== "op") return { kind: "presence", name: subject };
+    if (op === undefined || op.kind !== "op") {
+      refuse(
+        `${subject} alone is not a test — write \`has ${subject}\` to ask whether it is there`,
+      );
+    }
     i++;
     if (op.text === "~") {
       refuse("~ is not built yet — it searches prose, which this batch leaves");

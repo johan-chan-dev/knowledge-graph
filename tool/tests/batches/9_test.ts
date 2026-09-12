@@ -19,8 +19,8 @@ Deno.test("batch 9 — find", async () => {
 
   // 1. The transcript the document shows.
   assertEquals(await ids('"decision" in labels'), [decided, retired]);
-  assertEquals(await ids("retired"), [retired]);
-  assertEquals(await ids('"decision" in labels and not retired'), [decided]);
+  assertEquals(await ids("has retired"), [retired]);
+  assertEquals(await ids('"decision" in labels and not has retired'), [decided]);
   assertEquals(await ids('"decision" in labels and score > 0.7'), [decided]);
 
   // 2. One id per line, in creation order, as `nodes list` returns.
@@ -41,13 +41,22 @@ Deno.test("batch 9 — find", async () => {
   assertEquals(over, [decided]);
   assertStringIncludes(under.join(" "), other);
 
-  // 5. Each refusal names which side to fix, and exits `1` — the argument
+  // 5. A bare name is not a test, and the refusal teaches the form.
+  const bare = await kg(dir, ["nodes", "find", "retired"]);
+  assertEquals(bare.code, 1);
+  assertStringIncludes(bare.err, "retired alone is not a test");
+  assertStringIncludes(bare.err, "write `has retired`");
+
+  // 6. Each refusal names which side to fix, and exits `1` — the argument
   //    broke a rule, so nothing was looked at.
   for (
     const [expression, message] of [
       ["title = Matrix", 'not a value: Matrix — `=` compares text, write "Matrix"'],
       ['score > "0.7"', 'not a number: "0.7" — `>` compares numbers, drop the quotes'],
-      ["retired and", "unexpected end of expression — `and` needs something after it"],
+      [
+        "has retired and",
+        "unexpected end of expression — `and` needs something after it",
+      ],
     ] as const
   ) {
     const ran = await kg(dir, ["nodes", "find", expression]);
@@ -56,7 +65,7 @@ Deno.test("batch 9 — find", async () => {
     assertEquals(ran.out, "");
   }
 
-  // 6. Validation precedes lookup: the same refusal, with no space at all.
+  // 7. Validation precedes lookup: the same refusal, with no space at all.
   const nowhere = await Deno.makeTempDir({ prefix: "kg-nospace-" });
   const refused = await kg(nowhere, ["nodes", "find", "title = Matrix"]);
   assertEquals(refused.code, 1);
