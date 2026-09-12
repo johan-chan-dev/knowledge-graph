@@ -117,4 +117,4 @@ is what the escape hatch was there to preserve.
 
 ---
 
-[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · 1 · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · [5](5-the-entry-point.md) · [6](6-labels.md) · [7](7-relations.md) · [8](8-movies.md) · [9](9-find.md)
+[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · 1 · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · [5](5-the-entry-point.md) · [6](6-labels.md) · [7](7-relations.md) · [8](8-movies.md) · [9](9-find.md) · [10](10-resolution.md)
