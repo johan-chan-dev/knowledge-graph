@@ -31,9 +31,9 @@ $ kg nodes find '"decision" in labels'
 01a084f0-631b-7bba-a6fe-81d79faedbde
 01a084f0-63be-732e-b44e-f9029a874a5f
 
-$ kg nodes find 'has retired'
+$ kg nodes find 'retired'
 
-$ kg nodes find '"decision" in labels and not has retired'
+$ kg nodes find '"decision" in labels and not retired'
 01a084f0-631b-7bba-a6fe-81d79faedbde
 
 $ kg nodes find '"decision" in labels and score > 0.7'
@@ -48,7 +48,7 @@ not a value: Matrix — `=` compares text, write "Matrix"
 $ kg nodes find 'score > "0.7"'
 not a number: "0.7" — `>` compares numbers, drop the quotes
 
-$ kg nodes find 'has retired and'
+$ kg nodes find 'retired and'
 unexpected end of expression — `and` needs something after it
 ```
 
@@ -95,7 +95,7 @@ have been.
 
 ```
 title = "Cloud Atlas"      a name, an operator, a value
-has retired                presence — the name alone is not a test
+retired                    a name alone — presence
 "auth" in labels           a value, an operator, a name
 score > 0.7                a bare numeral is a number
 version = "1.10"           quoted, and the trailing zero survives
@@ -110,36 +110,8 @@ It also makes the two operand orders self-explaining: `title = "Cloud Atlas"`
 and `"auth" in labels` read differently, and the quoting says which side is which
 without anyone having to remember.
 
-## Presence is spelled
-
-A bare name was a presence test in the first draft, and that was wrong — not
-ambiguous to the parser, but silent about what it meant:
-
-```
-score and not score > 0.7          the same token twice, two different jobs
-has score and not score > 0.7      and now the line says so
-```
-
-The parser told them apart by looking one token ahead: a name followed by an
-operator is a comparison, a name followed by nothing is a presence test. It
-worked, and nothing on the line showed it. `not retired` read as a negated
-value rather than a missing key — which is also how every other query language
-sees it, since all of them spell presence out: `IS NOT NULL`, `EXISTS()`,
-`BOUND(?x)`. None settles for the bare name.
-
-So a name alone refuses, and the refusal teaches the form:
-
-```console
-$ kg nodes find 'retired'
-retired alone is not a test — write `has retired` to ask whether it is there
-```
-
-The cost is a fifth reserved word, which [`structure.md`](../design/structure.md)
-says is spent permanently and should be deliberate. This one is: it buys the
-one construct in the grammar that could be read two ways.
-
-**Keywords are reserved as property names** — `and`, `or`, `not`, `in`, `has`.
-Five names spent, which `structure.md` says is permanent and should be deliberate.
+**Keywords are reserved as property names** — `and`, `or`, `not`, `in`. Four
+names spent, which `structure.md` says is permanent and should be deliberate.
 It is deliberate: the alternative is resolving the ambiguity by position, which
 does not remove it so much as hide it.
 
@@ -187,8 +159,8 @@ for the thing that really does contain something, the body.
 `not` binds tightest, then `and`, then `or`, both left-associative:
 
 ```
-not has retired and has archived       →  (not has retired) and has archived
-not (has retired and has archived)     →  the group
+not retired and archived               →  (not retired) and archived
+not (retired and archived)             →  the group
 ```
 
 `not` takes one optional prefix, not a chain. `not not x` is not a double
@@ -203,7 +175,7 @@ it; `!=` is exactly `not =`. So `not score > 0.7` matches a node with no
 0.7* is true when there is no score.
 
 **A choice with a name.** Absence reading as false is the Closed World
-Assumption, and `not` is negation as failure: `not has retired` means *the corpus
+Assumption, and `not` is negation as failure: `not retired` means *the corpus
 does not say retired*, not *retired is false*. Slotlessness does not force it —
 SPARQL has no slots and is three-valued anyway — so
 [`design/absence.md`](../design/absence.md) argues why it is chosen here, and
@@ -224,7 +196,7 @@ not (score > 0.7)       true    when score is absent
 `not (a > b)` is not `a <= b`. Two-valued does not remove that — it relocates
 it — and what it does remove is the second problem, since under three-valued
 logic `not` stops being a total flip as well. The idiom for the other question
-is `has score and not score > 0.7`.
+is `score and not score > 0.7`.
 
 **The evaluator must check presence explicitly.** `undefined > 0` and
 `undefined <= 0` are both false in JavaScript, so writing the comparison the
@@ -253,7 +225,7 @@ than about the data.
 ## The shell is the outer grammar
 
 ```bash
-kg nodes find '"decision" in labels and not has retired'
+kg nodes find '"decision" in labels and not retired'
 ```
 
 **Single quotes outside**, measured rather than assumed: double quotes let the
