@@ -42,8 +42,8 @@ $ kg node 01a090ed-4ac5-76b1-a3ae-dc5c97394e86 --properties
 | | | |
 |---|---|---|
 | **ids** | one per line | a uuid has nothing to structure, and `wc -l`, `grep`, `cut` and `xargs` all work on it |
-| **fields** | tab-separated | a closed set, present by construction, and a value provably cannot contain a tab |
-| **properties** | JSON | open keys, optional, and values that nest |
+| **a closed set of names** | tab-separated | the tool knows them ahead of time, every row carries all of them, and a value provably cannot contain a tab |
+| **an open set** | JSON | authored names, different per node, any of them optional, values that nest |
 
 **The scope names the shape.** `kg node <id> --properties` is one object;
 `kg nodes properties …` is an array. Plural in, plural out.
@@ -55,11 +55,16 @@ three commands' contracts differ because the things they return differ.
 [`parked/structured-output.md`](../design/parked/structured-output.md) proposed
 the flag; what it was really waiting for was this distinction.
 
-**`links` and `backlinks` keep their tabs.** `type`, the link id and the other
-end are fields: always present, never open. That is what lets
-`backlinks | grep '^directed' | cut -f3` answer two of the guide's questions in
-one line each, and it is the rule [`spec/api.md`](../spec/api.md) already
-states — columns are fields, properties are rows.
+**`links` and `backlinks` keep their tabs.** Three names the tool chose, on
+every row. That is what lets `backlinks | grep '^directed' | cut -f3` answer two
+of the guide's questions in one line each.
+
+**Closed is not immutable**, and only the first decides the shape. A link's
+`type`, `from` and `to` are [fields](../spec/api.md) in the batch 7 sense —
+its identity, refused by `set` — but that is a rule about writing. `labels
+list`'s count is recomputed on every call and tabulates just as well. So
+`link <id>`, which returns three known names beside however many authored ones,
+is an object.
 
 **`node <id>` still returns content byte for byte.** Wrapping prose in an
 escaped string is strictly worse than handing it over, and an agent that asked
@@ -109,7 +114,7 @@ links: [{type: acted-in, link: 01a090ed-4f71-…, direction: in}, …]
 That is storage, not an answer — the relation has two commands that present it
 properly. `--properties` stops carrying it.
 
-**`labels list` can emit four fields.** A description's first line is free text
+**`labels list` can emit four columns.** A description's first line is free text
 and never passes `isValue`, so a tab in it becomes a column separator:
 
 ```

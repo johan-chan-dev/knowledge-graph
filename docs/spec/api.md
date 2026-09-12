@@ -416,14 +416,18 @@ stop reading, which then costs you the lines that matter.
 | `link <id> forget` | — | `forgot <id>` |
 | `link <id> set` / `unset` / `add` / `remove` | — | as `node <id>`'s |
 
-**Tab-separated columns are fields; properties are rows.** A column is only
-safe where every row has one by construction — `type`, link id and the other end
-for `links`; word, count and first line for `labels list`. Properties are open
-vocabulary and differ per node, so a grid over them would need a cell for a node
-carrying none, and that cell has nothing legitimate to hold: the empty string is
-a legal value, so an absent property and `title: ""` would render identically.
-`link <id>` is the shape that follows — the three fields first, then one property
-per row, the way `node <id> --properties` already prints.
+**A closed set of names tabulates; an open one does not.** Columns work where
+the tool knows the names in advance and every row carries all of them — type,
+link id and the other end for `links`; word, count and first line for `labels
+list`. Property names are authored, differ per node and may be missing, so a
+grid over them needs a cell for a node carrying none, and that cell has nothing
+legitimate to hold: the empty string is a legal value, so an absent property and
+`title: ""` would render identically.
+
+**Closed is not the same as immutable.** `labels list`'s count is recomputed by
+scanning every node and its summary is prose someone typed — neither is a
+link's kind of field, and both tabulate. What decides the shape is whether the
+names are known ahead of time, not whether the values can be written.
 
 **A targeted write prints nothing.** Only `new` returns an id, because only
 there is the id new information; echoing back one the caller just supplied is
