@@ -18,8 +18,10 @@ added 2 to sources
 $ kg node "$a" add sources rfc-7396
 
 $ kg node "$a" --properties
-kind: decision
-sources: [github-issue-412, rfc-7396]
+sources:
+  - github-issue-412
+  - rfc-7396
+title: a decision
 
 $ kg node "$a" remove sources rfc-7396
 removed 1 from sources
@@ -35,8 +37,8 @@ there is nothing the caller could not have worked out. The counts are the
 And the refusals, which are half of what this batch decides:
 
 ```console
-$ kg node "$a" add kind authority
-cannot add to kind: not a list
+$ kg node "$a" add title authority
+cannot add to title: not a list
 
 $ kg nodes list --where valid-until
 --where needs a comparison — use --where <name>=<value>
@@ -77,8 +79,11 @@ otherwise change meaning:
 
 ```
 bracketed: '[auth, pattern]'      a scalar
-sources: [github-issue-412, rfc-7396]   a list
-single: [auth]                    a one-element list, not `single: auth`
+sources:                          a list
+  - github-issue-412
+  - rfc-7396
+single:                           a one-element list, not `single: auth`
+  - auth
 ```
 
 Every rendering invented instead of this one was ambiguous against a value that

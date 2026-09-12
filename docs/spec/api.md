@@ -253,7 +253,9 @@ would otherwise change meaning coming back:
 
 ```
 count: '42'
-labels: [auth, pattern]
+labels:
+  - auth
+  - pattern
 looks: '[auth, pattern]'
 ```
 

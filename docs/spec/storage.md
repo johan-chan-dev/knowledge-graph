@@ -93,8 +93,9 @@ hold a tab, **every tab-separated output is lossless by construction** — which
 is why `links`, `backlinks` and `labels list` may use one.
 
 **A property holds one value or several.** Several is multiplicity on one
-dimension, not a container — `labels: [auth, pattern]` is the node saying two
-things on one dimension, the way `title: Cloud Atlas` says one. Anything that is
+dimension, not a container — a node carrying `auth` and `pattern` under
+`labels` is saying two things on one dimension, the way `title: Cloud Atlas`
+says one. Anything that is
 neither a value nor a list does not read at all.
 
 **A block is read only if the tool could have written it.** A property name that
@@ -151,10 +152,17 @@ rather than a decision — the discipline is attached to `nodes/<uuid>.md` inste
 of to the form, so the second and third things wearing it never received it.
 [Batch 10](../batches/10-one-writer.md) moves it.
 
-**Serialisation is canonical** — frontmatter keys alphabetical, `flowLevel: 1`
-so a sequence stays on one line. A property write is read-modify-write over the
-whole block: every other key survives it, and so does the content. The tool is the only writer, so canonical
-output costs nothing and keeps diffs minimal.
+**Serialisation is canonical** — frontmatter keys alphabetical, sequences in
+block style, one element per line. A property write is read-modify-write over
+the whole block: every other key survives it, and so does the content. The tool
+is the only writer, so canonical output costs nothing.
+
+It was `flowLevel: 1` until [batch 10](../batches/10-one-writer.md), chosen when
+a list was a list of words and justified as keeping diffs minimal. Lists of maps
+arrived with relations and the argument inverted: adding one link rewrote a line
+that grows with the node's degree. Block style is also what every markdown
+frontmatter in the wild uses, and what someone opening the file by hand
+expects.
 
 **A key with nothing in it is removed, not emptied**, so a node whose last
 value was dropped serialises back to `---\n---\n\n` — byte for byte what a

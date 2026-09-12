@@ -67,7 +67,10 @@ Deno.test("a list survives, and is distinguishable from a scalar that looks like
   const text = frontmatter.write(given);
   assertEquals(props(text), given);
   // The quoting is what carries the distinction, not a convention we invented.
-  assertEquals(text, "labels: [auth, pattern]\nlooks: '[auth]'\nsingle: [auth]\n");
+  assertEquals(
+    text,
+    "labels:\n  - auth\n  - pattern\nlooks: '[auth]'\nsingle:\n  - auth\n",
+  );
 });
 
 Deno.test("keys are alphabetical; list elements keep the order they were given", () => {

@@ -3,7 +3,7 @@
 **Done when** every file carrying frontmatter is read, changed and written in
 one place, and what it writes is the YAML a person would write by hand.
 
-Planned. No new capability: everything here already exists, and this changes
+Shipped. No new capability: everything here already exists, and this changes
 where it lives, corrects what it does, or removes a choice that outlived its
 reason.
 
@@ -12,7 +12,7 @@ reason.
 Like [batch 4](4-stops-guessing.md), there is no loop to demonstrate — the loops
 are the same and should look the same afterwards. Its test is a list of things
 that must stop happening, as `batch 10 — one writer for the frontmatter` in
-`tool/tests/batches/`, written when the batch is:
+[`tool/tests/batches/10_test.ts`](../../tool/tests/batches/10_test.ts):
 
 ```console
 $ printf 'A film.\n' | kg label movie write --stdin
@@ -107,10 +107,13 @@ rewritten on their next write.
 
 ## What it deliberately leaves
 
-**`--properties` keeps its shape.** That it prints `links` as storage rather
-than as an answer, and that its format is neither line-oriented nor parseable,
-belong to [batch 11](11-resolution.md), which reshapes it. Block style makes it
-readable in the meantime.
+**`--properties` is not reshaped, though its output changes.** It prints the
+canonical serialisation, so block style reaches it necessarily — a list now
+spans lines, which also makes batch 3's point plainer than flow style did: a
+real list is visibly several lines, a scalar that merely looks like one stays
+quoted on one. What is *not* touched is the shape: that it prints `links` as
+storage rather than as an answer, and that its format is neither line-oriented
+nor parseable, belong to [batch 11](11-resolution.md).
 
 **The missing readers.** Nothing reads one property by name, nothing reads a
 node's labels, and nothing consumes ids. Those are additions, and this batch

@@ -9,7 +9,7 @@ Deno.test("batch 3 — a property can hold a list", async () => {
   await kg(dir, ["space", "init"]);
   const id = (await kg(dir, ["node", "new", "--stdin"], "Modules own their schema.\n"))
     .out.trim();
-  await kg(dir, ["node", id, "set", "kind", "decision"]);
+  await kg(dir, ["node", id, "set", "title", "a decision"]);
 
   const added = await kg(dir, [
     "node",
@@ -29,7 +29,7 @@ Deno.test("batch 3 — a property can hold a list", async () => {
   await kg(dir, ["node", id, "set", "looks", "[auth, pattern]"]);
   assertEquals(
     (await kg(dir, ["node", id, "--properties"])).out,
-    "kind: decision\nlooks: '[auth, pattern]'\nsources: [github-issue-412, rfc-7396]\n",
+    "looks: '[auth, pattern]'\nsources:\n  - github-issue-412\n  - rfc-7396\ntitle: a decision\n",
   );
 
   // The content is untouched by all of it, and carries the same YAML on stderr.
@@ -48,13 +48,13 @@ Deno.test("batch 3 — a property can hold a list", async () => {
   // A property emptied is indistinguishable from one never set.
   assertEquals(
     (await kg(dir, ["node", id, "--properties"])).out,
-    "kind: decision\nlooks: '[auth, pattern]'\n",
+    "looks: '[auth, pattern]'\ntitle: a decision\n",
   );
 
   // The refusals, which are half of what this batch decides.
-  const scalar = await kg(dir, ["node", id, "add", "kind", "authority"]);
+  const scalar = await kg(dir, ["node", id, "add", "title", "authority"]);
   assertEquals(scalar.code, 1);
-  assertStringIncludes(scalar.err, "cannot add to kind: not a list");
+  assertStringIncludes(scalar.err, "cannot add to title: not a list");
 
   const control = await kg(dir, ["node", id, "set", "note", "one\ntwo"]);
   assertEquals(control.code, 1);

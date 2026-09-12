@@ -1,7 +1,7 @@
 import { join } from "@std/path";
+import * as document from "./document.ts";
 import * as frontmatter from "./frontmatter.ts";
 import type { Label } from "./frontmatter.ts";
-import { reason } from "./node.ts";
 import type { Space } from "./space.ts";
 
 /**
@@ -9,9 +9,10 @@ import type { Space } from "./space.ts";
  * first time the word is used, so the vocabulary is materialised rather than
  * derived, and listing it is a directory read however large the space grows.
  *
- * Same format as a node, so the description is simply the body and meta
- * properties have somewhere to live later. What the tool never does is read
- * that description.
+ * Same format as a node, so the description is the body and meta properties
+ * have somewhere to live. Both go through `document.ts`, which is what makes
+ * writing one half without the other impossible: this module used to start from
+ * an empty frontmatter and erase whatever was there.
  */
 const fileOf = (space: Space, word: Label): string => join(space.labels, `${word}.md`);
 
@@ -23,22 +24,16 @@ export type Written = { readonly kind: "written" } | {
 /** Bring the word into existence, or leave it exactly as it is. Called by
  * `label`, because using a word is what creates it. */
 export async function ensure(space: Space, word: Label): Promise<Written> {
-  const path = fileOf(space, word);
   try {
     await Deno.mkdir(space.labels, { recursive: true });
-    await Deno.stat(path);
-    return { kind: "written" };
   } catch (error) {
-    if (!(error instanceof Deno.errors.NotFound)) {
-      return { kind: "unwritable", reason: reason(error) };
-    }
+    return { kind: "unwritable", reason: document.reason(error) };
   }
-  try {
-    await Deno.writeTextFile(path, frontmatter.join("", ""));
-    return { kind: "written" };
-  } catch (error) {
-    return { kind: "unwritable", reason: reason(error) };
-  }
+  const opened = await document.open(fileOf(space, word));
+  // Anything already there stays, including a file the tool cannot parse: the
+  // word exists, and refusing to create it again is the whole of `ensure`.
+  if (opened.kind !== "absent") return { kind: "written" };
+  return await document.blank(fileOf(space, word)).flush();
 }
 
 export type Read =
@@ -47,17 +42,20 @@ export type Read =
   | { readonly kind: "malformed" };
 
 export async function read(space: Space, word: Label): Promise<Read> {
-  let raw: string;
-  try {
-    raw = await Deno.readTextFile(fileOf(space, word));
-  } catch {
-    return { kind: "absent" };
+  const opened = await document.open(fileOf(space, word));
+  switch (opened.kind) {
+    case "absent":
+      return { kind: "absent" };
+    case "malformed":
+    case "unparseable":
+      return { kind: "malformed" };
+    case "opened":
+      return { kind: "read", description: opened.document.content };
   }
-  const parts = frontmatter.split(raw);
-  if (parts === undefined) return { kind: "malformed" };
-  return { kind: "read", description: parts.content };
 }
 
+/** Replaces the description and **keeps the frontmatter**, the way a node's
+ * `write` keeps its properties. */
 export async function write(
   space: Space,
   word: Label,
@@ -65,11 +63,14 @@ export async function write(
 ): Promise<Written> {
   try {
     await Deno.mkdir(space.labels, { recursive: true });
-    await Deno.writeTextFile(fileOf(space, word), frontmatter.join("", description));
-    return { kind: "written" };
   } catch (error) {
-    return { kind: "unwritable", reason: reason(error) };
+    return { kind: "unwritable", reason: document.reason(error) };
   }
+  const path = fileOf(space, word);
+  const opened = await document.open(path);
+  const doc = opened.kind === "opened" ? opened.document : document.blank(path);
+  doc.content = description;
+  return await doc.flush();
 }
 
 export type Forgotten =
@@ -85,7 +86,7 @@ export async function forget(space: Space, word: Label): Promise<Forgotten> {
     return { kind: "forgotten" };
   } catch (error) {
     if (error instanceof Deno.errors.NotFound) return { kind: "absent" };
-    return { kind: "unwritable", reason: reason(error) };
+    return { kind: "unwritable", reason: document.reason(error) };
   }
 }
 

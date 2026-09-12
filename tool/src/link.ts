@@ -1,7 +1,8 @@
 import { join } from "@std/path";
 import type { Label, Name, Text, Uuid, Value } from "./frontmatter.ts";
 import { isId, isLabel, isName, isValue } from "./frontmatter.ts";
-import { mint, reason } from "./node.ts";
+import { mint } from "./node.ts";
+import { reason } from "./document.ts";
 import type { Space } from "./space.ts";
 
 /**

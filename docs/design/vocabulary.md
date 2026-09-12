@@ -83,9 +83,10 @@ properties, some of which hold several values, and that is enough to carry the
 whole arrangement:
 
 ```
-labels: [auth, decision]      classification, the borrowed shape —
-                              a value in a list is a label
-kind: decision                also legal, and a different modelling choice —
+labels:                       classification, the borrowed shape —
+  - auth                      a value in a list is a label
+  - decision
+stage: decision               also legal, and a different modelling choice —
                               a dimension with one value
 ```
 

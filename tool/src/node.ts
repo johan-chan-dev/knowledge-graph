@@ -1,16 +1,18 @@
 import { join as joinPath } from "@std/path";
 import { generate as generateV7 } from "@std/uuid/v7";
-import * as frontmatter from "./frontmatter.ts";
+import * as document from "./document.ts";
 import type { Properties, Uuid } from "./frontmatter.ts";
 import { isId } from "./frontmatter.ts";
 import type { Space } from "./space.ts";
 
-/** Reading and writing node files. What a node file *is* belongs to
- * `frontmatter.ts`; this knows only where they live and how to replace one
- * without ever leaving a half-written file behind. */
+/** Where node files live, and what a node's id is. The form itself —
+ * reading it, carrying both halves, writing it back atomically — is
+ * `document.ts`; what a node file *is* belongs to `frontmatter.ts`. */
 
 export { isId };
 export type { Uuid };
+export type { Failure, Unwritable } from "./document.ts";
+import type { Failure, Unwritable } from "./document.ts";
 
 /** The other way to obtain a checked value: generated legal by construction,
  * rather than checked on arrival. A door is not the only manufacturer. */
@@ -18,43 +20,19 @@ export const mint = (): Uuid => generateV7() as Uuid;
 
 const fileOf = (space: Space, id: Uuid): string => joinPath(space.nodes, `${id}.md`);
 
-/** Every read hits the same three failures, so they are named once. */
-type Loaded =
-  | { readonly kind: "loaded"; readonly properties: Properties; readonly content: string }
-  | { readonly kind: "absent" }
-  | { readonly kind: "malformed" }
-  | { readonly kind: "unparseable"; readonly reason: string };
-
-async function load(space: Space, id: Uuid): Promise<Loaded> {
-  let raw: string;
-  try {
-    raw = await Deno.readTextFile(fileOf(space, id));
-  } catch {
-    return { kind: "absent" };
-  }
-  const parts = frontmatter.split(raw);
-  if (parts === undefined) return { kind: "malformed" };
-  const read = frontmatter.read(parts.frontmatter);
-  if (read.kind === "unreadable") return { kind: "unparseable", reason: read.reason };
-  return { kind: "loaded", properties: read.properties, content: parts.content };
-}
-
-/** Spelled as object members rather than a union of kind strings, so a switch
- * over a result is exhaustive to the compiler. */
-export type Failure =
-  | { readonly kind: "absent" }
-  | { readonly kind: "malformed" }
-  | { readonly kind: "unparseable"; readonly reason: string };
-
 export type Read =
   | { readonly kind: "read"; readonly content: string; readonly properties: Properties }
   | Failure;
 
 export async function read(space: Space, id: Uuid): Promise<Read> {
-  const found = await load(space, id);
-  return found.kind === "loaded"
-    ? { kind: "read", content: found.content, properties: found.properties }
-    : found;
+  const opened = await document.open(fileOf(space, id));
+  return opened.kind === "opened"
+    ? {
+      kind: "read",
+      content: opened.document.content,
+      properties: opened.document.properties,
+    }
+    : opened;
 }
 
 export type Created =
@@ -76,10 +54,10 @@ export async function create(
   properties: Properties = {},
 ): Promise<Created> {
   const id = mint();
-  const wrote = await atomically(
-    fileOf(space, id),
-    frontmatter.join(frontmatter.write(properties), content),
-  );
+  const fresh = document.blank(fileOf(space, id));
+  fresh.properties = properties;
+  fresh.content = content;
+  const wrote = await fresh.flush();
   if (wrote.kind === "unwritable") return wrote;
   return { kind: "created", id };
 }
@@ -95,18 +73,15 @@ export async function replace(
   id: Uuid,
   content: string,
 ): Promise<Replaced> {
-  const found = await load(space, id);
-  if (found.kind !== "loaded") return found;
+  const opened = await document.open(fileOf(space, id));
+  if (opened.kind !== "opened") return opened;
 
-  const wrote = await atomically(
-    fileOf(space, id),
-    frontmatter.join(frontmatter.write(found.properties), content),
-  );
+  const displaced = bytes(opened.document.content);
+  opened.document.content = content;
+  const wrote = await opened.document.flush();
   if (wrote.kind === "unwritable") return wrote;
-  return { kind: "replaced", replaced: bytes(found.content) };
+  return { kind: "replaced", replaced: displaced };
 }
-
-export type Unwritable = { readonly kind: "unwritable"; readonly reason: string };
 
 export type Amended =
   | { readonly kind: "amended"; readonly properties: Properties }
@@ -116,8 +91,7 @@ export type Amended =
 
 /**
  * Read, hand the properties to `change`, write back. Every other property
- * survives and so does the content, because the whole block is rewritten from
- * what was read.
+ * survives and so does the content, because the handle holds both halves.
  *
  * `change` returns a message to refuse — which is how `add` declines a scalar
  * without this module needing to know what `add` is.
@@ -127,54 +101,15 @@ export async function amend(
   id: Uuid,
   change: (properties: Properties) => string | void,
 ): Promise<Amended> {
-  const found = await load(space, id);
-  if (found.kind !== "loaded") return found;
+  const opened = await document.open(fileOf(space, id));
+  if (opened.kind !== "opened") return opened;
 
-  const properties = { ...found.properties };
-  const refusal = change(properties);
+  const refusal = change(opened.document.properties);
   if (typeof refusal === "string") return { kind: "refused", message: refusal };
 
-  const wrote = await atomically(
-    fileOf(space, id),
-    frontmatter.join(frontmatter.write(properties), found.content),
-  );
+  const wrote = await opened.document.flush();
   if (wrote.kind === "unwritable") return wrote;
-  return { kind: "amended", properties };
-}
-
-/** A temporary file in the same directory, then a rename. An interrupted
- * rewrite would corrupt the one thing the tool is custodian of; rename is
- * atomic on every filesystem that matters, write-in-place is not.
- *
- * A failure comes back as a value rather than a throw: an uncaught one printed
- * a stack trace, which `git.ts` calls the failure an agent reads worst — and it
- * exited `1`, which promises nothing was written.
- *
- * It says which case it is rather than returning a reason-or-nothing: success
- * was the empty one, so the check read `if (failed !== null)` and the quiet
- * path was the one spelled as an absence. */
-async function atomically(
-  path: string,
-  text: string,
-): Promise<{ kind: "written" } | Unwritable> {
-  const temp = `${path}.${crypto.randomUUID().slice(0, 8)}.tmp`;
-  try {
-    await Deno.writeTextFile(temp, text);
-    await Deno.rename(temp, path);
-    return { kind: "written" };
-  } catch (error) {
-    await Deno.remove(temp).catch(() => {});
-    return { kind: "unwritable", reason: reason(error) };
-  }
+  return { kind: "amended", properties: opened.document.properties };
 }
 
 const bytes = (s: string): number => new TextEncoder().encode(s).length;
-
-/** Deno's own message carries the offending path — including the temp file,
- * which is an implementation detail the tool never emits. The error's kind is
- * what a caller can act on. */
-export function reason(error: unknown): string {
-  if (!(error instanceof Error)) return "unknown error";
-  const kind = error.name.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
-  return kind === "error" ? "write failed" : kind;
-}

@@ -20,7 +20,7 @@ history: what a batch was for, what building it forced, what it settled.
 | 7 | [relations](7-relations.md) | shipped |
 | 8 | [someone else’s graph](8-movies.md) | shipped |
 | 9 | [find](9-find.md) | shipped |
-| 10 | [one writer for the frontmatter](10-one-writer.md) | planned |
+| 10 | [one writer for the frontmatter](10-one-writer.md) | shipped |
 | 11 | [resolution](11-resolution.md) | planned |
 
 ## Read the parked pages before declaring a question open

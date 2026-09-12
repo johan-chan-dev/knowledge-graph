@@ -25,7 +25,9 @@ binary rather than the source, so a stale one would test the wrong program.
 
 **Colocated where a test is about a module**, which is what the Deno style
 guide asks for and what `denoland/std` does throughout: `src/frontmatter.ts`
-next to `src/frontmatter_test.ts`.
+next to `src/frontmatter_test.ts`. `node.ts`, `label.ts`, `link.ts` and
+`document.ts` have none, because what they do is only observable through a
+command — they are covered from `tests/`.
 
 Everything under `tests/` drives the command line rather than a function —
 `space`, `nodes`, `node`, `properties`, `usage` through the dispatch entry, and

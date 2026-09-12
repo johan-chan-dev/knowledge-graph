@@ -1,6 +1,6 @@
 import { basename, join } from "@std/path";
 import { branch, initRepo, repoRoot } from "./git.ts";
-import { reason } from "./node.ts";
+import { reason } from "./document.ts";
 
 /**
  * A space is `.kg/` at the root of the repository containing the working

@@ -422,6 +422,18 @@ export async function labelForget(cwd: string, word: Label): Promise<Outcome> {
  * Listing the words is a directory read. The **count** is what costs a parse per
  * node, and it is what an index would later remove.
  */
+/** The description's first line, as the third column of a tab-separated row.
+ *
+ * A description is prose and never passes `isValue`, so it is the one place
+ * where an unchecked string reaches a tabulated output — a tab inside it made
+ * the row four columns where the contract says three. Collapsing whitespace is
+ * a rendering decision, local to this column: what anyone may write is not
+ * narrowed for the sake of how it is displayed. */
+// deno-lint-ignore no-control-regex -- collapsing control characters is the point
+const CONTROL_RUN = /[\x00-\x1F\x7F]+/g;
+const firstLine = (description: string): string =>
+  (description.split("\n")[0] ?? "").replace(CONTROL_RUN, " ").trim();
+
 export async function labelsList(cwd: string): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
@@ -440,9 +452,7 @@ export async function labelsList(cwd: string): Promise<Outcome> {
   const rows: string[] = [];
   for (const word of await label.words(space)) {
     const found = await label.read(space, word);
-    const summary = found.kind === "read"
-      ? (found.description.split("\n")[0] ?? "").trim()
-      : "";
+    const summary = found.kind === "read" ? firstLine(found.description) : "";
     rows.push([word, String(counts.get(word) ?? 0), summary].join("\t").trimEnd());
   }
   return lines(rows);

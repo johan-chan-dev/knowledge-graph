@@ -26,13 +26,30 @@ const OPEN = /^---[ \t]*\n([\s\S]*?)---[ \t]*(?:\n([\s\S]*))?$/;
 const NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /**
- * A value is a single line of printable text. A newline breaks the output
- * contract — properties render one per line — and a tab renders identically to
- * spaces, so two values that look the same would not match a filter. A value
- * wanting several lines is content, which is what the body is for.
+ * A value is a single line of printable text. The reason is what a property is
+ * *for*, not storage and not rendering: **a value wanting several lines is
+ * content, and content is what the body is for.** A node has two halves
+ * precisely so the long one has somewhere to go.
+ *
+ * One thing the rest of the surface leans on follows from it: a value cannot
+ * hold a tab, so every tab-separated output is lossless by construction.
  */
 // deno-lint-ignore no-control-regex -- matching control characters is the point
 const CONTROL = /[\x00-\x1F\x7F]/;
+
+/** Noncharacters are not characters — permanently unassigned, and reserved for
+ * a process's internal use rather than for interchange. Nobody types one; a
+ * value acquires one by being pasted out of something damaged, and it would
+ * then travel intact all the way to the output. `\uFDD0`–`\uFDEF`, and the last
+ * two code points of every plane, which is what the mask catches. */
+const NONCHARACTER = /[\uFDD0-\uFDEF]/;
+const noncharacter = (s: string): boolean => {
+  if (NONCHARACTER.test(s)) return true;
+  for (const character of s) {
+    if ((character.codePointAt(0)! & 0xFFFE) === 0xFFFE) return true;
+  }
+  return false;
+};
 
 export const isName = (s: string): s is Name => NAME.test(s);
 
@@ -79,7 +96,7 @@ export type Text = Branded<"Text">;
 
 export type Uuid = Branded<"Uuid">;
 
-export const isValue = (s: string): s is Text => !CONTROL.test(s);
+export const isValue = (s: string): s is Text => !CONTROL.test(s) && !noncharacter(s);
 export const isLabel = (s: string): s is Label => NAME.test(s);
 /** Any uuid is well formed, not only the v7 this tool mints — a v4 is a
  * plausible id it never issued, which makes it honestly absent rather than
@@ -205,14 +222,24 @@ export function read(frontmatter: string): Read {
   return { kind: "properties", properties: out };
 }
 
-/** Keys alphabetical, `flowLevel: 1` so a list stays on one line. The tool is
- * the only writer, so canonical output costs nothing and keeps diffs minimal —
- * and the serialiser quotes exactly what would otherwise change meaning coming
- * back, which is what tells a list from a scalar that looks like one. */
+/**
+ * Keys alphabetical, and block style — the YAML a person writes by hand, which
+ * is what every markdown frontmatter in the wild uses.
+ *
+ * It was `flowLevel: 1` until [batch 10](../../docs/batches/10-one-writer.md),
+ * chosen when a list was a list of words and justified as keeping diffs
+ * minimal. Lists of maps arrived with relations and the argument inverted:
+ * adding one link rewrote a line that grows with the node's degree. `labels`
+ * costs a line; that was the only case flow style won.
+ *
+ * The tool is the only writer, so canonical output costs nothing — and the
+ * serialiser quotes exactly what would otherwise change meaning coming back,
+ * which is what tells a list from a scalar that looks like one.
+ */
 export const write = (properties: Properties): string =>
   Object.keys(properties).length === 0
     ? ""
-    : toYaml(properties, { sortKeys: true, flowLevel: 1, lineWidth: -1 });
+    : toYaml(properties, { sortKeys: true, lineWidth: -1 });
 
 /** The entries, or why they will not read. */
 function readLinks(value: unknown): Entry[] | string {

@@ -134,8 +134,8 @@ as arithmetic.
 
 ## A list is a dimension, not a container
 
-`labels: [auth, pattern]` is the node saying two things on one dimension, the
-way `title: "Cloud Atlas"` says one. Nothing is holding anything: the list is
+a node carrying `auth` and `pattern` under `labels` is saying two things on one
+dimension, the way `title: "Cloud Atlas"` says one. Nothing is holding anything: the list is
 how multiplicity is stored, not what is meant.
 
 That is why one operator cannot span both. *Does this node carry `auth` on the
