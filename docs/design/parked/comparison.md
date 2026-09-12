@@ -20,6 +20,16 @@ gone before the tool sees anything. So at write time it cannot know whether a
 number or a version string was meant, and storing the text it was handed is the
 only honest answer to information that no longer exists.
 
+**And it does more than erase.** `set status ~` stores `/Users/jconan`: the
+shell expanded the tilde before the tool was invoked, so there was nothing to
+refuse, and the value differs per machine. Quoted, `'~'` stores the character
+and serialises back quoted.
+
+So **argv cannot express *no value* at all.** Every candidate is either a legal
+value — `null`, `none`, the empty string — or gets rewritten on the way in.
+That is why absence is a verb: `unset` does not travel through argv as data,
+and no sentinel could.
+
 Inside an expression the quotes survive, because the expression is one argument
 the tool parses itself. That is the whole of why the two sides differ: **the only
 place the tool can see a quote is where it does the quoting.**
