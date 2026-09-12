@@ -132,6 +132,28 @@ A token beginning `-` followed by a digit is a numeral, and property names begin
 `[a-z0-9]`, so `-0.5` cannot be read as a name and `valid-until` cannot be read
 as arithmetic.
 
+## A list is a dimension, not a container
+
+`labels: [auth, pattern]` is the node saying two things on one dimension, the
+way `title: "Cloud Atlas"` says one. Nothing is holding anything: the list is
+how multiplicity is stored, not what is meant.
+
+That is why one operator cannot span both. *Does this node carry `auth` on the
+`labels` dimension* stays one question whether the dimension holds one value or
+several — so a single predicate for both is not obviously wrong, which is why it
+took a defect to see that it is. `labels = "auth"` against a list would answer
+*no match* where it means *wrong question*, and that is the silence
+[batch 4](4-stops-guessing.md) removed `--where` for producing.
+
+So the operator declares the shape: `=` compares a value, `in` asks about
+membership, and each meeting the other's operand is no match rather than
+anything inferred from what is on disk.
+
+**It is also why `contains` was the wrong word.** A container holds elements; a
+dimension carries values. Every query language spells membership `in` and keeps
+*contains* for text, and the metaphor is the reason — which leaves the word free
+for the thing that really does contain something, the body.
+
 ## Combination
 
 `not` binds tightest, then `and`, then `or`, both left-associative:

@@ -5,7 +5,7 @@ for a name, properties in frontmatter and prose in the body.
 
 **Being designed and built, in the open.** There is no plugin to install and
 nothing here is stable. What exists is a design tree and a binary that closes
-five of six planned loops.
+nine loops: a space, nodes, properties, lists, labels, relations and `find`.
 
 ## What it is for
 

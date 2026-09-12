@@ -149,8 +149,8 @@ output costs nothing and keeps diffs minimal.
 **A key with nothing in it is removed, not emptied**, so a node whose last
 value was dropped serialises back to `---\n---\n\n` — byte for byte what a
 node with nothing said about it looks like. Why that matters is
-[`design/parked/lists.md`](../design/parked/lists.md)'s, with the lists that
-first exercise it.
+[`batches/9-find.md`](../batches/9-find.md)'s: absence is two-valued, so a
+property that is gone and one that was never written must be the same byte.
 
 ---
 

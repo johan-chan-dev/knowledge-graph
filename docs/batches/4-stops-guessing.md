@@ -79,8 +79,9 @@ an arbitrary survivor**, reads as decided when it is not, and here produces a
 silent wrong answer: `--where labels=auth` against a list returns empty with
 exit `0`, indistinguishable from no matches.
 
-Absence is honest. Finding a node by anything but its id waits for
-[search](../design/parked/search.md), which is written up and dated.
+Absence is honest. Finding a node by anything but its id waited for
+[search](../design/parked/search.md), and arrived as
+[batch 9](9-find.md) — as a grammar, which is what the flag could not be.
 
 ## The corrections
 
@@ -138,4 +139,4 @@ how to search.
 
 ---
 
-[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · 4
+[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · 4 · [5](5-the-entry-point.md) · [6](6-labels.md) · [7](7-relations.md) · [8](8-movies.md) · [9](9-find.md)

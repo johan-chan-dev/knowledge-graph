@@ -29,7 +29,6 @@ trigger that empties a page is a batch; so is the moment to read it.
 
 | | |
 |---|---|
-| [lists](lists.md) | filtering a list by value |
 | [search](search.md) | the body, and presence tests over properties |
 | [raw](raw.md) | material nobody has judged yet, and why capture must cost nothing |
 | [partial-edits](partial-edits.md) | reading and writing part of a node, and the token that guards it |
