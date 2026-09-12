@@ -76,10 +76,15 @@ could not.
 
 A column needs a value for a node that carries nothing, and the empty string is
 a legal value — [`absence.md`](../design/absence.md) accepts `title: ""` as an
-author writing nothing, while refusing every spelling of a null. So the model
-distinguishes **an empty value from no value**, `find 'title'` and `find 'not
-title'` answer differently for the two, and a table cannot carry the difference:
-both are an empty cell.
+author writing nothing, while refusing every spelling of a null. So the store
+holds **an empty value and no value as two different states**, and a table
+cannot carry the difference: both are an empty cell.
+
+That is a claim about what has to be *represented*, not about what a query
+returns. `find` evaluates a predicate and hands back ids; it never carries a
+value, so it cannot be the evidence here. The resolver is the command whose job
+is the value, and it is the one that needs a shape able to say *nothing is
+recorded* without saying *the recorded value is nothing*.
 
 **A JSON object simply has no such key**, which is exactly how the frontmatter
 represents it. Nothing is invented and nothing is lost:
