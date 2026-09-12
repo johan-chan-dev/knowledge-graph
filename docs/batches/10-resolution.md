@@ -75,7 +75,12 @@ This is the whole reason resolution can carry several names where a table
 could not.
 
 A column needs a value for a node that carries nothing, and the empty string is
-a legal value — so an absent property and `title: ""` would render identically.
+a legal value — [`absence.md`](../design/absence.md) accepts `title: ""` as an
+author writing nothing, while refusing every spelling of a null. So the model
+distinguishes **an empty value from no value**, `find 'title'` and `find 'not
+title'` answer differently for the two, and a table cannot carry the difference:
+both are an empty cell.
+
 **A JSON object simply has no such key**, which is exactly how the frontmatter
 represents it. Nothing is invented and nothing is lost:
 

@@ -150,10 +150,10 @@ arrives from the shell. Both are boundaries a compile-time schema never reaches.
 The refusal is of a second *absence*, never of the intent behind one:
 
 ```
-kind: null   refused    an author may not write an absence
-kind: ~      refused    nor spell one differently
-kind:        refused    nor by leaving it blank
-kind: ""     accepted   an author may write nothing as a value
+status: null   refused    an author may not write an absence
+status: ~      refused    nor spell one differently
+status:        refused    nor by leaving it blank
+status: ""     accepted   an author may write nothing as a value
 ```
 
 An empty string is a value. It compares, sorts and matches like every other
