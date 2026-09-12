@@ -95,10 +95,24 @@ negation, and be genuinely lost.
 **An absent key, never a null.** JSON has no `undefined`, so omitting the key
 *is* undefined to the consumer — `o.born === undefined`, which is what
 [`absence.md`](../design/absence.md) settled. `null` is not merely unwanted
-here, it is **unstorable**: the read door refuses YAML null in every spelling,
-so emitting one would be output the tool cannot read back. And `"null"` the
-string is a legal value, which JSON tells apart from `null` and YAML cannot —
-which is why the read door has to refuse null outright.
+here, it is **unstorable**: the read door refuses YAML null in all five
+spellings — `null`, `Null`, `NULL`, `~` and empty — so emitting one would be
+output the tool cannot read back.
+
+**Not because YAML is ambiguous.** `k: 'null'` parses as the string and `k:
+null` as the null value, and `@std/yaml` round-trips the string quoted. What
+YAML has is five spellings against JSON's one, and unquoted scalars, so the
+distinction rests on quoting a hand-edit can drop — which matters in a repo of
+files people open. In JSON, demoting `"null"` to `null` is not a typo, it is
+invalid syntax.
+
+**`jq -r` cannot see the difference, and a caller must.** Measured: an absent
+key, a JSON null and the string `"null"` all print as the same four characters
+under `jq -r .k`. Separating them takes `has("k")` or `// empty`.
+
+This is the price of asking for several names at once. The single-name form has
+no such trap — a node that carries nothing produces no line, and there is
+nothing to mistake for a value.
 
 ## A name nothing carries
 
