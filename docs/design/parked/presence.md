@@ -1,9 +1,10 @@
 # How presence is spelled
 
-> **Prototyped and reverted.** The grammar below was built and backed out
-> (`7d20ebe`, `d962bff`, reverted at `8875138`) — 97 tests passed, so the shape
-> is known to work. It came back out because it was built during a design
-> conversation, before anything planned it.
+> **Two roads, one of them prototyped.** The keyword road was built and backed
+> out (`7d20ebe`, `d962bff`, reverted at `8875138`) — 97 tests passed, so that
+> shape is known to work. It came back out because it was built during a design
+> conversation, before anything planned it. The function road is the later
+> proposal and has not been built.
 
 A bare name is a presence test today: `retired` asks whether the node carries
 that property. It parses unambiguously and reads as nothing.
@@ -62,7 +63,7 @@ and is b)` over a group. What it may not do is stand in front of an auxiliary
 that already has a negative. This is the same shape as the existing refusal of
 `not not`, not a new kind of exception.
 
-## What it costs
+### What the keyword road costs
 
 Three reserved names — `has`, `is`, `no` — bringing the grammar's keywords to
 seven with `and`, `or`, `not` and `in`.
@@ -73,7 +74,57 @@ name, which makes the expenditure theoretical rather than real.
 **Mechanically correct was the wrong standard.** A uniform `not has` would have
 been one keyword fewer and one rule simpler, and would have read like nothing
 anyone writes. For a grammar whose whole purpose is to be written fluently by
-something that knows English, that is the wrong trade.
+something that knows English, that is the wrong trade — which is the objection
+the function road answers differently, by not reading as English at all.
+
+## The other road: a function, not a keyword
+
+```
+has(tagline)
+not has(tagline)
+"movie" in labels and not has(tagline)
+```
+
+**The awkwardness disappears rather than being worked around.** `not retired`
+read badly because `retired` looked like a value. `not has(tagline)` does not
+read as English at all — it reads as **code**, and negating a predicate call is
+ordinary in every language. SQL's `NOT EXISTS(…)` works for the same reason.
+
+**And no name is spent.** A function lives before a parenthesis, so `has` stays
+a legal property name and the punctuation tells them apart. That is the whole
+cost difference between the two roads.
+
+**The lookahead objection, and why it does not apply.** `has` alone would be a
+name and `has(…)` a call, so the reading still depends on the next token — which
+is the defect parked above. The difference is that **a visible punctuation mark
+is not a hidden lookahead**: with a bare name the two readings were equally
+plausible to the eye, and with a parenthesis there is nothing to mistake.
+
+**It is a family, not a special case.** [Batch 9](../../batches/9-find.md)
+already names `date()` among what it leaves, so functions are expected rather
+than introduced here; `has` would simply be the first. It also extends an
+existing rule — *each operator declares its literal* becomes *each function
+declares its arguments*, and `has` takes a **name**, not a value, checked at
+parse time like everything else.
+
+**On the name.** `has` is what this test is called wherever it exists —
+`Object.hasOwn`, `Map.has`, `Reflect.has`, `hasattr` — and it claims nothing
+about the value, which matters here: `status: ''` is carried and empty, and
+`defined(status)` would make a reader hesitate where `has(status)` does not.
+Function names stay single words, which sidesteps kebab-case entirely: it is a
+Lisp and CSS convention, and in a C-family grammar a hyphen reads as minus.
+
+## What separates the two roads
+
+| | keywords | function |
+|---|---|---|
+| reserved names spent | **three** — `has`, `is`, `no` | none |
+| length | `has tagline` | `has(tagline)` |
+| reads as | English, correctly, both polarities | code |
+| extends to `date()`, `matches()` | no — each needs its own keyword | yes, same shape |
+
+The keyword road buys prose at the price of the reserved vocabulary; the
+function road buys a family at the price of four characters per test.
 
 ## What it waits for
 

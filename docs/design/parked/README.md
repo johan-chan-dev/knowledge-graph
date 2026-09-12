@@ -30,7 +30,7 @@ trigger that empties a page is a batch; so is the moment to read it.
 | | |
 |---|---|
 | [search](search.md) | the body, and presence tests over properties |
-| [presence](presence.md) | how a presence test is spelled — prototyped, reverted, waiting on a batch |
+| [presence](presence.md) | how a presence test is spelled — two roads, one prototyped and reverted |
 | [raw](raw.md) | material nobody has judged yet, and why capture must cost nothing |
 | [partial-edits](partial-edits.md) | reading and writing part of a node, and the token that guards it |
 | [structured-output](structured-output.md) | `--json`, and why nothing needs it yet |
