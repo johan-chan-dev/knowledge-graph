@@ -83,13 +83,18 @@ the tool deciding what a field it has never heard of means. The reader is held
 to it from the start, before anything writes such a value.
 
 **A value is a single line of printable text**, and so is each element of a
-list — no control characters. The rule is the output contract's, not the
-storage's: YAML would happily carry a newline as `"a\nb"`, but a rendering that
-prints one property per line could not carry it back.
+list — no control characters. The reason is what a property is *for*, not
+storage and not rendering: YAML would happily carry a newline as `"a\nb"`, and
+[api](api.md) has the argument — **a value wanting several lines is content, and
+content is what the body is for.**
+
+One thing follows that the rest of the surface leans on: since a value cannot
+hold a tab, **every tab-separated output is lossless by construction** — which
+is why `links`, `backlinks` and `labels list` may use one.
 
 **A property holds one value or several.** Several is multiplicity on one
 dimension, not a container — `labels: [auth, pattern]` is the node saying two
-things on one dimension, the way `kind: decision` says one. Anything that is
+things on one dimension, the way `title: Cloud Atlas` says one. Anything that is
 neither a value nor a list does not read at all.
 
 **A block is read only if the tool could have written it.** A property name that
@@ -137,9 +142,14 @@ Nothing attempts repair. Detecting damage systematically is a later concern.
 
 ## Writing
 
-**Writes are atomic**: a temporary file in the same directory, then a rename. An
-interrupted rewrite would corrupt the one thing the tool is custodian of. Rename
-is atomic on every filesystem that matters; write-in-place is not.
+**A node's writes are atomic**: a temporary file in the same directory, then a
+rename. An interrupted rewrite would corrupt the one thing the tool is custodian
+of. Rename is atomic on every filesystem that matters; write-in-place is not.
+
+**Labels and link records are not written that way**, and that is a defect
+rather than a decision — the discipline is attached to `nodes/<uuid>.md` instead
+of to the form, so the second and third things wearing it never received it.
+[Batch 10](../batches/10-one-writer.md) moves it.
 
 **Serialisation is canonical** — frontmatter keys alphabetical, `flowLevel: 1`
 so a sequence stays on one line. A property write is read-modify-write over the
