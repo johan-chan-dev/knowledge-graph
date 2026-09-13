@@ -50,5 +50,5 @@ Deno.test("batch 10 — one writer for the frontmatter", async () => {
   // 5. A noncharacter is not printable text, and never reaches a file.
   const bad = await kg(dir, ["node", a, "set", "probe", "￿"]);
   assertEquals(bad.code, 1);
-  assertStringIncludes(bad.err, "not a property value");
+  assertStringIncludes(bad.err, "not a property value: contains a noncharacter");
 });

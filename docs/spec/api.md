@@ -494,7 +494,7 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | properties will not read | `cannot read 01997a3e-…: labels is an empty list` | `1` |
 | bad property name | `not a property name: Valid_Until — expected a lowercase hyphenated token` | `1` |
 | empty stdin | `no content on stdin — did the command before the pipe fail?` | `1` |
-| bad property value | `not a property value: contains a control character — a value is a single line` | `1` |
+| bad property value | `not a property value: contains a control character — a value is a single line`, or `contains a noncharacter` | `1` |
 | `add`/`remove` on a scalar | `cannot add to title: not a list` | `1` |
 | `--properties` off `node <id>` | `--properties belongs to \`kg node <id>\`` | `4` |
 | `write` without a source | `node <id> write needs --stdin — that is where the content comes from` | `4` |

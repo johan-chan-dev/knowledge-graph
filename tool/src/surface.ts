@@ -1,5 +1,5 @@
 import { z } from "@zod/zod";
-import { isLabel, isName, isValue, reservedReason } from "./frontmatter.ts";
+import { isLabel, isName, isValue, notAValue, reservedReason } from "./frontmatter.ts";
 import type { Label, Text, Uuid } from "./frontmatter.ts";
 import { isId } from "./node.ts";
 import type { Flags } from "./argv.ts";
@@ -60,10 +60,14 @@ const Name = z.string()
       `${issue.input} is reserved — ${reservedReason(String(issue.input))}`,
   });
 
-// The value is not echoed back: what makes it invalid is a control character,
-// and printing one is how a refusal corrupts the terminal it is explaining to.
+// The value is not echoed back: what makes it invalid is a character that does
+// not print, and emitting one is how a refusal corrupts the terminal it is
+// explaining to. The cause is named instead.
 const Value = z.string().refine(isValue, {
-  error: "not a property value: contains a control character — a value is a single line",
+  error: (issue) =>
+    `not a property value: ${
+      notAValue(String(issue.input)) ?? "not printable text"
+    } — a value is a single line`,
 });
 
 /** What a checked call hands its command. `stdin` is a thunk so a command that

@@ -96,6 +96,15 @@ export type Text = Branded<"Text">;
 
 export type Uuid = Branded<"Uuid">;
 
+/** Why a string is not a value, for a refusal that names the right cause. The
+ * guard answers yes or no; a caller told *contains a control character* about a
+ * noncharacter would go looking for the wrong thing. */
+export function notAValue(s: string): string | undefined {
+  if (CONTROL.test(s)) return "contains a control character";
+  if (noncharacter(s)) return "contains a noncharacter";
+  return undefined;
+}
+
 export const isValue = (s: string): s is Text => !CONTROL.test(s) && !noncharacter(s);
 export const isLabel = (s: string): s is Label => NAME.test(s);
 /** Any uuid is well formed, not only the v7 this tool mints — a v4 is a
