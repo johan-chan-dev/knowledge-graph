@@ -34,7 +34,7 @@ $ kg node 01a090ed-4ac5-76b1-a3ae-dc5c97394e86 --properties
 {"id":"01a090ed-4ac5-76b1-a3ae-dc5c97394e86","labels":["movie"],"title":"Cloud Atlas","released":"2012","tagline":"Everything is connected"}
 ```
 
-**Will be backed by** `batch 10 — resolution`, as `10_test.ts` in
+**Will be backed by** `batch 11 — resolution`, as `11_test.ts` in
 [`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
 
 ## Ids are shell-shaped, data is JSON
