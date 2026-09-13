@@ -54,10 +54,15 @@ not a label: Auth Pattern — expected a lowercase hyphenated token
 
 This reverses what `parked/labels.md` argued — *labels may not need to be a word
 the tool knows*, since every operation they wanted fell out of list properties.
-What decided it is that page's own closing line: **a vocabulary view, every word
-in use with counts, is the other piece.** That is `kg labels list`, and it cannot
-be computed over whichever property somebody chose. The page is retired; the
-argument is here.
+What decided it is that page's own closing line: **a vocabulary view is the
+other piece.** That is `kg labels list`, and it cannot be computed over
+whichever property somebody chose. The page is retired; the argument is here.
+
+That closing line said *every word in use with counts*, and the counts were
+never what the argument turned on — it is about **which words exist**, not how
+many nodes carry each. Shipping them anyway is what made the implementation
+O(nodes) while this page claims O(words) three paragraphs below, and
+[batch 11](11-resolution.md) removes them.
 
 
 [`structure.md`](../design/structure.md) says the reserved list grows **when the
@@ -76,9 +81,9 @@ text the tool holds without reading, the same as a body. Where a practice's
 `tags`, another `topics`. Reserving the name makes classification a single slot,
 which is what makes the next line possible at all.
 
-**`kg labels list`.** Every word in use, with counts. You cannot compute that
-over *whichever property somebody chose*, and without it an agent arriving at a
-space learns the vocabulary by reading every node.
+**`kg labels list`.** Every word in use. You cannot compute that over
+*whichever property somebody chose*, and without it an agent arriving at a space
+learns the vocabulary by reading every node.
 
 **A token shape on the values** — `[a-z0-9]+(-[a-z0-9]+)*`, the rule property
 names already follow. Today `add labels "Auth Pattern"` is accepted, because a

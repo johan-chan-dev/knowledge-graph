@@ -312,8 +312,11 @@ replaces content and leaves properties alone.
 
 **Classification is a slot, not a property.** `labels` is reserved: `set`,
 `add`, `unset` and `remove` refuse it, and `label` / `unlabel` write it instead.
-That is what makes `kg labels list` possible — a count over *whichever property
-somebody chose* is not computable.
+That is what makes `kg labels list` possible: the tool knows which dimension
+classification is, so each word is materialised as a file and listing the
+vocabulary is a directory read. Over *whichever property somebody chose* the
+tool knows nothing to materialise, and a caller would have to name the property
+and pay a read of every node.
 
 ```
 kg node new --with-labels auth decision   born carrying those words
