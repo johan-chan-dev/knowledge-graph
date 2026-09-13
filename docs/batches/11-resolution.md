@@ -154,26 +154,34 @@ and per-command flags are what make it unambiguous.
 already `kg node <id> --properties` — a second path to the same answer is the
 drift this repo deletes rather than documents.
 
-## What it fixes on the way
+## The labels, which the same rule pulls in
 
-**`links` leaks into `--properties`.** Today a node with relations prints them
-as flow-style YAML on one line, unreadable and needing a parser:
+**`--properties` shows the author's keys.** The four the tool writes —
+`body`, `created`, `labels`, `links` — are declared in one place already, and
+printing them is printing storage rather than an answer. `links` is the visible
+case: a node with relations carries a list of maps that the relation's own two
+commands present properly.
 
-```
-links: [{type: acted-in, link: 01a090ed-4f71-…, direction: in}, …]
-```
+**So a node's labels need a reader**, because `--properties` is today the only
+way to see them. `kg node <id> labels`, as `links` and `backlinks` are for
+relations.
 
-That is storage, not an answer — the relation has two commands that present it
-properly. `--properties` stops carrying it.
+**And `labels list` returns the names, one per line.** A directory read of
+`labels/`, which is what the name says. It carries a count and a description's
+first line today, and both are wrong there:
 
-**`labels list` can emit four columns.** A description's first line is free text
-and never passes `isValue`, so a tab in it becomes a column separator:
+| | |
+|---|---|
+| the count | forces a parse of every node — **440 ms** for two lines of output on the movies graph, against **0 ms** for `nodes list` on the same space |
+| the summary | the only place in the tool where unchecked prose reaches a tabulated output, which is why a tab in it made the row four columns |
 
-```
-tabbed\t0\tsummary\twith a tab
-```
+The count is the sharper error, because it is the rule
+[batch 9](9-find.md) wrote down being broken: *a flag would hide a
+thousandfold cost behind an option*. A column hides it just as well. Whoever
+wants counts can ask a question that names itself; nobody has asked yet.
 
-It is the one tab-separated output mixing checked values with unchecked prose.
+The description is served where it belongs: `kg label <word>` reads that one
+file, for the word you named.
 
 ## What it leaves
 
