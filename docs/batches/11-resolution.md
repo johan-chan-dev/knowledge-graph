@@ -156,15 +156,16 @@ drift this repo deletes rather than documents.
 
 ## The labels, which the same rule pulls in
 
-**`--properties` shows the author's keys.** The four the tool writes —
-`body`, `created`, `labels`, `links` — are declared in one place already, and
-printing them is printing storage rather than an answer. `links` is the visible
-case: a node with relations carries a list of maps that the relation's own two
-commands present properly.
+**`--properties` shows what the author wrote**, which is not the same as *the
+keys the tool does not reserve*. `labels` is reserved and stays: the words in it
+are the author's classification, written with a verb, and a flat list of words
+reads perfectly inline. `links` goes: its entries are uuids and directions the
+tool mints for its own bookkeeping, and the relation has two commands that
+present them properly.
 
-**So a node's labels need a reader**, because `--properties` is today the only
-way to see them. `kg node <id> labels`, as `links` and `backlinks` are for
-relations.
+The coarser rule — hide everything reserved — would have needed a reader for a
+node's labels to compensate, and an addition whose only job is to repair a
+subtraction is a sign the subtraction was wrong.
 
 **And `labels list` returns the names, one per line.** A directory read of
 `labels/`, which is what the name says. It carries a count and a description's
