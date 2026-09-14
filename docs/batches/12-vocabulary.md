@@ -60,7 +60,7 @@ landing on the same slug refuses and names the one holding it.
 The conformance import, re-run. It currently reaches `person` and `acted-in`
 through the translation above; afterwards it writes `Person` and `ACTED_IN`
 because that is what `movies.cypher` says, and `convert.ts` loses its name
-function entirely. The 133 people, 38 films and 250 relations are unchanged —
+function entirely. The 133 people, 38 films and 253 relations are unchanged —
 only their vocabulary is, which makes the import the one test that covers every
 site at once.
 

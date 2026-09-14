@@ -162,9 +162,11 @@ next one is that batch 13's loop already closes without it, and a seventh step
 that is a traversal is exactly the size a batch is not allowed to be.
 
 **The semantics are not deferred with it, because they can be settled now.**
-Cypher's default is that **a relationship is not traversed twice within one
-match, while a node may be revisited** — `ACYCLIC` forbids the second,
-`REPEATABLE ELEMENTS` lifts the first. Adopt the default unchanged, and
+Cypher's default, verbatim: *"By default, Cypher will only match a relationship
+once inside a single pattern"*, and `REPEATABLE ELEMENTS` *"allows both nodes
+and relationships to occur more than once in a given MATCH result"* — so a
+**node may be revisited while a relationship may not**, and `ACYCLIC` is what
+forbids the node repetition. Adopt the default unchanged, and
 termination stops being something the implementation has to guard: a path cannot
 be longer than the number of relations in the graph, so the upper bound in
 `*1..3` is a filter on length rather than a fuse against looping.
