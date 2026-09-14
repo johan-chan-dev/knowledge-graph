@@ -20,8 +20,10 @@ strength of nothing. This page settles it.
 | **a key, stored or printed** | `valid_until` | snake |
 
 A flag is the tool's own word and a property name is the author's, so nothing
-forces them to agree — but on the command line they sit in the same sentence,
-and kebab is what a command line is written in.
+forces them to agree — but on the command line they sit in **the same sentence**,
+and a flag is kebab because that part is unanimous. The reason is that
+consistency and nothing wider: measured below, CLI argument keys have no
+convention either.
 
 **It applies to keys, and to nothing else.** A frontmatter key and a JSON key
 are structure; everything else in a file is the author's data, and
@@ -42,10 +44,18 @@ Measured 2026-09-14, at the sources rather than from memory.
 |---|---|---|---|
 | markdown frontmatter | [Hugo](https://gohugo.io/content-management/front-matter/) — `expiryDate`, `linkTitle`, `publishDate`; [Astro](https://docs.astro.build/en/guides/content-collections/) — `pubDate`, `updatedDate` | — | **nobody** |
 | JSON | [Google's style guide](https://google.github.io/styleguide/jsoncstyleguide.xml) — *"property names must be camel-cased"* | GitHub's API — **86 keys, 68 with an underscore, zero capitals**; Stripe, OpenAI, Twilio | **nobody** |
-| CLI flags | — | — | **the norm** |
+| CLI flags | — | — | **unanimous** |
+| CLI argument keys | git — **632** variables with an internal capital (`insteadOf`, `trustExitCode`) | git — 1 | npm — all of them (`allow-same-version`, `audit-level`); git — 7 |
 
-**Kebab is standard for flags and nowhere else.** The rule had taken the
-convention of one medium and applied it to another.
+**No medium here has a single convention**, which is the first thing the
+measurements settle. Frontmatter is camelCase, JSON splits by ecosystem, and CLI
+argument keys split too — git camelCase by 632 to 7, npm kebab throughout. So
+every argument of the form *that is the convention* is weak, including the one
+this page first reached for.
+
+**Kebab is unanimous for flags, and nowhere else.** The old rule had taken one
+medium's convention and applied it to another; the new one rests on two things
+that are measured rather than customary, below.
 
 **And camelCase cannot be taken**, though the frontmatter world uses it, for two
 reasons. It needs capitals, and the lowercase rule is the better-argued of the
