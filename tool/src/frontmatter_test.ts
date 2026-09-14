@@ -101,8 +101,13 @@ Deno.test("what is neither a value nor a list does not read at all", () => {
 });
 
 Deno.test("a name is a lowercase hyphenated token", () => {
-  for (const ok of ["kind", "valid-until", "a1", "a-1-b"]) {
+  for (const ok of ["title", "valid-until", "a1", "2fa", "v2-index"]) {
     assertEquals(frontmatter.isName(ok), true, ok);
+  }
+  // A segment after the first begins with a letter, so every boundary survives
+  // the trip to a key — `a-2x` and `a2x` would both become `a2x`.
+  for (const bad of ["a-1-b", "a-2x"]) {
+    assertEquals(frontmatter.isName(bad), false, bad);
   }
   for (
     const bad of [
@@ -165,7 +170,7 @@ Deno.test("the reading door enforces the writing door's vocabulary", () => {
     why("valid-until: x\n") ?? "",
     "valid-until is not a property name",
   );
-  assertEquals(props("valid_until: x\n"), like({ "valid-until": "x" }));
+  assertEquals(props("validUntil: x\n"), like({ "valid-until": "x" }));
 
   // A control character reaches a value only as a YAML escape. Written raw it
   // is not YAML at all, and the parser refuses it first — also correct, and a

@@ -22,8 +22,13 @@ import { validate as isUuid } from "@std/uuid";
 const OPEN = /^---[ \t]*\n([\s\S]*?)---[ \t]*(?:\n([\s\S]*))?$/;
 
 /** A lowercase hyphenated token. Anything needing quoting or escaping is a name
- * that will eventually be typed wrong and fail by silently matching nothing. */
-const NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+ * that will eventually be typed wrong and fail by silently matching nothing.
+ *
+ * **A segment after the first begins with a letter**, so that every boundary
+ * survives the trip to a key: `a-2x` and `a2x` would otherwise both become
+ * `a2x`, and one of them could never be read back. Only that shape is lost —
+ * `2fa`, `v2-index` and `valid-until` are all still names. */
+const NAME = /^[a-z0-9]+(-[a-z][a-z0-9]*)*$/;
 
 /**
  * A value is a single line of printable text. The reason is what a property is
@@ -56,27 +61,31 @@ export const isName = (s: string): s is Name => NAME.test(s);
 /**
  * A name is written two ways, and which one depends on the medium.
  *
- * On the command line it is kebab, where `--with-labels` already is and where
- * kebab is what a command line is written in. As a **key** — in the
- * frontmatter, and in the JSON a command prints — it is snake, because
- * `o.valid_until` is an accessor in JavaScript where `o.valid-until` is a
- * subtraction. `docs/design/naming.md` has the evidence.
+ * On the command line it is kebab, which is what a flag is — measured, git
+ * defines 18 hyphenated long options and none with an underscore. As a **key**,
+ * in the frontmatter and in the JSON a command prints, it is camelCase: the
+ * markdown frontmatter world writes keys that way (Hugo, Astro), and kebab is
+ * impossible there because `o.valid-until` is a subtraction in JavaScript.
+ * `docs/design/naming.md` has the measurements.
  *
  * Only keys. A label word, a relation type and every other value arrives as the
  * author typed it and is stored as given — translating one would be retyping
  * it, which this format does not do.
  *
- * The two shapes are one character apart, so the substitution is total and
- * trivially reversible: no name in one form has two antecedents in the other.
+ * The two shapes carry the same segments, so the substitution is reversible —
+ * which is what the letter rule on `NAME` above is for.
  */
-const KEY = /^[a-z0-9]+(_[a-z0-9]+)*$/;
+const KEY = /^[a-z0-9]+([A-Z][a-z0-9]*)*$/;
 
 /** The key a name is stored under. */
-export const asKey = (name: Name): string => name.replaceAll("-", "_");
+export const asKey = (name: Name): string =>
+  name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
 
 /** The name a key came from, or nothing if the tool could not have written it. */
 export const asName = (key: string): Name | undefined =>
-  KEY.test(key) ? key.replaceAll("_", "-") as Name : undefined;
+  KEY.test(key)
+    ? key.replace(/[A-Z]/g, (capital) => `-${capital.toLowerCase()}`) as Name
+    : undefined;
 
 /**
  * Names the tool holds facts under, which a property may not shadow. `body` is

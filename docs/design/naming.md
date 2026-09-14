@@ -4,37 +4,30 @@ A name is a property name, a label word or a relation type — the three share o
 rule, because all three are words somebody has to arrive at independently and
 type again later.
 
-**Lowercase, and no character that needs quoting.** That part was never in
-doubt: `Title` and `title` as two different properties is a trap, and a name
-needing quotes is one that will eventually be typed wrong and fail by silently
-matching nothing.
+**The point is to avoid what needs quoting**, not to have a house style. Once a
+space is excluded, the separator is decided by **whoever reads the name**, and
+that is a different reader in each place.
 
-What was never argued is the **separator**, and the rule shipped in kebab on the
-strength of nothing. This page settles it.
+## One reader, one convention
 
-## One convention per medium, and they are not the same medium
-
-| | | |
+| what | how | read by |
 |---|---|---|
-| **command line** | `valid-until` | kebab, as `--with-labels` already is |
-| **a key, stored or printed** | `valid_until` | snake |
+| CLI commands and flags | `--with-labels`, `set valid-until` | a command line |
+| a **key**, in frontmatter or JSON | `validUntil` | a program |
+| a **value** | `acted-in`, `github-issue-412` | nobody — stored as given |
+| a source file | `frontmatter_test.ts` | Deno |
+| a doc file | `query-language.md` | a URL |
+| a label's file | `acted-in.md` | it **is** the word |
 
-A flag is the tool's own word and a property name is the author's, so nothing
-forces them to agree — but on the command line they sit in **the same sentence**,
-and a flag is kebab because that part is unanimous. The reason is that
-consistency and nothing wider: measured below, CLI argument keys have no
-convention either.
+**Only keys are translated.** Everything else in a file is the author's data,
+and [storage](../spec/storage.md) already says properties are **stored as given
+and never retyped** — so a label word arrives as `acted-in` and stays
+`acted-in`, in the `labels` list, in a link entry's `type`, in a record, and as
+the name of its file. Translating it would be retyping it.
 
-**It applies to keys, and to nothing else.** A frontmatter key and a JSON key
-are structure; everything else in a file is the author's data, and
-[storage](../spec/storage.md) already says properties are **stored as given and
-never retyped**. So a label word arrives as `acted-in` and stays `acted-in` —
-in the `labels` list, in a link entry's `type`, in a record, and as the name of
-its file. Translating it would be retyping it.
-
-That leaves a file carrying both separators, and that is the honest reading
-rather than an oversight: `valid_until` is a key the tool wrote, `acted-in` is a
-word the author chose.
+That leaves a file carrying two shapes, and that is the honest reading rather
+than an oversight: `validUntil` is a key the tool wrote, `acted-in` is a word
+the author chose.
 
 ## What the evidence says
 
@@ -44,62 +37,57 @@ Measured 2026-09-14, at the sources rather than from memory.
 |---|---|---|---|
 | markdown frontmatter | [Hugo](https://gohugo.io/content-management/front-matter/) — `expiryDate`, `linkTitle`, `publishDate`; [Astro](https://docs.astro.build/en/guides/content-collections/) — `pubDate`, `updatedDate` | — | **nobody** |
 | JSON | [Google's style guide](https://google.github.io/styleguide/jsoncstyleguide.xml) — *"property names must be camel-cased"* | GitHub's API — **86 keys, 68 with an underscore, zero capitals**; Stripe, OpenAI, Twilio | **nobody** |
-| CLI flags | — | — | **unanimous** |
-| CLI argument keys | git — **632** variables with an internal capital (`insteadOf`, `trustExitCode`) | git — 1 | npm — all of them (`allow-same-version`, `audit-level`); git — 7 |
+| CLI long options | — | — | git **18**, underscore **0**; deno 4, underscore 0 |
+| CLI argument keys | git — **632** config variables with an internal capital | git — 1 | npm — all of them; git — 7 |
 
-**No medium here has a single convention**, which is the first thing the
-measurements settle. Frontmatter is camelCase, JSON splits by ecosystem, and CLI
-argument keys split too — git camelCase by 632 to 7, npm kebab throughout. So
-every argument of the form *that is the convention* is weak, including the one
-this page first reached for.
+**No medium has a single convention except flags.** Frontmatter is camelCase,
+JSON splits by ecosystem, and CLI argument keys split too — git camelCase by 632
+to 7, npm kebab throughout. So every argument of the form *that is the
+convention* is weak, and this page does not make one.
 
-**Kebab is unanimous for flags, and nowhere else.** The old rule had taken one
-medium's convention and applied it to another; the new one rests on two things
-that are measured rather than customary, below.
+**camelCase for keys, because it is the only choice that fits both data media.**
+It wins markdown frontmatter outright and ties JSON; snake wins neither. And
+kebab is impossible in either: `o.valid-until` is a **subtraction** in
+JavaScript, which is why no API ships kebab keys.
 
-**And camelCase cannot be taken**, though the frontmatter world uses it, for two
-reasons. It needs capitals, and the lowercase rule is the better-argued of the
-two — losing `Title` ≠ `title` costs more than matching Hugo. And a label's word
-is also its filename: macOS is case-insensitive by default, so writing
-`actedIn.md` and then `actedin.md` leaves **one** file, silently, holding the
-second one's content. A space's vocabulary would depend on the filesystem under
-it — distinct on Linux, merged here.
+**kebab on the command line, because a flag is kebab and they share a
+sentence.** `set valid-until … --with-labels x` reads as one thing. That
+consistency is the whole reason, and it does not extend past the command line.
 
-**JSON has no single convention to follow** — it splits by ecosystem, Google one
-way and the Python/Ruby lineage the other — so nothing is being crossed by
-choosing snake there.
+## The lowercase rule survives, because it governs what is typed
 
-## Why snake and not kebab, once camelCase is out
+`Title` and `title` as two different properties is a trap, and the rule against
+it is the better-argued of the pair. camelCase does not threaten it: the capital
+exists only in the **stored** key, which the tool produces and nobody types. A
+`ValidUntil:` written by hand is refused by the reading door, as any name the
+tool could not have written already is.
 
-**`o.valid_until` is an accessor; `o.valid-until` is a subtraction.** In
-JavaScript the second is a `ReferenceError`, which is why no API ships kebab
-keys and why a caller would have to write `o["valid-until"]` everywhere. That
-is the whole argument, and it is enough.
+It is also why a label's word is never camelCase. A word is a value, and its
+file is named after it — and on a case-insensitive filesystem `actedIn.md` and
+`actedin.md` are **one file**, silently, holding whichever was written last. A
+space's vocabulary would depend on the filesystem under it.
 
-## The translation is a character substitution
+## The translation, and the one thing it costs
 
-`-` ↔ `_`, total and trivially reversible, with no edge case to reason about.
-That is worth more than it sounds: snake ↔ camelCase is **not** total —
-`isCJKLanguage` has no unique antecedent — and would have needed the read door's
-*a block is read only if the tool could have written it* rule to stay honest.
-
-Both regular expressions are the same shape, one character apart:
+`valid-until` ↔ `validUntil`, and the shapes are the same segments:
 
 ```
-surface   [a-z0-9]+(-[a-z0-9]+)*
-stored    [a-z0-9]+(_[a-z0-9]+)*
+name   [a-z0-9]+(-[a-z][a-z0-9]*)*
+key    [a-z0-9]+([A-Z][a-z0-9]*)*
 ```
 
-So a stored name is legal exactly when it is the image of a surface name, and
-the read door keeps refusing anything else — unchanged in what it does, and now
-with something to compare against.
+**A segment after the first begins with a letter.** Without that, `a-2x` and
+`a2x` are both names and both become `a2x` — one of them could never be read
+back. That shape is the only thing the rule loses; `2fa`, `v2-index` and
+`valid-until` are all still names.
+
+So a stored key is legal exactly when it is the image of a name, and the reading
+door keeps refusing anything else — unchanged in what it does, and now with
+something to compare against.
 
 **An expression is surface.** `find 'valid-until > 2020'` is typed by a caller,
 so it is kebab, and the rule that tells `-0.5` from `valid-until`
 ([batch 9](../batches/9-find.md)) stays exactly as it is.
-
-**A value is not a name.** `sources: [github-issue-412, rfc-7396]` is untouched:
-values are single-line printable text and carry no separator rule at all.
 
 ---
 

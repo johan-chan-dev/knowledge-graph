@@ -24,12 +24,12 @@ replaced kind
 
 $ kg node "$b" --properties
 kind: authority
-valid_until: '2027-01-01'
+validUntil: '2027-01-01'
 
 $ kg node "$b"
 OWASP is authoritative on session handling until 2027.
 kind: authority
-valid_until: '2027-01-01'
+validUntil: '2027-01-01'
 ```
 
 Annotate a node, then read the annotation back. **Backed by `batch 2 — nodes
