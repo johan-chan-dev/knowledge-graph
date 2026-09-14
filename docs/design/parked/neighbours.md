@@ -1,64 +1,62 @@
 # Reaching a node's neighbours in one call
 
-> **Shipped, then parked.** `kg node <id> links` and `kg node <id> backlinks`
-> were built by [batch 7](../../batches/7-relations.md) and removed again: they
-> are a shortcut over two primitives, and the foundation is settled before its
-> shortcuts.
+> **Shipped, then made unnecessary.** `kg node <id> links` and
+> `kg node <id> backlinks` were built by
+> [batch 7](../../batches/7-relations.md) and removed by
+> [batch 11](../../batches/11-resolution.md) — not parked until the foundation
+> settles, but emptied by it.
 
-## What they did that the primitives do not
+## What they did
 
-A node's frontmatter carries, for each relation, `{type, link, direction}` —
-where `link` is the **record's** uuid, not the neighbour's. The node at the
-other end is in the record, not in the node's own file.
+A node's frontmatter carried, for each relation, `{type, link, direction}`,
+where `link` is the **record's** uuid. The node at the other end was in the
+record, so the two commands read one record per relation and printed the far
+end as a third column — a join, done inside one process.
 
 ```
-kg node <id> --properties     type, direction, and the record's uuid
-kg link <id>                  type, from, to — the far end is here
+kg node <id> --properties     type, direction, the record's uuid
+kg link <id>                  type, from, to — the far end was only here
 ```
 
-So reaching the neighbours is **N+1 reads**: the node, then one record per
-relation. The two commands did that loop inside one process and printed the far
-end as a third column.
+## What emptied them
 
-**No selector can replace it.** A flag on `kg node <id> --properties` can only
-project what the file holds, and the neighbour's id is not in the file. This is
-a join, not a projection.
+The entry gains a fourth field. `neighbour` is the node at the other end, and it
+is in the node's own file:
 
-## What it costs to park them
+```yaml
+links:
+  - type: directed
+    link: 01a090ed-513c-…
+    direction: in
+    neighbour: 01a090ed-1ee8-…
+```
 
-Two of the guide's thirteen questions — *who directed Cloud Atlas*, and
-*everyone connected to it* — were one pipeline each because the third column
-existed. They become the loop again.
+**There is no join left.** What the commands did is now a filter over a
+property, which `jq` does — and does better, since a named field beats a line
+prefix and the direction is reachable where the columns never exposed it:
 
-Measured: a file read is about **69 µs** and a process is about **80 ms**, so
-the loop is cheap **inside** one process and expensive across many. Cloud Atlas
-has ten relations: ten reads, well under a millisecond, against ten processes if
-a caller writes the loop in shell.
+```bash
+kg node "$CA" --properties --json \
+  | jq -r '.links[] | select(.type == "directed" and .direction == "in") | .neighbour'
+```
 
-That is the shape of what a shortcut here buys — not speed on disk, but
-processes not spawned.
+So nothing is lost in capability, and no question of the guide's goes back to a
+loop. A pipeline is one `jq` longer than it was.
 
-## What batch 11 does instead
+## What is left of them, and what would bring it back
 
-An entry gains a `neighbour` field, so the node at the other end is in the
-node's own file. The join disappears, and `jq` over
-`kg node <id> --properties --json` reaches the neighbours without either of
-these commands. What is parked here is therefore the **shortcut**, not the
-capability.
+A convenience: one command instead of a filter someone writes. That is a real
+thing to want, and it is not a reason to ship — a shortcut earns itself against
+a caller who keeps writing the same filter, and nobody has yet.
 
-## What would unpark it
+**Spelling, if it returns.** Not as an action. `links` and `backlinks` were
+actions while `--properties` was a flag, and all three answer *which view of
+this node*. [`spec/api.md`](../../spec/api.md) puts reading a resource as
+implicit and the aspect as a selector, so `kg node <id> --links`, or nothing.
 
-The foundation being settled: what `kg node <id> --properties` returns, and
-whether anything consumes ids. A command that fuses two reads is worth having
-once both reads are stable, and not before — otherwise the fusion is what gets
-maintained while the parts are still moving.
-
-## Spelling, if it returns
-
-Not as an action. `links` and `backlinks` were actions while `--properties` was
-a flag, and all three answer *which view of this node*. `spec/api.md`'s rule
-puts reading a resource as implicit and the aspect as a selector — so
-`kg node <id> --links`, or nothing.
+**And it would be a selector over the same property**, not a join — which is a
+much smaller thing to add than what was removed, and the reason removing it
+costs so little.
 
 ---
 

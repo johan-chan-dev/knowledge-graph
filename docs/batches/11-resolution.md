@@ -282,16 +282,19 @@ which the columns never exposed.
 other end is the **source**, so either of those would be wrong half the time.
 In a graph a neighbour is a neighbour, whichever way the edge points.
 
-## The foundation before its shortcuts
+## The shortcuts, emptied
 
-`kg node <id> links` and `kg node <id> backlinks` are removed. They fuse two
-reads — the node, then a record per relation — and a fusion is worth having once
-both parts are stable, not while they are still moving. What they did, what it
-cost to park them, and how they would be spelled if they return is in
-[neighbours](../design/parked/neighbours.md).
+`kg node <id> links` and `kg node <id> backlinks` are removed, and the field
+above is why: they existed to join a node's entries with each record, and with
+`neighbour` in the entry there is no join left. What they did is a filter over a
+property, which `jq` does — and does better, since the direction was never
+reachable from the columns.
 
-Two of the guide's questions go back to a loop with them. That is the price, and
-it is named rather than discovered.
+**No question of the guide's goes back to a loop.** A pipeline is one `jq`
+longer than it was. What is left of them is a convenience, and a shortcut earns
+itself against a caller who keeps writing the same filter — which is what
+[neighbours](../design/parked/neighbours.md) records, along with the spelling it
+would take if one turns up.
 
 ## The naming convention, which the JSON makes due
 
