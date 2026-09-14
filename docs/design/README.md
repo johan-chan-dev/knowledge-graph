@@ -6,6 +6,7 @@ argument.
 - [location](location.md) — nothing here is identified by where it sits
 - [vocabulary](vocabulary.md) — a word a node carries, and membership is never written down
 - [structure](structure.md) — the tool may name its own parts, and each name is spent permanently
+- [naming](naming.md) — kebab on the command line, snake everywhere a machine reads
 - [absence](absence.md) — a property is absent, and that is all it means
 - [boundaries](boundaries.md) — data is checked where it enters, and once
 - [material](material.md) — a node is a stage, not a record
