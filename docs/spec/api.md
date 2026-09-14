@@ -226,11 +226,10 @@ writes and because `o.valid-until` is a subtraction in JavaScript.
 for keys only — a label word or a relation type is a value, stored as given.
 
 **It is the stored block**, byte for byte — the same serialiser writes the file
-and this output. The intention was the opposite, *a rendering is the tool
-answering rather than showing its file*, and it was never held: the command
-shows the frontmatter, `links` bookkeeping included.
-[Batch 11](../batches/11-resolution.md) is where it becomes true. A node with no
-properties prints nothing and exits `0`.
+and this output. That is not a leak: the block **is** the properties, so showing
+it and answering are the same act here. `labels` and `links` appear like any
+other property, being reserved against `set` rather than hidden from a read. A
+node with no properties prints nothing and exits `0`.
 
 **`set` and `unset` are about the property; the value is stored as given.** The
 tool writes back the text it was handed and compares text on the way out — it

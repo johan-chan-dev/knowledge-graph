@@ -184,39 +184,20 @@ wants counts can ask a question that names itself; nobody has asked yet.
 The description is served where it belongs: `kg label <word>` reads that one
 file, for the word you named.
 
-## Showing a file, or answering
+## `--properties` gains a format, and nothing else
 
-`kg node <id> --properties` prints the frontmatter block, byte for byte — the
-same serialiser writes both. [`spec/api.md`](../spec/api.md) claimed the
-opposite from the start, *a rendering is the tool answering rather than showing
-its file*, and the claim is what kept the gap invisible: it justified the shape
-by asserting it was already an answer.
+`kg node <id> --properties` shows the properties. All of them — `labels` and
+`links` included, because those **are** properties, reserved against `set`
+rather than hidden from a read. There is no content decision here, and an
+earlier version of this page invented one: it had `links` leaving, then staying,
+and both were answers to a question the model does not ask.
 
-**And `links` stays in it**, which reverses what this batch first said. The
-entries are the tool's bookkeeping and a file holds them where an answer would
-not — but with `kg node <id> links` and `backlinks` parked
-([neighbours](../design/parked/neighbours.md)), `kg node <id> --properties` is
-the **only** thing that exposes a node's relations at all. Removing them both
-would leave a graph with no way to walk it.
+`spec/api.md` said the output was *a rendering rather than the stored block*,
+and it is the block. That is not a flaw either, since the block is exactly the
+properties — the sentence was wrong about the mechanism and right about the
+result.
 
-So the foundation is two primitives and nothing on top:
-
-```console
-kg node <id> --properties     the entries: type, direction, the record's uuid
-kg link <id>                  the record: type, from, to, its properties
-```
-
-Reaching the neighbours is N+1 reads again. That is what the parked page
-records, with what the shortcut bought: not speed on disk — a file read is 69 µs
-— but processes not spawned.
-
-`labels` stays too: the words in it are the author's classification, written
-with a verb, and a flat list of words reads perfectly inline.
-
-## Format is the other axis
-
-The frontmatter is YAML, so that is what `kg node <id> --properties` prints —
-the properties in the shape they are held in. `--json` converts:
+So the only change is the axis that was genuinely missing:
 
 ```console
 $ kg node <id> --properties
@@ -227,18 +208,20 @@ $ kg node <id> --properties --json
 {"released":"2012","title":"Cloud Atlas"}
 ```
 
-One content, two formats, both produced from the same object — which is what a
-format flag is for, and not the drift two *renderings* would be.
+The frontmatter is YAML, so that stays the default — the properties in the shape
+they are held in. `--json` converts. One content, two formats, both from the
+same object, which is what a format flag is for and not the drift two
+*renderings* would be.
 
 **Nothing about absence argues for JSON here.** *An object has no empty cell*
-distinguishes an object from a table, not JSON from YAML: a YAML mapping has
+separates an object from a table, not JSON from YAML: a YAML mapping has
 optional keys exactly as a JSON object does. That argument belongs to the
 resolver below, where the alternative was columns.
 
 **It is declared per command**, with that command's own contract — not the
 global mode [`parked/structured-output.md`](../design/parked/structured-output.md)
 proposed, which forces one answer onto outputs that have nothing in common. The
-commands that stay line- or column-shaped so pipes work take it too:
+commands that stay line-shaped so pipes work take it too:
 
 ```
 kg nodes find '<expression>'      one id per line, and `--json` for an array
