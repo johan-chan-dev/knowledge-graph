@@ -54,9 +54,19 @@ It wins markdown frontmatter outright and ties JSON; snake wins neither. And
 kebab is impossible in either: `o.valid-until` is a **subtraction** in
 JavaScript, which is why no API ships kebab keys.
 
-**kebab on the command line, because a flag is kebab and they share a
-sentence.** `set valid-until … --with-labels x` reads as one thing. That
-consistency is the whole reason, and it does not extend past the command line.
+**kebab on the command line, because typing the stored form would reopen the
+trap.** `set validUntil` forces a choice and both answers are bad: match
+case-insensitively, as git does — measured, `user.testKey` reads back as
+`user.testkey` — and `validUntil` and `validuntil` become two spellings of one
+property, with the file having to pick one; match case-sensitively and they
+become two different properties, which is exactly what the lowercase rule
+exists to prevent. Kebab has one spelling and needs neither answer.
+
+The capital is therefore **produced, never typed**. Nobody has to decide between
+`validUntil` and `validuntil`, because nobody writes it.
+
+It also keeps the command line consistent with its flags — `set valid-until …
+--with-labels x` reads as one sentence — but that is the smaller reason.
 
 ## The lowercase rule survives, because it governs what is typed
 
