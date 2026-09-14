@@ -36,8 +36,9 @@ Cloud Atlas
 only where the ids come from changes:
 
 ```
-kg node <id> --properties          one id, in argv
-kg nodes --stdin --properties      many ids, on stdin
+kg node <id> --properties               one id, in argv
+kg nodes --properties <id> <id> …       a handful, in argv
+kg nodes --stdin --properties           a pipeline, on stdin
 ```
 
 **No projection.** An earlier version of this page had the command take names —
@@ -58,7 +59,7 @@ one node.
 **Will be backed by** `batch 11 — resolution`, as `11_test.ts` in
 [`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
 
-## Ids are shell-shaped, data is JSON
+## Ids are shell-shaped, properties are a mapping
 
 | | | |
 |---|---|---|
@@ -71,21 +72,14 @@ empties it. `kg labels list` becomes one name per line and
 output, and its set is not closed: three fields the tool names, beside however
 many properties an author wrote.
 
-**So `kg link <id>` is the open question this batch raises and does not
-answer.** By the rule above it is a mapping like any other record of
-properties — YAML, `--json` to convert — and saying so would remove the last
-tab-separated output in the tool. It is not listed in what this batch changes,
-and it should be settled before the batch is built rather than found during it.
+**So `kg link <id>` follows the same rule as everything else here**: a record is
+a document of properties — below, that is what it becomes on disk too — so it
+prints as a mapping, YAML by default and JSON with the flag. Which leaves the
+tool with **no tab-separated output at all**, and the row is gone rather than
+emptied.
 
 **The scope names the shape.** One node's properties are one thing; many nodes'
 are an array of them. Plural in, plural out, in whichever format.
-
-**`--json` is per command, not a mode.** A format flag spanning every command is
-the global flag union one layer up — it forces one answer onto commands whose
-outputs have nothing in common.
-[`parked/structured-output.md`](../design/parked/structured-output.md) proposed
-exactly that. Declared on one command, against that command's own contract, it
-is an ordinary flag.
 
 **`kg nodes find '<expression>'` and `kg labels list` stay line-shaped by
 default**, because a line is what `wc -l`, `grep`, `cut` and `xargs` work on,
@@ -112,8 +106,8 @@ value, so it cannot be the evidence here. `kg nodes --stdin --properties` is
 the command whose job is the value, and it is the one that needs a shape able to
 say *nothing is recorded* without saying *the recorded value is nothing*.
 
-**A JSON object simply has no such key**, which is exactly how the frontmatter
-represents it. Nothing is invented and nothing is lost:
+**A mapping simply has no such key** — in either format — which is exactly how
+the frontmatter represents it. Nothing is invented and nothing is lost:
 
 ```json
 [{"id":"01a0…","name":"Tom Hanks","born":"1956"},
@@ -128,19 +122,12 @@ addressable — `find '"person" in labels and not born'` returns exactly those
 five. Under three-valued logic they would fall out of both the query and its
 negation, and be genuinely lost.
 
-**An absent key, never a null.** JSON has no `undefined`, so omitting the key
-*is* undefined to the consumer — `o.born === undefined`, which is what
-[`absence.md`](../design/absence.md) settled. `null` is not merely unwanted
-here, it is **unstorable**: the read door refuses YAML null in all five
+**An absent key, never a null.** Omitting the key is undefined to the
+consumer — `o.born === undefined` — which is what
+[`absence.md`](../design/absence.md) settled. And `null` is not merely unwanted
+here, it is **unstorable**: the read door refuses it in all five YAML
 spellings — `null`, `Null`, `NULL`, `~` and empty — so emitting one would be
 output the tool cannot read back.
-
-**Not because YAML is ambiguous.** `k: 'null'` parses as the string and `k:
-null` as the null value, and `@std/yaml` round-trips the string quoted. What
-YAML has is five spellings against JSON's one, and unquoted scalars, so the
-distinction rests on quoting a hand-edit can drop — which matters in a repo of
-files people open. In JSON, demoting `"null"` to `null` is not a typo, it is
-invalid syntax.
 
 **`jq -r` cannot see the difference, and a caller must.** Measured: an absent
 key, a JSON null and the string `"null"` all print as the same four characters
@@ -194,7 +181,7 @@ wants counts can ask a question that names itself; nobody has asked yet.
 The description is served where it belongs: `kg label <word>` reads that one
 file, for the word you named.
 
-## `--properties` gains a format, and nothing else
+## `--properties` gains a format, and resolves what it shows
 
 `kg node <id> --properties` shows the properties. All of them — `labels` and
 `links` included, because those **are** properties, reserved against `set`
@@ -207,7 +194,7 @@ and it is the block. That is not a flaw either, since the block is exactly the
 properties — the sentence was wrong about the mechanism and right about the
 result.
 
-So the only change is the axis that was genuinely missing:
+Two things change, and they are independent. The first is a format:
 
 ```console
 $ kg node <id> --properties
@@ -222,6 +209,8 @@ The frontmatter is YAML, so that stays the default — the properties in the sha
 they are held in. `--json` converts. One content, two formats, both from the
 same object, which is what a format flag is for and not the drift two
 *renderings* would be.
+
+The second is what the `links` entries carry, which is the next section.
 
 **Nothing about absence argues for JSON here.** *An object has no empty cell*
 separates an object from a table, not JSON from YAML: a YAML mapping has
@@ -326,12 +315,12 @@ itself against a caller who keeps writing the same filter — which is what
 [neighbours](../design/parked/neighbours.md) records, along with the spelling it
 would take if one turns up.
 
-## The naming convention, which the JSON makes due
+## The naming convention lands here
 
 A key is `validUntil` — typed and stored alike, nothing translated.
 [`design/naming.md`](../design/naming.md) settles it, and this batch is where it
-lands, because printing keys as JSON is the moment the form stops being an
-internal detail.
+lands: a key printed for a program to read is the moment its form stops being an
+internal detail, in either format.
 
 What the code carries today is an earlier version of that page: a key typed in
 kebab and translated to camelCase at the file. Three things go with the
@@ -348,8 +337,16 @@ given.
 
 ## What it leaves
 
-Ordering the results · `~` over prose · the reserved operands · traversal, which
-stays in commands.
+Ordering the results · `~` over prose · the reserved operands · counting the
+words in a vocabulary, which nobody has asked for · a shortcut over the `links`
+entries, if a caller ever writes the same `jq` filter enough times
+([neighbours](../design/parked/neighbours.md)).
+
+**Traversal beyond one hop.** `kg node <id> --properties` resolves a node's own
+relations and stops there; reaching two hops is two calls, and the guide's
+*three hops from Kevin Bacon* stays out of reach. That is
+[batch 9](9-find.md)'s deferral unchanged — the price of not having pattern
+syntax, measured against a real guide rather than guessed at.
 
 ---
 
