@@ -15,9 +15,11 @@ for id in $(kg nodes find 'released > 2000'); do
 done
 ```
 
-Measured on the imported movies graph: **10.7 s for 133 nodes, against 0.66 s
-for one process reading all 171.** Sixteen times, and it is not file reads —
-`find` alone is 0.47 s of that 0.66 s. It is process spawns, about 80 ms each.
+Measured on the imported movies graph: **8.0 s for 133 nodes, against 0.49 s in
+two calls.** Sixteen times, and it is not file reads — a file read is about
+69 µs. It is processes: a bare `kg` costs about **13 ms** to start, the loop
+pays that twice a turn plus the pipe and the shell's own fork, and 133 turns
+come to eight seconds.
 
 The `sed` is the other half. `--properties` prints YAML that a caller then
 re-derives with a line-matching expression, which is not parsing a format so
@@ -221,8 +223,8 @@ in the entry on disk, and duplication has to be kept true; resolving has
 nothing to keep. There is no migration either, since nothing stored moves.
 
 **Its cost is the one already measured.** A file read is about 69 µs, so ten
-relations add well under a millisecond inside one process — against 80 ms for a
-process. A node with ten thousand relations pays 0.7 s, which is the same price
+relations add well under a millisecond inside one process — against about 13 ms
+to start another. A node with ten thousand relations pays 0.7 s, which is the same price
 `backlinks` paid and the reason the read happens once per command rather than
 once per relation.
 
