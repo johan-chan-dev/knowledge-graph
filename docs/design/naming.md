@@ -1,57 +1,175 @@
 # Naming
 
-A name is a property name, a label word or a relation type — the three share one
-rule, because all three are words somebody has to arrive at independently and
-type again later.
+A key, a label word, a relation type and a value are four vocabularies with four
+different deciders. They used to share one rule. They no longer do, and the
+split is what this page is about.
 
-**The point is to avoid what needs quoting**, not to have a house style. Once a
-space is excluded, the separator is decided by **whoever reads the name**, and
-that is a different reader in each place.
+**Two goals, and they stopped pointing the same way.** A name must avoid what
+needs quoting — that is the old goal, and it still decides keys and filenames.
+But a label word must also be spellable inside a `kg match` pattern **without a
+backtick**, and that rule is openCypher's rather than ours.
 
 ## The guide
 
 | what | form | who decides | enforced |
 |---|---|---|---|
-| a command, a flag | `find`, `--with-labels` | the tool | it is the tool's own word |
-| a **key** | `set validUntil 2027`, `validUntil: 2027` | the tool | at the door |
-| a **label word**, a **relation type** | `acted-in` | the author picks the word, **not its form** | at the door |
+| a command, a flag | `nodes find`, `--with-labels` | the tool | it is the tool's own word |
+| a **key** | `validUntil`, `release_date` — same rule as a word; camelCase is the house form | the author; the tool when it writes | at the door |
+| a **label word**, a **relation type** | `Person`, `ACTED_IN` — openCypher's `UnescapedSymbolicName` | the author, **form included** | at the door |
 | a **value** | `Cloud Atlas`, `github-issue-412` | the author | one line, printable — nothing else |
+| a **label's file** | `person.md` — the slug of the word | the tool, derived | a collision refuses |
 | a `.ts` file | `frontmatter_test.ts` | Deno | — |
-| a `.md` file | `query-language.md`, `acted-in.md` | a URL | — |
+| a `.md` file | `query-language.md` | a URL | — |
 
-Three levels of constraint, not two. A key's form is the tool's; a label word's
-form is the tool's while the word itself is the author's; a value is the
-author's entirely.
+**Two levels of constraint, not three.** A key, a label word and a relation
+type share one rule, and within it the author picks the word *and its form* —
+camelCase and PascalCase are what the tool writes, never what it demands. A
+value has no separator rule at all. The label's filename is nobody's: it is
+computed, and it is the only name here that nobody types.
 
-### A key: one form, typed and stored alike
+### A key: the same rule as a word, and camelCase as a house form
 
-camelCase, and **the same string in both places** — `set validUntil` writes
-`validUntil:`. Nothing is translated, so nothing has to be reversible, and what
-a command prints is what the next command takes.
+**One rule for all three vocabularies** — `/^[\p{ID_Start}_][\p{ID_Continue}]*$/u`,
+the same as a label word. camelCase is what the tool writes, what it prints in
+examples and what it suggests. It is not a gate.
 
-That symmetry is the argument. A translation the caller performs in their head
-is where errors come from, and the caller here is mostly a model reading one
-command's output to build the next.
+It used to be one, and that was the measurement below being read as answering a
+question it does not ask. Hugo, Astro and Google say **what form to write**;
+none of them says what to refuse. Promoting a house form into a door is the same
+slip as the kebab label one rung lower.
 
-An earlier version of this page had the key typed in kebab and stored in
-camelCase. It was defended on the strength of a **lowercase** rule that
-`frontmatter.ts` never argued either — the comment there justifies *nothing
-needing quotes*, and says nothing about capitals. Two unargued rules propping
-each other up is not a reason.
+**What the gate cost.** GitHub's API — 86 keys, 68 with an underscore, counted
+in the table below — is an entire vocabulary it refused. Importing such a graph
+would mean renaming every key on the way in, which is the translation this page
+removed for labels.
 
-### A label word: kebab, and that follows rather than being chosen
+**What it bought: nothing measurable.** `releaseDate` and `releasedate` both
+pass any shape rule, so the fragmentation a gate is imagined to prevent is not
+the fragmentation that occurs. And a key names no file, so there is no slug for
+it to collide in.
 
-**It is a filename.** `label.ts` puts it as *the file **is** the word*, so the
-word has to be safe as one — which decides its form twice over:
+**And the label floor does not transpose.** Labels are a closed, enumerable set
+— `kg labels list` — so an unknown word can be refused with its near neighbour
+named. Keys are open: any node may carry any key. A mistyped key therefore falls
+into two-valued absence and matches nothing, silently, and refusing unknown keys
+would break the `find 'p'` / `find 'not p'` partition that
+[absence](absence.md) exists for. The shape rule protects a key in neither
+direction, so the permissive one is preferred for not blocking real data.
 
-- **lowercase**, because a case-insensitive filesystem merges `actedIn.md` and
-  `actedin.md` into one file, silently, holding whichever was written last. A
-  space's vocabulary would depend on the filesystem under it.
-- **kebab**, because that is already the rule for a `.md` file.
+**Typed and stored alike, which the relaxation does not touch.** `set validUntil`
+writes `validUntil:`; `set release_date` writes `release_date:`. Nothing is
+translated either way, so what a command prints is what the next command takes.
+That symmetry was always the real argument, and it never needed a single form.
 
-So this row is not a fourth decision — it is the two rows below it, applied to a
-word that happens to name a file. And because it is a filename, the form cannot
-be left to taste: the door enforces it.
+**What stays refused is exactly openCypher's list**, which is why adopting it
+costs nothing that was being protected:
+
+| refused | why, and why Cypher refuses it too |
+|---|---|
+| `valid-until` | `o.valid-until` is a **subtraction** in JavaScript; Cypher needs a backtick for the same reason |
+| `2fa` | a leading digit is ambiguous with a numeral in the `find` grammar, and `ID_Start` excludes it |
+| `with.dot`, `with space`, `""` | not an identifier anywhere |
+
+Two pinned cases flip from refused to accepted: `Title` and `valid_until`.
+
+### A label word, a relation type: openCypher's, verbatim
+
+```
+UnescapedSymbolicName = IdentifierStart, { IdentifierPart }
+IdentifierStart       = ID_Start | Pc        a letter, or _
+IdentifierPart        = ID_Continue | Sc     letters, digits, _
+```
+
+which is `/^[\p{ID_Start}_][\p{ID_Continue}]*$/u`. Stored as written, case
+included. Three reasons, in order of weight.
+
+**A pattern must never need a backtick.** Anything outside that set has to be
+escaped in Cypher — `` [:`acted-in`] `` — so refusing it is what keeps
+`kg match` a strict subset: every pattern it accepts pastes into a real engine
+unchanged. That is the adoption property, and it is cheap to hold as long as
+nothing outside the set is ever stored.
+
+**The failure it removes is a silence, not a friction.** The movies dataset is
+the most reproduced graph example there is, so a Cypher-trained agent writes
+`(:Person)-[:ACTED_IN]->(:Movie)` unprompted. Against a case-folded store that
+returns **zero nodes, exit 0** — a plausible answer to the wrong question, which
+is the exact failure [batch 4](../batches/4-stops-guessing.md) removed `--where`
+for producing. Cypher is explicit that this is not a style matter: *"`:PERSON`,
+`:Person` and `:person` are three different labels"*.
+
+**The form it replaces was not a convention, it was an artefact.**
+`conformance/convert.ts` reached the old vocabulary through
+
+```js
+s.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/_/g, "-").toLowerCase()
+```
+
+— a **one-way** function: `acted-in` may have come from `ACTED_IN`, `acted_in`
+or `actedIn`, and nothing on disk says which. What looked like the store's own
+vocabulary was Neo4j's, hashed.
+
+**Digits are not restricted, and that is a measurement rather than a
+preference.** In schema.org — 1010 classes, 1676 properties, counted
+2026-09-14 — exactly **one** native class carries a digit, `3DModel`, and its
+digit is leading, so `ID_Start` already refuses it unescaped. The digits that do
+occur live in *keys*: `gtin12`, `gtin8`, `percentile90`, `isicV4`, `iso6523Code`,
+`emissionsCO2`, `sha256`, `cvdNumC19Died` — all of which `NAME` already accepts.
+So a rule forbidding digits in labels would guard against roughly one word per
+thousand while remaining a refusal somebody can hit. A rule whose deletion
+changes nothing observable is not worth having.
+
+The caveat: schema.org is a web-content vocabulary, and a technical graph need
+not share its distribution. It is the largest sample available, and it points
+one way.
+
+### The slug: the filename is computed, never typed
+
+The word no longer names its file. It lives in the label's own frontmatter, and
+the file gets a derived name:
+
+```js
+const slug = (s) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "")
+  .replace(/([a-z])([A-Z])/g, "$1-$2")
+  .replace(/([A-Za-z])([0-9])/g, "$1-$2")
+  .replace(/([0-9])([A-Za-z])/g, "$1-$2")
+  .replace(/_/g, "-").toLowerCase()
+  .replace(/-+/g, "-").replace(/^-|-$/g, "");
+```
+
+`Person` → `person.md`, `ACTED_IN` → `acted-in.md`, `Oauth2Token` →
+`oauth-2-token.md`, `Décision` → `decision.md`.
+
+**Its job is not to be pretty, it is to collide.** Two words a reader cannot
+tell apart must land on one filename, where creating the second **refuses**.
+That inverts the defect above: the same lossiness that made `convert.ts` wrong
+as a translation is exactly what makes it right as a slug.
+
+Measured on the filesystem this runs on, 2026-09-14: `Person.md` and `person.md`
+are **one file**, last writer wins, silently. That is what the slug has to
+prevent, and why lowercasing is not optional.
+
+Four candidate rules were tried against the confusable pairs. Each of the three
+rejected ones fails a group the others catch:
+
+| rule | splits on | misses |
+|---|---|---|
+| `([a-z0-9])([A-Z])` — the old `convert.ts` | right edge of a digit only | `P2P`/`P2p`, `Sha256`/`SHA256` |
+| `([a-z])([A-Z])` alone | camel only | `X509Cert`/`X509_Cert`, `Oauth2Token`/`OAUTH2_TOKEN` |
+| `_` only, no camel split | separators only | `VehicleOwner`/`VEHICLE_OWNER` |
+| **camel + both digit edges** | all four | — |
+
+The rule behind the rule: **a clause may be case-sensitive only if the boundary
+it detects has a second spelling that is not.** The camel clause survives
+because the all-caps style writes the same boundary with `_`, and the underscore
+clause catches it. A digit boundary has no such fallback — `SHA256` carries no
+separator — so both digit clauses must be blind to case, `[A-Za-z]` on each
+side.
+
+Diacritics are stripped rather than kept. An accented filename returns exactly
+the soft ground the slug exists to avoid — case folding of diacritics is the
+least consistent part of a filesystem — and the collision it creates between
+`Decision` and `Décision` is a pair that should be refused, not filed twice
+under names an `ls` does not separate.
 
 ### A value: the author's, and untouched
 
@@ -61,7 +179,7 @@ are **stored as given and never retyped**, and that is the whole rule.
 
 ## What the evidence says
 
-Measured 2026-09-14, at the sources rather than from memory.
+Measured at the sources rather than from memory.
 
 | | camelCase | snake_case | kebab-case |
 |---|---|---|---|
@@ -75,43 +193,69 @@ JSON splits by ecosystem, and CLI argument keys split too — git camelCase by 6
 to 7, npm kebab throughout. So every argument of the form *that is the
 convention* is weak, and this page does not make one.
 
-**camelCase for a key, typed and stored alike.** It is the only form that fits
-both data media — it wins markdown frontmatter outright and ties JSON, where
-snake wins neither. And kebab cannot be a key in either: `o.valid-until` is a
-**subtraction** in JavaScript, which is why no API ships one.
+**camelCase as the house form for a key** — the only form that fits both data
+media, winning markdown frontmatter outright and tying JSON, where snake wins
+neither. A *form to write*, not a form to demand: the row above is also the
+measurement that says a gate would refuse two thirds of GitHub's vocabulary.
+What no medium ships is a kebab key, and that one is mechanical: `o.valid-until`
+is a **subtraction** in JavaScript.
 
-**kebab for a label word**, because it is a filename, and filenames here are
-kebab for the reason `.md` files are.
+**kebab for commands and flags**, the one place the measurements are unanimous.
 
-**kebab for commands and flags**, which is the one place the measurements are
-unanimous.
+### What openCypher enforces, and what it merely recommends
 
-## What this drops, and why that is a gain
-
-An earlier version had a key typed in kebab and stored in camelCase, translated
-at the file. Two things existed only to hold that up, and both go with it:
-
-**The tightened name rule.** `a-2x` and `a2x` are different names that both
-become `a2x`, so a segment after the first had to begin with a letter for the
-translation to be reversible. With one form there is nothing to reverse and
-nothing to forbid.
-
-**The asymmetry.** A caller read `validUntil` and had to type `valid-until`.
-It failed loudly rather than silently, which is the right way to fail — but not
-failing at all is better, and a translation performed in the caller's head is
-where errors come from. The caller here is mostly a model reading one command's
-output to build the next.
-
-## What is still enforced, and where
-
-The doors do not change in what they do, only in what they compare against.
+Read at the [Cypher manual](https://neo4j.com/docs/cypher-manual/current/syntax/naming/)
+and the [openCypher grammar](https://s3.amazonaws.com/artifacts.opencypher.org/M23/railroad/SymbolicName.html),
+because the difference decides how much of it binds us.
 
 | | |
 |---|---|
-| a key, at the argv door | the key's form |
-| a key, at the reading door | the same form — *a block is read only if the tool could have written it* |
-| a label word, at the argv door | the filename-safe form, because the file is the word |
+| **enforced** | a name starts with a letter or `_`; anything else needs backticks; names are **case-sensitive** |
+| **recommended only** | labels PascalCase — *"capitalized words, no separators"*; relation types SCREAMING_SNAKE — *"upper case, underscores as separators"*; properties camelCase |
+
+Only the first row binds. The second is why `ACTED_IN` rather than `actedIn`
+appears in every example — the underscore avoids a backtick, which is the
+tokenizer choosing, not taste.
+
+## What this page has dropped, twice
+
+**A key typed in kebab and stored in camelCase**, translated at the file. Two
+things propped it up and went with it: a tightened name rule, needed only so the
+translation could be reversed, and an asymmetry where a caller read `validUntil`
+and had to type `valid-until`. It failed loudly rather than silently, which is
+the right way to fail — but not failing at all is better.
+
+**camelCase as a gate on keys.** The form survives as what the tool writes; what
+went is its power to refuse. It had been promoted out of a table measuring what
+other people *write*, and it was refusing vocabularies — most of GitHub's — that
+nothing in this tool had a reason to reject.
+
+**A label word in kebab, "because it names a file".** The premise was true and
+is now gone: the word does not name the file, the slug does. The reasoning was
+sound — a case-insensitive filesystem merges `actedIn.md` with `actedin.md` —
+but it answered *how should a filename be shaped*, and got applied to *how
+should a word be spelled*. Two questions, and the second one belongs to whoever
+has to type the word again later.
+
+Both drops have the same shape: a constraint from one layer had been promoted
+into the vocabulary of another.
+
+## What is still enforced, and where
+
+| | |
+|---|---|
+| a key, at the argv door | `UnescapedSymbolicName` — the same rule as a word |
+| a key, at the reading door | the same rule — *a block is read only if the tool could have written it* |
+| a label word, a relation type, at the argv door | `UnescapedSymbolicName` — refuse anything a pattern would have to backtick |
+| a label word, at creation | its slug must be free; a collision names the word already holding it |
+| a label word, at match time | an unknown word **refuses and names its near neighbour** — `no such label: person — did you mean Person?` — never returns empty |
 | a value | one line, printable — the rule it already had |
+
+**The match-time row is the floor.** It holds whatever else is decided, because
+the cost of a vocabulary mismatch is never paid when the word is written — it is
+paid by the next reader, as a result that looks like an answer. It is also the
+protection a key cannot have, keys being an open set: there, the same mistake
+stays silent by design, and [absence](absence.md) is where that is argued.
 
 ---
 
