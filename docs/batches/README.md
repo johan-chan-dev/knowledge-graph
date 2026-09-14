@@ -22,6 +22,8 @@ history: what a batch was for, what building it forced, what it settled.
 | 9 | [find](9-find.md) | shipped |
 | 10 | [one writer for the frontmatter](10-one-writer.md) | shipped |
 | 11 | [resolution](11-resolution.md) | shipped |
+| 12 | [the vocabulary](12-vocabulary.md) | planned |
+| 13 | [match](13-match.md) | planned |
 
 ## Read the parked pages before declaring a question open
 
