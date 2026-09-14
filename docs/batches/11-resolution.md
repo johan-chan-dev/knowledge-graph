@@ -388,11 +388,22 @@ words in a vocabulary, which nobody has asked for · a shortcut over the `links`
 entries, if a caller ever writes the same `jq` filter enough times
 ([neighbours](../design/parked/neighbours.md)).
 
-**Traversal beyond one hop.** `kg node <id> --properties` resolves a node's own
-relations and stops there; reaching two hops is two calls, and the guide's
-*three hops from Kevin Bacon* stays out of reach. That is
-[batch 9](9-find.md)'s deferral unchanged — the price of not having pattern
-syntax, measured against a real guide rather than guessed at.
+**Paths.** A traversal reaches a set and does not say how it got there, so a
+shortest path between two nodes means the caller keeps parents at each level.
+That is a loop someone writes, not a line.
+
+**Traversal itself is no longer what it leaves**, and that is worth naming
+because [batch 9](9-find.md) recorded the opposite. It called the guide's
+*three hops from Kevin Bacon* out of reach — *the measured price of putting
+traversal in a command rather than in pattern syntax* — and the price was never
+traversal. It was **one process per node**. With the plural form a hop is one
+call whatever its width, so breadth-first is one call per **level**: measured on
+the movies graph, three hops from Kevin Bacon reach 49 nodes in four calls.
+
+What is still deferred is the pattern syntax, which buys binding — `MATCH (p)-[:DIRECTED]->(m) RETURN p.name`
+names the far node and reuses it in the projection. That is
+[`parked/query-language.md`](../design/parked/query-language.md)'s, and it is a
+different thing from reaching the nodes at all.
 
 ---
 
