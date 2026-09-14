@@ -192,13 +192,26 @@ opposite from the start, *a rendering is the tool answering rather than showing
 its file*, and the claim is what kept the gap invisible: it justified the shape
 by asserting it was already an answer.
 
-**What makes it a dump is its content, not its format.** A node with relations
-carries `links` — uuids and directions the tool mints for its own bookkeeping —
-and a file holds that where an answer does not. So `links` leaves, and the two
-commands that present a relation properly keep it.
+**And `links` stays in it**, which reverses what this batch first said. The
+entries are the tool's bookkeeping and a file holds them where an answer would
+not — but with `kg node <id> links` and `backlinks` parked
+([neighbours](../design/parked/neighbours.md)), `kg node <id> --properties` is
+the **only** thing that exposes a node's relations at all. Removing them both
+would leave a graph with no way to walk it.
 
-`labels` stays: the words in it are the author's classification, written with a
-verb, and a flat list of words reads perfectly inline.
+So the foundation is two primitives and nothing on top:
+
+```console
+kg node <id> --properties     the entries: type, direction, the record's uuid
+kg link <id>                  the record: type, from, to, its properties
+```
+
+Reaching the neighbours is N+1 reads again. That is what the parked page
+records, with what the shortcut bought: not speed on disk — a file read is 69 µs
+— but processes not spawned.
+
+`labels` stays too: the words in it are the author's classification, written
+with a verb, and a flat list of words reads perfectly inline.
 
 ## Format is the other axis
 
@@ -229,33 +242,19 @@ commands that stay line- or column-shaped so pipes work take it too:
 
 ```
 kg nodes find '<expression>'      one id per line, and `--json` for an array
-kg node <id> --links              tab-separated, and `--json` for objects
-kg node <id> --backlinks          the same, filtered the other way
 kg labels list                    one word per line
 ```
 
-The tabbed default is what makes `kg node <id> --backlinks | grep '^directed' |
-cut -f3` answer question 10 in one line.
+## The foundation before its shortcuts
 
-## Three views of a node, spelled one way
+`kg node <id> links` and `kg node <id> backlinks` are removed. They fuse two
+reads — the node, then a record per relation — and a fusion is worth having once
+both parts are stable, not while they are still moving. What they did, what it
+cost to park them, and how they would be spelled if they return is in
+[neighbours](../design/parked/neighbours.md).
 
-`links` and `backlinks` are actions today and `--properties` is a flag, and both
-answer *which view of this node*. The rule they sit under is
-[`spec/api.md`](../spec/api.md)'s:
-
-> Reading a single resource is implicit. Everything else names its action. A
-> single resource has **exactly one thing to fetch**, so a verb would add
-> nothing.
-
-A node has **three** — its body, its properties, its relations — and that
-sentence was written when it had one. Under the rule as stated, `--properties`
-is right: reading a node is implicit, and which aspect is a selector. So the
-other two become selectors as well.
-
-**The join stays.** `kg node <id> --backlinks` reads each relation's record to
-give the node at the other end, which is not in the node's own file — a
-selector on `--properties` could never produce it. What changes is the spelling,
-not the work.
+Two of the guide's questions go back to a loop with them. That is the price, and
+it is named rather than discovered.
 
 ## The naming convention, which the JSON makes due
 
