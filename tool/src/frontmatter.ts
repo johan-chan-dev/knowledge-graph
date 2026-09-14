@@ -21,14 +21,23 @@ import { validate as isUuid } from "@std/uuid";
  */
 const OPEN = /^---[ \t]*\n([\s\S]*?)---[ \t]*(?:\n([\s\S]*))?$/;
 
-/** A lowercase hyphenated token. Anything needing quoting or escaping is a name
- * that will eventually be typed wrong and fail by silently matching nothing.
+/**
+ * A key: `validUntil`, camelCase, and **the same string typed and stored**.
  *
- * **A segment after the first begins with a letter**, so that every boundary
- * survives the trip to a key: `a-2x` and `a2x` would otherwise both become
- * `a2x`, and one of them could never be read back. Only that shape is lost —
- * `2fa`, `v2-index` and `valid-until` are all still names. */
-const NAME = /^[a-z0-9]+(-[a-z][a-z0-9]*)*$/;
+ * Nothing needing quoting or escaping, which is what rules out spaces and
+ * punctuation. camelCase because that is what markdown frontmatter writes
+ * (Hugo, Astro) and because kebab cannot be a key at all — `o.valid-until` is a
+ * subtraction in JavaScript, which is why no API ships one.
+ *
+ * It begins lowercase so that the first character is never a case decision;
+ * after that a capital is a word boundary and nothing else.
+ * `docs/design/naming.md` has the measurements.
+ */
+const NAME = /^[a-z][a-zA-Z0-9]*$/;
+
+/** A label word, a relation type: kebab, because the word names a file, and a
+ * case-insensitive filesystem would merge `actedIn.md` with `actedin.md`. */
+const WORD = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /**
  * A value is a single line of printable text. The reason is what a property is
@@ -57,35 +66,6 @@ const noncharacter = (s: string): boolean => {
 };
 
 export const isName = (s: string): s is Name => NAME.test(s);
-
-/**
- * A name is written two ways, and which one depends on the medium.
- *
- * On the command line it is kebab, which is what a flag is — measured, git
- * defines 18 hyphenated long options and none with an underscore. As a **key**,
- * in the frontmatter and in the JSON a command prints, it is camelCase: the
- * markdown frontmatter world writes keys that way (Hugo, Astro), and kebab is
- * impossible there because `o.valid-until` is a subtraction in JavaScript.
- * `docs/design/naming.md` has the measurements.
- *
- * Only keys. A label word, a relation type and every other value arrives as the
- * author typed it and is stored as given — translating one would be retyping
- * it, which this format does not do.
- *
- * The two shapes carry the same segments, so the substitution is reversible —
- * which is what the letter rule on `NAME` above is for.
- */
-const KEY = /^[a-z0-9]+([A-Z][a-z0-9]*)*$/;
-
-/** The key a name is stored under. */
-export const asKey = (name: Name): string =>
-  name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
-
-/** The name a key came from, or nothing if the tool could not have written it. */
-export const asName = (key: string): Name | undefined =>
-  KEY.test(key)
-    ? key.replace(/[A-Z]/g, (capital) => `-${capital.toLowerCase()}`) as Name
-    : undefined;
 
 /**
  * Names the tool holds facts under, which a property may not shadow. `body` is
@@ -119,11 +99,11 @@ export const reservedReason = (name: string): string | undefined => RESERVED[nam
 declare const brand: unique symbol;
 export type Branded<T extends string> = string & { readonly [brand]: T };
 
-/** A property name the tool could write: a lowercase hyphenated token. */
+/** A key: camelCase, beginning lowercase, the same typed and stored. */
 export type Name = Branded<"Name">;
-/** A word a node carries. Same shape as a name — a word two people must arrive
- * at independently cannot be one that needs quoting — but a different thing, and
- * a different namespace: a label may be called `body` without shadowing anything. */
+/** A word a node carries: kebab, because the word names a file. A different
+ * namespace from a key too — a label may be called `body` without shadowing
+ * anything. */
 export type Label = Branded<"Label">;
 /** One value: a single line of printable text. */
 export type Text = Branded<"Text">;
@@ -140,7 +120,7 @@ export function notAValue(s: string): string | undefined {
 }
 
 export const isValue = (s: string): s is Text => !CONTROL.test(s) && !noncharacter(s);
-export const isLabel = (s: string): s is Label => NAME.test(s);
+export const isLabel = (s: string): s is Label => WORD.test(s);
 /** Any uuid is well formed, not only the v7 this tool mints — a v4 is a
  * plausible id it never issued, which makes it honestly absent rather than
  * refused. */
@@ -223,10 +203,9 @@ export function read(frontmatter: string): Read {
   }
 
   const out: Properties = {};
-  for (const [key, value] of Object.entries(parsed)) {
-    const name = asName(key);
-    if (name === undefined) {
-      return unreadable(`${key} is not a property name`);
+  for (const [name, value] of Object.entries(parsed)) {
+    if (!isName(name)) {
+      return unreadable(`${name} is not a property name`);
     }
     // `links` is the one nested shape in the format, and the format owns it:
     // an author still cannot nest, and this is validated against exactly the
@@ -280,13 +259,10 @@ export function read(frontmatter: string): Read {
  * serialiser quotes exactly what would otherwise change meaning coming back,
  * which is what tells a list from a scalar that looks like one.
  */
-export const write = (properties: Properties): string => {
-  const keys = Object.keys(properties) as Name[];
-  if (keys.length === 0) return "";
-  const stored: Record<string, Value> = {};
-  for (const name of keys) stored[asKey(name)] = properties[name]!;
-  return toYaml(stored, { sortKeys: true, lineWidth: -1 });
-};
+export const write = (properties: Properties): string =>
+  Object.keys(properties).length === 0
+    ? ""
+    : toYaml(properties, { sortKeys: true, lineWidth: -1 });
 
 /** The entries, or why they will not read. */
 function readLinks(value: unknown): Entry[] | string {

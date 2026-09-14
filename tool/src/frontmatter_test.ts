@@ -100,24 +100,30 @@ Deno.test("what is neither a value nor a list does not read at all", () => {
   }
 });
 
-Deno.test("a name is a lowercase hyphenated token", () => {
-  for (const ok of ["title", "valid-until", "a1", "2fa", "v2-index"]) {
+Deno.test("a label word is kebab, because the word names a file", () => {
+  for (const ok of ["movie", "acted-in", "a-1-b", "2fa"]) {
+    assertEquals(frontmatter.isLabel(ok), true, ok);
+  }
+  for (const bad of ["actedIn", "Movie", "acted_in", "with space"]) {
+    assertEquals(frontmatter.isLabel(bad), false, bad);
+  }
+});
+
+Deno.test("a key is camelCase, beginning lowercase", () => {
+  for (const ok of ["title", "validUntil", "a1", "v2Index", "headSha"]) {
     assertEquals(frontmatter.isName(ok), true, ok);
   }
-  // A segment after the first begins with a letter, so every boundary survives
-  // the trip to a key — `a-2x` and `a2x` would both become `a2x`.
-  for (const bad of ["a-1-b", "a-2x"]) {
-    assertEquals(frontmatter.isName(bad), false, bad);
-  }
+  // It begins lowercase so the first character is never a case decision, and a
+  // hyphen belongs to a label word rather than to a key.
   for (
     const bad of [
-      "Kind",
+      "Title",
+      "valid-until",
       "valid_until",
+      "2fa",
       "-lead",
-      "trail-",
       "with.dot",
       "",
-      "a--b",
       "with space",
     ]
   ) {
@@ -164,13 +170,13 @@ Deno.test("an empty list is an absence, not a value", () => {
 // otherwise a hand-written name loads, displays, and can never be unset.
 Deno.test("the reading door enforces the writing door's vocabulary", () => {
   assertStringIncludes(why("Title: x\n") ?? "", "Title is not a property name");
-  // A key is stored in snake, so the kebab a caller types is not what the tool
-  // could have written — `docs/design/naming.md`.
+  // A key is camelCase, so kebab is not what the tool could have written —
+  // `docs/design/naming.md`.
   assertStringIncludes(
     why("valid-until: x\n") ?? "",
     "valid-until is not a property name",
   );
-  assertEquals(props("validUntil: x\n"), like({ "valid-until": "x" }));
+  assertEquals(props("validUntil: x\n"), like({ validUntil: "x" }));
 
   // A control character reaches a value only as a YAML escape. Written raw it
   // is not YAML at all, and the parser refuses it first — also correct, and a

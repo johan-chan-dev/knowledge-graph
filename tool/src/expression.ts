@@ -155,7 +155,7 @@ function parser(tokens: Token[]) {
     // an expression asks about, so the write door's refusal does not apply.
     if (!isName(token.text)) {
       refuse(
-        `not a name: ${token.text} — a property name is a lowercase hyphenated token`,
+        `not a name: ${token.text} — a property name is camelCase, beginning lowercase`,
       );
     }
     return token.text as Name;

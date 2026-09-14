@@ -17,7 +17,7 @@ $ kg node "$a" set kind decision
 set kind
 
 $ kg node "$b" set kind authority
-$ kg node "$b" set valid-until 2027-01-01
+$ kg node "$b" set validUntil 2027-01-01
 
 $ kg node "$b" set kind authority
 replaced kind
@@ -43,7 +43,7 @@ in advance.
 The two reads are the point. `--properties` puts them on stdout, pipeable,
 without the body; reading the content puts the same lines on stderr, byte for
 byte. stdout carries one half of a node or the other, never both. And the tool
-has no idea what `kind` or `valid-until` mean — it compared nothing.
+has no idea what `kind` or `validUntil` mean — it compared nothing.
 
 **Finding a node by its annotation is not here.** This batch shipped three
 filter predicates; [batch 3](3-lists.md) removed two and

@@ -218,13 +218,6 @@ decidedBy: 01997b12-…
 validUntil: 2027-01-01
 ```
 
-**A key is camelCase, a typed name is kebab.** `set valid-until` stores
-`validUntil`, and `--properties` prints the key. The command line is kebab
-because a flag is; a key is camelCase because that is what markdown frontmatter
-writes and because `o.valid-until` is a subtraction in JavaScript.
-[`design/naming.md`](../design/naming.md) has the measurements, and the rule is
-for keys only — a label word or a relation type is a value, stored as given.
-
 **It is the stored block**, byte for byte — the same serialiser writes the file
 and this output. That is not a leak: the block **is** the properties, so showing
 it and answering are the same act here. `labels` and `links` appear like any
@@ -276,9 +269,11 @@ Every rendering invented instead collided with a value that is already legal.
 YAML does not, because it was designed not to — and *printing frontmatter leaks
 the format* is a weak objection when the caller parses YAML natively.
 
-**A property name is a lowercase hyphenated token** — `[a-z0-9]+(-[a-z0-9]+)*`.
-Anything needing quoting or escaping is a name that will eventually be typed
-wrong and fail by silently matching nothing.
+**A property name is camelCase, beginning lowercase** — `[a-z][a-zA-Z0-9]*`,
+and the same string typed and stored. Anything needing quoting or escaping is a
+name that will eventually be typed wrong and fail by silently matching nothing,
+and camelCase is what markdown frontmatter writes.
+[`design/naming.md`](../design/naming.md) has the measurements.
 
 **Some names are the tool's.** `set`, `unset`, `add` and `remove` refuse them:
 
@@ -341,9 +336,10 @@ kg label <word> write --stdin             set that description
 kg label <word> forget                    drop the word from the vocabulary
 ```
 
-**A word is a lowercase hyphenated token** — the rule property names follow. A
-word two people must arrive at independently cannot be one that needs quoting,
-and the same restriction makes it safe as a filename.
+**A word is a lowercase hyphenated token** — `[a-z0-9]+(-[a-z0-9]+)*`, and not
+the rule a key follows. A word two people must arrive at independently cannot be
+one that needs quoting, and it **names a file**: no capitals, because a
+case-insensitive filesystem would merge `actedIn.md` with `actedin.md`.
 
 **Using a word creates it.** `label auth` ensures the vocabulary holds `auth`,
 so nothing has to be declared before it can be used. Listing the words is a
@@ -508,7 +504,7 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | a property the tool could not write | `cannot read 01997a3e-…: Kind is not a property name` | `1` |
 | a value the tool could not write | `cannot read 01997a3e-…: a holds a value with a control character` | `1` |
 | properties will not read | `cannot read 01997a3e-…: labels is an empty list` | `1` |
-| bad property name | `not a property name: Valid_Until — expected a lowercase hyphenated token` | `1` |
+| bad property name | `not a property name: valid-until — expected camelCase, beginning lowercase` | `1` |
 | empty stdin | `no content on stdin — did the command before the pipe fail?` | `1` |
 | bad property value | `not a property value: contains a control character — a value is a single line`, or `contains a noncharacter` | `1` |
 | `add`/`remove` on a scalar | `cannot add to title: not a list` | `1` |

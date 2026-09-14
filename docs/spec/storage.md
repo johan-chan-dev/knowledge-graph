@@ -99,7 +99,7 @@ says one. Anything that is
 neither a value nor a list does not read at all.
 
 **A block is read only if the tool could have written it.** A property name that
-is not a lowercase hyphenated token, or a value carrying a control character,
+is not camelCase beginning lowercase, or a value carrying a control character,
 refuses the node rather than loading — otherwise it would display a property no
 command could then unset. [`design/boundaries.md`](../design/boundaries.md)
 argues why, and names the one exception: a reserved name still reads.

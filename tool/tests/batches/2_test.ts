@@ -22,7 +22,7 @@ Deno.test("batch 2 — nodes carry properties", async () => {
     "set kind",
   );
   await kg(dir, ["node", b, "set", "kind", "authority"]);
-  await kg(dir, ["node", b, "set", "valid-until", "2027-01-01"]);
+  await kg(dir, ["node", b, "set", "validUntil", "2027-01-01"]);
   await kg(dir, ["node", c, "set", "kind", "decision"]);
 
   // The same command twice: only the second says the property already existed.

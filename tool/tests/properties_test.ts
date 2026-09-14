@@ -27,7 +27,7 @@ Deno.test("write replaces the content and leaves the properties alone", async ()
 
 Deno.test("properties are stored as given and never retyped", async () => {
   const { kg, id } = await seeded();
-  await kg("node", id, "set", "valid-until", "2027-01-01");
+  await kg("node", id, "set", "validUntil", "2027-01-01");
   await kg("node", id, "set", "count", "42");
   // Under the default YAML schema the first would come back a Date and the
   // second a number, which would be the tool deciding what a field it has
@@ -71,12 +71,12 @@ Deno.test("a node with no properties prints nothing", async () => {
   assertEquals(stdout(outcome), "");
 });
 
-Deno.test("a property name must be a lowercase hyphenated token", async () => {
+Deno.test("a property name is camelCase, beginning lowercase", async () => {
   const { kg, id } = await seeded();
-  for (const name of ["Valid_Until", "valid until", "trailing-", "with.dot"]) {
+  for (const name of ["Valid_Until", "valid until", "valid-until", "with.dot"]) {
     const outcome = await kg("node", id, "set", name, "x");
     assertEquals(exitCode(outcome), 1, name);
-    assertStringIncludes(message(outcome), "expected a lowercase hyphenated token");
+    assertStringIncludes(message(outcome), "expected camelCase, beginning lowercase");
   }
   // A single dash is not a flag here: the tool's only one is `-C`, which is
   // global and taken before a command is matched. So `-leading` reaches
@@ -96,7 +96,7 @@ Deno.test("a property name must be a lowercase hyphenated token", async () => {
 Deno.test("reading the content puts the properties on stderr, rendered the same", async () => {
   const { kg, id } = await seeded();
   await kg("node", id, "set", "kind", "decision");
-  await kg("node", id, "set", "valid-until", "2027-01-01");
+  await kg("node", id, "set", "validUntil", "2027-01-01");
 
   const onStdout = stdout(await kg("node", id, "--properties"));
   const read = await kg("node", id);

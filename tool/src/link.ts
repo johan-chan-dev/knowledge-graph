@@ -123,7 +123,7 @@ function validate(parsed: unknown): Record_ | string {
   const properties: Properties = {};
   for (const [name, value] of Object.entries(rest)) {
     if (!isName(name)) {
-      return `not a property name: ${name} — expected a lowercase hyphenated token`;
+      return `not a property name: ${name} — expected camelCase, beginning lowercase`;
     }
     if (Array.isArray(value)) {
       if (value.length === 0) return `${name} is an empty list`;

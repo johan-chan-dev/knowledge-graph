@@ -58,8 +58,8 @@ Deno.test("a bare numeral is a number, and a negative one is not a name", () => 
   } as Expr);
 });
 
-Deno.test("a hyphen inside a name is not arithmetic", () => {
-  assertEquals(tree("valid-until"), { kind: "presence", name: "valid-until" } as Expr);
+Deno.test("a key in an expression is camelCase", () => {
+  assertEquals(tree("validUntil"), { kind: "presence", name: "validUntil" } as Expr);
 });
 
 Deno.test("not binds tightest, then and, then or", () => {

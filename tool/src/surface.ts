@@ -53,7 +53,7 @@ const Word = z.string().refine(isLabel, {
 const Name = z.string()
   .refine(isName, {
     error: (issue) =>
-      `not a property name: ${issue.input} — expected a lowercase hyphenated token`,
+      `not a property name: ${issue.input} — expected camelCase, beginning lowercase`,
   })
   .refine((name) => reservedReason(name) === undefined, {
     error: (issue) =>
