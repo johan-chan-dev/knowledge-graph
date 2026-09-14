@@ -17,14 +17,22 @@ strength of nothing. This page settles it.
 | | | |
 |---|---|---|
 | **command line** | `valid-until` | kebab, as `--with-labels` already is |
-| **frontmatter, JSON, filenames** | `valid_until` | snake |
+| **a key, stored or printed** | `valid_until` | snake |
 
 A flag is the tool's own word and a property name is the author's, so nothing
 forces them to agree — but on the command line they sit in the same sentence,
 and kebab is what a command line is written in.
 
-Everything a machine reads is snake, and that is one convention rather than
-two: the file, the JSON a command prints, and the name of a label's file.
+**It applies to keys, and to nothing else.** A frontmatter key and a JSON key
+are structure; everything else in a file is the author's data, and
+[storage](../spec/storage.md) already says properties are **stored as given and
+never retyped**. So a label word arrives as `acted-in` and stays `acted-in` —
+in the `labels` list, in a link entry's `type`, in a record, and as the name of
+its file. Translating it would be retyping it.
+
+That leaves a file carrying both separators, and that is the honest reading
+rather than an oversight: `valid_until` is a key the tool wrote, `acted-in` is a
+word the author chose.
 
 ## What the evidence says
 
@@ -39,9 +47,13 @@ Measured 2026-09-14, at the sources rather than from memory.
 **Kebab is standard for flags and nowhere else.** The rule had taken the
 convention of one medium and applied it to another.
 
-**And camelCase cannot be taken**, though the frontmatter world uses it, because
-it needs capitals and the lowercase rule is the better-argued of the two. Losing
-`Title` ≠ `title` costs more than matching Hugo.
+**And camelCase cannot be taken**, though the frontmatter world uses it, for two
+reasons. It needs capitals, and the lowercase rule is the better-argued of the
+two — losing `Title` ≠ `title` costs more than matching Hugo. And a label's word
+is also its filename: macOS is case-insensitive by default, so writing
+`actedIn.md` and then `actedin.md` leaves **one** file, silently, holding the
+second one's content. A space's vocabulary would depend on the filesystem under
+it — distinct on Linux, merged here.
 
 **JSON has no single convention to follow** — it splits by ecosystem, Google one
 way and the Python/Ruby lineage the other — so nothing is being crossed by
@@ -51,13 +63,8 @@ choosing snake there.
 
 **`o.valid_until` is an accessor; `o.valid-until` is a subtraction.** In
 JavaScript the second is a `ReferenceError`, which is why no API ships kebab
-keys and why a caller would have to write `o["valid-until"]` everywhere.
-
-**No capitals means a label's filename cannot collide.** macOS is
-case-insensitive by default: writing `actedIn.md` and then `actedin.md` leaves
-one file, silently, with the second one's content. Under camelCase a space's
-vocabulary would depend on the filesystem it sits on — distinct on Linux, merged
-here. Snake has no capitals, so the question does not arise.
+keys and why a caller would have to write `o["valid-until"]` everywhere. That
+is the whole argument, and it is enough.
 
 ## The translation is a character substitution
 
