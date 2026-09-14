@@ -192,30 +192,50 @@ opposite from the start, *a rendering is the tool answering rather than showing
 its file*, and the claim is what kept the gap invisible: it justified the shape
 by asserting it was already an answer.
 
-**That is this batch's sentence.** Not *change the format* — **stop showing the
-file**. The JSON follows from it, and so does dropping `links`: a file contains
-the tool's bookkeeping, an answer does not.
+**What makes it a dump is its content, not its format.** A node with relations
+carries `links` — uuids and directions the tool mints for its own bookkeeping —
+and a file holds that where an answer does not. So `links` leaves, and the two
+commands that present a relation properly keep it.
 
-So `kg node <id> --properties` has **one** form. A `--json` flag there would
-keep the dump as the default and put the answer behind an option, which is the
-thing being removed.
+`labels` stays: the words in it are the author's classification, written with a
+verb, and a flat list of words reads perfectly inline.
 
-## Where `--json` does earn itself
+## Format is the other axis
 
-On the outputs that stay line- or column-shaped **so that pipes work**:
+The frontmatter is YAML, so that is what `kg node <id> --properties` prints —
+the properties in the shape they are held in. `--json` converts:
+
+```console
+$ kg node <id> --properties
+released: '2012'
+title: Cloud Atlas
+
+$ kg node <id> --properties --json
+{"released":"2012","title":"Cloud Atlas"}
+```
+
+One content, two formats, both produced from the same object — which is what a
+format flag is for, and not the drift two *renderings* would be.
+
+**Nothing about absence argues for JSON here.** *An object has no empty cell*
+distinguishes an object from a table, not JSON from YAML: a YAML mapping has
+optional keys exactly as a JSON object does. That argument belongs to the
+resolver below, where the alternative was columns.
+
+**It is declared per command**, with that command's own contract — not the
+global mode [`parked/structured-output.md`](../design/parked/structured-output.md)
+proposed, which forces one answer onto outputs that have nothing in common. The
+commands that stay line- or column-shaped so pipes work take it too:
 
 ```
-kg nodes find '<expression>'      one id per line
-kg node <id> links                type, link id, the other end — tab-separated
+kg nodes find '<expression>'      one id per line, and `--json` for an array
+kg node <id> links                tab-separated, and `--json` for objects
 kg node <id> backlinks            the same, filtered the other way
 kg labels list                    one word per line
 ```
 
-A caller may want the structure instead of the columns, and the tabbed default
-is what makes `| grep '^directed' | cut -f3` answer question 10 in one line.
-`--json` is declared **per command**, with that command's own contract — not the
-global mode [`parked/structured-output.md`](../design/parked/structured-output.md)
-proposed, which forces one answer onto outputs that have nothing in common.
+The tabbed default is what makes `kg node <id> backlinks | grep '^directed' |
+cut -f3` answer question 10 in one line.
 
 ## The naming convention, which the JSON makes due
 
