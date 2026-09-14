@@ -20,18 +20,16 @@ kg link <id>                  type, from, to — the far end was only here
 
 ## What emptied them
 
-The entry gains a fourth field. `neighbour` is the node at the other end, and it
-is in the node's own file:
+`kg node <id> --properties` does the join itself. The file still carries
+`{type, link, direction}`; the command resolves each record and hands back the
+entry enriched with the node at the other end and the relation's own properties:
 
-```yaml
-links:
-  - type: directed
-    link: 01a090ed-513c-…
-    direction: in
-    neighbour: 01a090ed-1ee8-…
+```json
+{"type":"directed","link":"01a090ed-513c-…","direction":"in",
+ "neighbour":"01a090ed-1ee8-…","since":"2012"}
 ```
 
-**There is no join left.** What the commands did is now a filter over a
+**There is no join left to do.** What the commands did is now a filter over a
 property, which `jq` does — and does better, since a named field beats a line
 prefix and the direction is reachable where the columns never exposed it:
 

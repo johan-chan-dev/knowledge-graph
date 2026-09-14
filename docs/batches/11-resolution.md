@@ -238,57 +238,65 @@ kg nodes find '<expression>'      one id per line, and `--json` for an array
 kg labels list                    one word per line
 ```
 
-## An entry carries its neighbour
+## An entry is enriched on the way out, not on disk
 
 A relation's entry is `{type, link, direction}`, where `link` is the **record's**
-uuid. The node at the other end is in the record, so a node's own file cannot
-answer *who am I connected to* — the most elementary question asked of it.
+uuid — so a node's own file cannot answer *who am I connected to*, the most
+elementary question asked of it.
 
-It gains a fourth field:
+**The file does not change.** The command resolves it:
 
-```yaml
-links:
-  - type: directed
-    link: 01a090ed-513c-…        the record
-    direction: in
-    neighbour: 01a090ed-1ee8-…   the node at the other end
+```console
+$ kg node <id> --properties --json
+{"links":[{"type":"directed","link":"01a090ed-513c-…","direction":"in",
+           "neighbour":"01a090ed-1ee8-…","since":"2012"}]}
 ```
 
-**The duplication is safe by construction.** `type`, `from` and `to` are the
-record's immutable fields — [`spec/api.md`](../spec/api.md) says altering one
-would make it a different link — and a fact that cannot change cannot drift.
-That is already the argument that admitted `type` and `direction`; this applies
-it to the third.
+`neighbour` is the node at the other end, and `since` is the relation's own
+property — both read out of the record when the question is asked.
 
-**It is not a performance change**, and that is worth saying because it looks
-like one. A file read is about 69 µs, so resolving ten records costs well under
-a millisecond against 300 ms of process startup. What it removes is a **join**:
-the neighbour stops being somewhere else.
+**Enriching beats duplicating.** An earlier version of this page put `neighbour`
+in the entry on disk, and duplication has to be kept true; resolving has
+nothing to keep. There is no migration either, since nothing stored moves.
 
-Which is what makes parking the shortcuts free rather than costly:
-
-```bash
-kg node "$CA" --properties --json \
-  | jq -r '.links[] | select(.type == "directed" and .direction == "in") | .neighbour' \
-  | kg nodes --stdin --properties --json \
-  | jq -r '.[].name'
-```
-
-Four processes and no loop. `jq` does what `grep '^directed' | cut -f3` did and
-does it better — a named field rather than a line prefix, and the direction too,
-which the columns never exposed.
+**Its cost is the one already measured.** A file read is about 69 µs, so ten
+relations add well under a millisecond inside one process — against 80 ms for a
+process. A node with ten thousand relations pays 0.7 s, which is the same price
+`backlinks` paid and the reason the read happens once per command rather than
+once per relation.
 
 **`neighbour`, not `target` or `to`.** With `direction: in` the node at the
-other end is the **source**, so either of those would be wrong half the time.
-In a graph a neighbour is a neighbour, whichever way the edge points.
+other end is the **source**, so either would be wrong half the time. In a graph
+a neighbour is a neighbour, whichever way the edge points.
+
+## Which reopens what a record is stored as
+
+`storage.md` says `.kg/links/<uuid>.json` is *JSON, not markdown, because a link
+carries no prose, so a body would be dead weight and none of frontmatter's
+coercion applies*. The first half is right and argues against **markdown**. The
+second is wrong — a record's properties obey a node's rules, and `link.ts` calls
+the same `isName` and `isValue` as everything else. Neither half argues JSON
+over YAML.
+
+**And the format is what excluded records from batch 10.** `link.ts` writes with
+a bare `Deno.writeTextFile`: no temporary file, no rename, no read-modify-write.
+The discipline went to documents with frontmatter, and a record was not one.
+
+So `.kg/links/<uuid>.yaml` — a properties document, same rules, same serialiser,
+and inside the one writer that batch 10 established.
+
+**What it asks of `document.ts`**: a second shape. A markdown document is
+frontmatter *and* content; a record is properties *alone*, with no `---` fences
+and no body. That is a small generalisation of `open` / `blank` / `flush`, and it
+is the thing to settle before this is built rather than during.
 
 ## The shortcuts, emptied
 
-`kg node <id> links` and `kg node <id> backlinks` are removed, and the field
-above is why: they existed to join a node's entries with each record, and with
-`neighbour` in the entry there is no join left. What they did is a filter over a
-property, which `jq` does — and does better, since the direction was never
-reachable from the columns.
+`kg node <id> links` and `kg node <id> backlinks` are removed, and the
+enrichment above is why: they existed to join a node's entries with each record,
+and `kg node <id> --properties` now does that join itself. What is left of them
+is a filter over the result, which `jq` does — and does better, since the
+direction was never reachable from the columns.
 
 **No question of the guide's goes back to a loop.** A pipeline is one `jq`
 longer than it was. What is left of them is a convenience, and a shortcut earns
