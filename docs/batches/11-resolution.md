@@ -229,13 +229,33 @@ commands that stay line- or column-shaped so pipes work take it too:
 
 ```
 kg nodes find '<expression>'      one id per line, and `--json` for an array
-kg node <id> links                tab-separated, and `--json` for objects
-kg node <id> backlinks            the same, filtered the other way
+kg node <id> --links              tab-separated, and `--json` for objects
+kg node <id> --backlinks          the same, filtered the other way
 kg labels list                    one word per line
 ```
 
-The tabbed default is what makes `kg node <id> backlinks | grep '^directed' |
+The tabbed default is what makes `kg node <id> --backlinks | grep '^directed' |
 cut -f3` answer question 10 in one line.
+
+## Three views of a node, spelled one way
+
+`links` and `backlinks` are actions today and `--properties` is a flag, and both
+answer *which view of this node*. The rule they sit under is
+[`spec/api.md`](../spec/api.md)'s:
+
+> Reading a single resource is implicit. Everything else names its action. A
+> single resource has **exactly one thing to fetch**, so a verb would add
+> nothing.
+
+A node has **three** — its body, its properties, its relations — and that
+sentence was written when it had one. Under the rule as stated, `--properties`
+is right: reading a node is implicit, and which aspect is a selector. So the
+other two become selectors as well.
+
+**The join stays.** `kg node <id> --backlinks` reads each relation's record to
+give the node at the other end, which is not in the node's own file — a
+selector on `--properties` could never produce it. What changes is the spelling,
+not the work.
 
 ## The naming convention, which the JSON makes due
 

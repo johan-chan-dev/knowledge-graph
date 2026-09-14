@@ -14,8 +14,12 @@ kg [-C <dir>] <scope> [<id>] [action] [arguments] [--flags]
 
 **Reading a single resource is implicit. Everything else names its action.**
 
-A single resource has exactly one thing to fetch, so a verb would add nothing —
-`kg node <id>` cannot mean anything but *that node*. A collection has many
+A single resource is one thing to address, so a verb would add nothing —
+`kg node <id>` cannot mean anything but *that node*. Which **aspect** of it is a
+selector: `--properties` rather than an action. This read *one thing to fetch*
+when it was written, and a node has since grown three — which is how `links` and
+`backlinks` came to be actions instead.
+[Batch 11](../batches/11-resolution.md) makes them selectors. A collection has many
 read-shaped operations, so one has to be named: you do not read a collection,
 you list it, and later you may query or count it. Every write names itself,
 always.
