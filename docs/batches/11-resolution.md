@@ -169,20 +169,9 @@ other says nothing. `kg nodes --properties` alone names what is missing rather
 than reading an empty stdin, which is the trap
 [batch 4](4-stops-guessing.md) removed — *content is declared, not detected*.
 
-## The labels, which the same rule pulls in
+## `kg labels list` returns names
 
-**`--properties` shows what the author wrote**, which is not the same as *the
-keys the tool does not reserve*. `labels` is reserved and stays: the words in it
-are the author's classification, written with a verb, and a flat list of words
-reads perfectly inline. `links` goes: its entries are uuids and directions the
-tool mints for its own bookkeeping, and the relation has two commands that
-present them properly.
-
-The coarser rule — hide everything reserved — would have needed a reader for a
-node's labels to compensate, and an addition whose only job is to repair a
-subtraction is a sign the subtraction was wrong.
-
-**And `labels list` returns the names, one per line.** A directory read of
+**`kg labels list` returns the names, one per line.** A directory read of
 `labels/`, which is what the name says. It carries a count and a description's
 first line today, and both are wrong there:
 
