@@ -20,6 +20,11 @@ export const ok = (stdout: string, ...notes: string[]): Outcome => ({
 export const lines = (lines: readonly string[], ...notes: string[]): Outcome =>
   ok(lines.length === 0 ? "" : lines.join("\n") + "\n", ...notes);
 
+/** JSON, one line, as a command's `--json` prints it. The tool is the only
+ * writer of this too, so compactness costs nothing a reader needs — `jq`
+ * pretty-prints when a person is looking. */
+export const asJson = (value: unknown): Outcome => ok(JSON.stringify(value) + "\n");
+
 export const refused = (message: string): Outcome => ({ kind: "refused", message });
 export const absent = (message: string): Outcome => ({ kind: "absent", message });
 export const usage = (message: string): Outcome => ({ kind: "usage", message });

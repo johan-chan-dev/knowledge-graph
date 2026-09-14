@@ -5,8 +5,8 @@ for a name, properties in frontmatter and prose in the body.
 
 **Being designed and built, in the open.** There is no plugin to install and
 nothing here is stable. What exists is a design tree and a binary that closes
-ten loops: a space, nodes, properties, lists, labels, relations, `find`, and
-one writer for the frontmatter.
+eleven loops: a space, nodes, properties, lists, labels, relations, `find`,
+one writer for the frontmatter, and resolution.
 
 ## What it is for
 
@@ -38,7 +38,7 @@ front of you and of nothing else.
 |---|---|
 | batches 1–5 | shipped — a space, properties, lists, no guessing, a declared entry point |
 | batches 6–10 | shipped — labels, relations, someone else's graph as a conformance check, [`find`](docs/batches/9-find.md), and one writer for the frontmatter |
-| batch 11 | planned — [resolution](docs/batches/11-resolution.md) |
+| batch 11 | shipped — [resolution](docs/batches/11-resolution.md) |
 | plugin | **none published.** The tool comes first |
 
 ## There is no plugin, deliberately

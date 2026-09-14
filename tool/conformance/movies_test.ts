@@ -61,9 +61,11 @@ Deno.test({
     // Neo4j's own figures for this dataset.
     assertEquals((await kg(dir, ["nodes", "list"])).trim().split("\n").length, 171);
     assertEquals((await kg(dir, ["labels", "list"])).trim().split("\n").sort(), [
-      "movie\t38",
-      "person\t133",
+      "movie",
+      "person",
     ]);
+    // The counts the listing used to carry are asserted below, through `find` —
+    // a question of its own, at the cost that command's name declares.
 
     // Every relationship type, with the counts the cypher declares.
     const types = new Map<string, number>();
@@ -197,6 +199,24 @@ Deno.test({
     // Q10 — directors of Cloud Atlas, which is this batch's own validation:
     // one `--properties`, a filter on type and direction, then the names.
     assertEquals(await byRelation(cloudAtlas, "directed"), [
+      "Lana Wachowski",
+      "Lilly Wachowski",
+      "Tom Tykwer",
+    ]);
+
+    // The same answer through the commands a caller actually types — this is
+    // batch 11's own validation, and what proves removing `backlinks` cost
+    // nothing: the enriched entries, filtered, then resolved in one call.
+    const carried = JSON.parse(
+      await kg(dir, ["node", cloudAtlas, "--properties", "--json"]),
+    ) as { links: { type: string; direction: string; neighbour: string }[] };
+    const directors = carried.links
+      .filter((e) => e.type === "directed" && e.direction === "in")
+      .map((e) => e.neighbour);
+    const resolvedNames = JSON.parse(
+      await kg(dir, ["nodes", "--properties", "--json", ...directors]),
+    ) as { name: string }[];
+    assertEquals(resolvedNames.map((each) => each.name).sort(), [
       "Lana Wachowski",
       "Lilly Wachowski",
       "Tom Tykwer",

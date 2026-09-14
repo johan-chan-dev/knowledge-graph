@@ -101,6 +101,8 @@ ambiguous.
 ```
 kg nodes list                            every id, in creation order
 kg nodes find <expression>               the ids of nodes matching a condition
+kg nodes --properties <id>...            the properties of each, as an array
+kg nodes --stdin --properties            …with the ids read from stdin
 ```
 
 **It parses nothing.** The id is the filename, so enumerating is a directory
@@ -327,7 +329,7 @@ and pay a read of every node.
 kg node new --with-labels auth decision   born carrying those words
 kg node <id> label <word>...              carry these too
 kg node <id> unlabel <word>...            stop carrying them
-kg labels list                            every word, its count, its first line
+kg labels list                            every word the space knows
 kg label <word>                           what the word means here
 kg label <word> write --stdin             set that description
 kg label <word> forget                    drop the word from the vocabulary
@@ -350,9 +352,10 @@ every node still carrying it.
 **`label` is both a scope and a verb**, told apart by position, as `new`,
 `list` and `init` already are.
 
-**`labels list` is tab-separated**, sorted alphabetically — which is what puts
-`auth` beside `authn`, where drift is visible. The third column is the
-description's **first line**; the tool takes it without reading it.
+**`labels list` is one word per line**, sorted alphabetically — which is what
+puts `auth` beside `authn`, where drift is visible. A directory read of
+`labels/`, which is what the name says: the count it used to carry forced a
+parse of every node, and a description is served by `kg label <word>`.
 
 ## links
 
@@ -399,6 +402,12 @@ target, each with the same type and properties, and prints their ids in order.
 refusals. A command's stdout is always safe to pipe, and nothing a script
 consumes is mixed with a message meant for a person.
 
+**`--json` is a format, declared per command.** `kg node <id> --properties`,
+`kg nodes --properties`, `kg nodes list`, `kg nodes find`, `kg labels list` and
+`kg link <id>` each take it; the default is the shape the thing is held in, and
+the flag converts. It is not a mode the tool can be put into — a format spanning
+every command would force one answer onto outputs that have nothing in common.
+
 **stderr reports what the caller could not have worked out.** A count of the
 bytes you just sent, or the lines you were just handed, is telling you something
 twice — and a channel that repeats what you already know is one you learn to
@@ -423,7 +432,8 @@ stop reading, which then costs you the lines that matter.
 | `label <word>` | the description | — |
 | `label <word> write` | — | `wrote 64 bytes` |
 | `label <word> forget` | — | `forgot auth` |
-| `labels list` | word, count, first line — tab-separated | — |
+| `labels list` | one word per line | — |
+| `nodes --properties` | the properties of each, as an array | `2 ids did not read` *(only when some did not)* |
 | `node <id> link` | the new link ids, one per line | — |
 | `link <id>` | `type`, `from`, `to`, then one property per row | — |
 | `link <id> forget` | — | `forgot <id>` |

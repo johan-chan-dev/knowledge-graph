@@ -21,6 +21,7 @@ import {
   nodes,
   nodeSet,
   nodesFind,
+  nodesProperties,
   nodeUnlabel,
   nodeUnset,
   nodeWrite,
@@ -145,15 +146,38 @@ export const COMMANDS: readonly Command[] = [
   }),
   command({
     form: "nodes list",
-    run: ({ cwd }) => nodes(cwd),
+    run: ({ cwd, flags }) => nodes(cwd, flags.json === true),
     summary: "every id, in creation order",
     scope: "nodes",
     action: "list",
-    flags: {},
+    flags: { json: { kind: "boolean" } },
+  }),
+  command({
+    form: "nodes --properties <id>...",
+    run: ({ cwd, args, flags, stdin }) =>
+      nodesProperties(
+        cwd,
+        args as Uuid[],
+        flags.stdin === true,
+        stdin,
+        flags.json === true,
+      ),
+    summary: "the properties of each, as an array",
+    scope: "nodes",
+    args: z.array(Id),
+    flags: {
+      properties: { kind: "boolean", required: true },
+      stdin: { kind: "boolean" },
+      json: { kind: "boolean" },
+    },
+    variants: [{
+      form: "nodes --stdin --properties",
+      summary: "…with the ids read from stdin",
+    }],
   }),
   command({
     form: "nodes find <expression>",
-    run: ({ cwd, args }) => nodesFind(cwd, args[0]),
+    run: ({ cwd, args, flags }) => nodesFind(cwd, args[0], flags.json === true),
     summary: "the ids of nodes matching a condition",
     scope: "nodes",
     action: "find",
@@ -162,7 +186,7 @@ export const COMMANDS: readonly Command[] = [
       few: "nodes find needs an expression — quote it",
       many: "nodes find takes one expression — quote the whole of it",
     },
-    flags: {},
+    flags: { json: { kind: "boolean" } },
   }),
   command({
     form: "node new",
@@ -181,12 +205,16 @@ export const COMMANDS: readonly Command[] = [
   }),
   command({
     form: "node <id>",
-    run: ({ cwd, id, flags }) => node(cwd, id, flags.properties === true),
+    run: ({ cwd, id, flags }) =>
+      node(cwd, id, flags.properties === true, flags.json === true),
     summary: "the content, properties on stderr",
     scope: "node",
     id: Id,
-    flags: { properties: { kind: "boolean" } },
-    variants: [{ form: "node <id> --properties", summary: "the properties instead" }],
+    flags: { properties: { kind: "boolean" }, json: { kind: "boolean" } },
+    variants: [
+      { form: "node <id> --properties", summary: "the properties instead" },
+      { form: "node <id> --properties --json", summary: "…as one object" },
+    ],
   }),
   command({
     form: "node <id> write --stdin",
@@ -272,11 +300,11 @@ export const COMMANDS: readonly Command[] = [
   }),
   command({
     form: "labels list",
-    summary: "every word, its count, its first line",
+    summary: "every word the space knows",
     scope: "labels",
     action: "list",
-    flags: {},
-    run: ({ cwd }) => labelsList(cwd),
+    flags: { json: { kind: "boolean" } },
+    run: ({ cwd, flags }) => labelsList(cwd, flags.json === true),
   }),
   command({
     form: "label <word>",
@@ -323,11 +351,11 @@ export const COMMANDS: readonly Command[] = [
   }),
   command({
     form: "link <id>",
-    run: ({ cwd, id }) => linkRead(cwd, id),
+    run: ({ cwd, id, flags }) => linkRead(cwd, id, flags.json === true),
     summary: "its fields and properties",
     scope: "link",
     id: Id,
-    flags: {},
+    flags: { json: { kind: "boolean" } },
   }),
   command({
     form: "link <id> forget",
@@ -508,6 +536,13 @@ export function match(positionals: string[]): Matched {
   const literal = literals.find((command) => command.action === second);
   if (literal !== undefined) return { kind: "matched", command: literal, args: rest };
   if (identified.length === 0) {
+    // A scope whose bare command takes arguments — `nodes <id>...` — reads them
+    // the way `node <id>` reads an id: not an action, so it is an argument, and
+    // its own schema says whether it is a legal one.
+    const bare = literals.find((command) => command.action === undefined);
+    if (bare?.args !== undefined) {
+      return { kind: "matched", command: bare, args: [second, ...rest] };
+    }
     return {
       kind: "usage",
       message: `${scope} takes one action: ${named(literals).join(", ")}`,
@@ -569,12 +604,20 @@ export function check(
   // discovered by a handler, which is how `--as` once reached the serialiser as
   // `undefined` and threw a stack trace out of the tool.
   for (const [name, shape] of Object.entries(command.flags)) {
-    if (
-      shape.kind !== "boolean" && shape.required === true && flags[name] === undefined
-    ) {
+    if (shape.required === true && flags[name] === undefined) {
+      // A command with no action is the scope's bare read, so a caller who
+      // reached it without its flag most likely meant one of the actions —
+      // naming only the flag would answer a question they did not ask.
+      const siblings = command.action === undefined
+        ? of(command.scope).filter((each) => each.action !== undefined)
+        : [];
       return {
         kind: "usage",
-        message: `${command.action ?? command.scope} needs --${name}`,
+        message: siblings.length === 0
+          ? `${command.action ?? command.scope} needs --${name}`
+          : `${command.scope} takes one action: ${
+            named(siblings).join(", ")
+          } — or --${name}, with ${command.args === undefined ? "" : "ids or "}--stdin`,
       };
     }
   }

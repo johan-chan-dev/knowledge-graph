@@ -80,8 +80,8 @@ Four processes and no loop, against the seven a shell loop took. It is also the
 question that proves removing `kg node <id> backlinks` costs nothing: the same
 answer, one `jq` longer.
 
-**Backed in two places.** The commands themselves by `11_test.ts` in
-[`tool/tests/batches/`](../../tool/tests/batches/); this pipeline end to end by
+**Backed in two places.** The commands themselves by
+[`11_test.ts`](../../tool/tests/batches/11_test.ts); this pipeline end to end by
 [`movies_test.ts`](../../tool/conformance/movies_test.ts), which already asserts
 those three names against the cypher.
 

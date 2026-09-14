@@ -38,14 +38,12 @@ Deno.test("batch 10 — one writer for the frontmatter", async () => {
   assertStringIncludes(file, "links:\n  - direction: out\n");
   assertEquals(file.includes("links: ["), false, "no flow-style sequence");
 
-  // 4. `labels list` is three columns, whatever a description's first line
-  //    holds. It is the one tabulated output fed by prose rather than by a
-  //    checked value.
+  // 4. A description's first line can hold anything, and `labels list` prints
+  //    the word alone — batch 11 removed the column it used to reach.
   await kg(dir, ["label", "tabbed", "write", "--stdin"], "one\ttwo\n\nmore\n");
   const row = (await kg(dir, ["labels", "list"])).out
     .split("\n").find((l) => l.startsWith("tabbed"))!;
-  assertEquals(row.split("\t").length, 3);
-  assertStringIncludes(row, "one two");
+  assertEquals(row, "tabbed");
 
   // 5. A noncharacter is not printable text, and never reaches a file.
   const bad = await kg(dir, ["node", a, "set", "probe", "￿"]);

@@ -21,7 +21,9 @@ Deno.test("batch 4 — the tool stops guessing", async () => {
   // 2. --properties is refused where it means nothing, not accepted and ignored.
   const misplaced = await kg(dir, ["nodes", "list", "--properties"]);
   assertEquals(misplaced.code, 4);
-  assertStringIncludes(misplaced.err, "belongs to `kg node <id>`");
+  // `--properties` now belongs to two commands, and the refusal names both.
+  assertStringIncludes(misplaced.err, "belongs to `kg nodes <id>...`");
+  assertStringIncludes(misplaced.err, "`kg node <id>`");
 
   // 3. --where is parked, so it does not exist.
   assertEquals((await kg(dir, ["nodes", "list", "--where", "a=b"])).code, 4);

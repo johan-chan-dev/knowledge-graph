@@ -9,7 +9,7 @@
  */
 
 export type Shape =
-  | { readonly kind: "boolean" }
+  | { readonly kind: "boolean"; readonly required?: true }
   | { readonly kind: "value"; readonly required?: true }
   | { readonly kind: "variadic"; readonly required?: true };
 

@@ -57,11 +57,11 @@ Deno.test("batch 5 — the entry point", async () => {
   // 4. A flag means something on the command that declares it, and nowhere else.
   assertStringIncludes(
     (await kg(dir, ["nodes", "list", "--properties"])).err,
-    "--properties belongs to `kg node <id>`",
+    "--properties belongs to `kg nodes <id>...` and `kg node <id>`",
   );
   assertStringIncludes(
     (await kg(dir, ["node", "new", "--properties"])).err,
-    "--properties belongs to `kg node <id>`",
+    "--properties belongs to `kg nodes <id>...` and `kg node <id>`",
   );
 
   // 5. Too few arguments is the form; too many is usually the shell.

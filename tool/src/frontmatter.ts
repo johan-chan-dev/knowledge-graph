@@ -264,6 +264,11 @@ export const write = (properties: Properties): string =>
     ? ""
     : toYaml(properties, { sortKeys: true, lineWidth: -1 });
 
+/** Several mappings as one YAML sequence — the plural of `write`, and the same
+ * canonical rules. An empty list prints nothing, as an empty node does. */
+export const writeEach = (each: readonly Properties[]): string =>
+  each.length === 0 ? "" : toYaml(each, { sortKeys: true, lineWidth: -1 });
+
 /** The entries, or why they will not read. */
 function readLinks(value: unknown): Entry[] | string {
   if (!Array.isArray(value)) return "links is not a list of relations";

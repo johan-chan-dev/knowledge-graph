@@ -44,17 +44,20 @@ Deno.test("batch 7 — relations", async () => {
   // 3. The record holds type, endpoints and properties; `--with-properties`
   //    applied to every link the command made.
   const record = (await kg(dir, ["link", two[0]!])).out;
-  assertStringIncludes(record, "type\tcites");
-  assertStringIncludes(record, `from\t${a}`);
-  assertStringIncludes(record, "since\t2026-09-10");
-  assertStringIncludes((await kg(dir, ["link", two[1]!])).out, "why\tdrift");
+  assertStringIncludes(record, "type: cites");
+  assertStringIncludes(record, `from: ${a}`);
+  assertStringIncludes(record, "since: '2026-09-10'");
+  assertStringIncludes((await kg(dir, ["link", two[1]!])).out, "why: drift");
 
   // 4. A link's properties obey a node's rules, so a list is built with a verb.
   assertStringIncludes(
     (await kg(dir, ["link", one, "add", "roles", "Neo", "Trinity"])).err,
     "added 2 to roles",
   );
-  assertStringIncludes((await kg(dir, ["link", one])).out, "roles\tNeo, Trinity");
+  assertStringIncludes(
+    (await kg(dir, ["link", one])).out,
+    "roles:\n  - Neo\n  - Trinity",
+  );
   assertStringIncludes(
     (await kg(dir, ["link", one, "remove", "roles", "Neo"])).err,
     "removed 1",

@@ -1,4 +1,4 @@
-import { absent, lines, ok, type Outcome, refused } from "./outcome.ts";
+import { absent, asJson, lines, ok, type Outcome, refused, usage } from "./outcome.ts";
 import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
 import * as frontmatter from "./frontmatter.ts";
@@ -58,9 +58,10 @@ export async function spaceInit(cwd: string): Promise<Outcome> {
   }
 }
 
-export async function nodes(cwd: string): Promise<Outcome> {
+export async function nodes(cwd: string, asJsonToo = false): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
+  if (asJsonToo) return asJson(await ids(resolved.space));
   // The id is the filename, so this parses nothing. Filtering belonged to a
   // family whose vocabulary has not settled; see design/parked/search.md.
   return lines(await ids(resolved.space));
@@ -71,7 +72,11 @@ export async function nodes(cwd: string): Promise<Outcome> {
  * refuses with no filesystem touched at all. *Validation precedes lookup* is
  * then a property of this function rather than a claim about a transcript.
  */
-export async function nodesFind(cwd: string, expression: string): Promise<Outcome> {
+export async function nodesFind(
+  cwd: string,
+  expression: string,
+  asJsonToo = false,
+): Promise<Outcome> {
   const parsed = parse(expression);
   if (parsed.kind === "refused") return refused(parsed.message);
 
@@ -98,9 +103,72 @@ export async function nodesFind(cwd: string, expression: string): Promise<Outcom
   // would shorten the answer without saying so. stdout stays the answer; the
   // count goes to stderr, which is where what the caller could not have worked
   // out belongs.
-  return damaged === 0
-    ? lines(matched)
-    : lines(matched, `${damaged} node${damaged === 1 ? "" : "s"} could not be read`);
+  const note = damaged === 0
+    ? []
+    : [`${damaged} node${damaged === 1 ? "" : "s"} could not be read`];
+  return asJsonToo
+    ? ok(JSON.stringify(matched) + "\n", ...note)
+    : lines(matched, ...note);
+}
+
+/**
+ * The properties of several nodes, as an array — the singular with its ids
+ * handed over rather than named one at a time.
+ *
+ * Ids arrive on stdin or in argv, never both. Two channels rather than two
+ * paths: they feed this same function and cannot diverge, and what separates
+ * them is a ceiling — `ARG_MAX` is a megabyte, so a hundred thousand ids need a
+ * pipe and three do not.
+ *
+ * Each object carries its `id`, which the singular form does not need: with one
+ * node the caller knows which, with many they do not.
+ */
+export async function nodesProperties(
+  cwd: string,
+  ids: readonly Uuid[],
+  fromStdin: boolean,
+  stdin: () => Promise<string>,
+  asJsonToo = false,
+): Promise<Outcome> {
+  if (ids.length > 0 && fromStdin) {
+    return usage("nodes --properties takes ids, or --stdin, and not both");
+  }
+  if (ids.length === 0 && !fromStdin) {
+    return usage("nodes --properties needs ids, or --stdin");
+  }
+
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+  const space = resolved.space;
+
+  let wanted: string[] = [...ids];
+  if (fromStdin) {
+    wanted = (await stdin()).split("\n").map((line) => line.trim()).filter(Boolean);
+    const bad = wanted.find((each) => !isId(each));
+    if (bad !== undefined) return refused(`not an id: ${bad} — expected a uuid`);
+  }
+
+  const out: Properties[] = [];
+  let missing = 0;
+  for (const id of wanted as Uuid[]) {
+    const found = await read(space, id);
+    if (found.kind !== "read") {
+      missing++;
+      continue;
+    }
+    out.push({
+      id,
+      ...await resolveLinks(space, found.properties),
+    } as unknown as Properties);
+  }
+
+  // A node the caller named and that is not here shortens the answer, so the
+  // count goes to stderr — what they could not have worked out, where stdout
+  // stays the answer.
+  const body = asJsonToo ? JSON.stringify(out) + "\n" : frontmatter.writeEach(out);
+  return missing === 0
+    ? ok(body)
+    : ok(body, `${missing} id${missing === 1 ? "" : "s"} did not read`);
 }
 
 /** A refusal shared by every command that names a node whose file will not
@@ -128,6 +196,7 @@ export async function node(
   cwd: string,
   id: Uuid,
   asProperties: boolean,
+  asJsonToo = false,
 ): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
@@ -142,7 +211,9 @@ export async function node(
   }
 
   // stdout is one half of a node or the other, never both.
-  const rendered = render(await resolveLinks(resolved.space, found.properties));
+  const properties = await resolveLinks(resolved.space, found.properties);
+  if (asProperties && asJsonToo) return asJson(properties);
+  const rendered = render(properties);
   return asProperties ? lines(rendered) : ok(found.content, ...rendered);
 }
 
@@ -455,40 +526,26 @@ export async function labelForget(cwd: string, word: Label): Promise<Outcome> {
  * Listing the words is a directory read. The **count** is what costs a parse per
  * node, and it is what an index would later remove.
  */
-/** The description's first line, as the third column of a tab-separated row.
+/**
+ * Every word the space knows, one per line — a directory read of `labels/`,
+ * which is what the name says.
  *
- * A description is prose and never passes `isValue`, so it is the one place
- * where an unchecked string reaches a tabulated output — a tab inside it made
- * the row four columns where the contract says three. Collapsing whitespace is
- * a rendering decision, local to this column: what anyone may write is not
- * narrowed for the sake of how it is displayed. */
-// deno-lint-ignore no-control-regex -- collapsing control characters is the point
-const CONTROL_RUN = /[\x00-\x1F\x7F]+/g;
-const firstLine = (description: string): string =>
-  (description.split("\n")[0] ?? "").replace(CONTROL_RUN, " ").trim();
-
-export async function labelsList(cwd: string): Promise<Outcome> {
+ * It carried a count and a description's first line until batch 11, and both
+ * were wrong there. The count forced a parse of every node — 440 ms for two
+ * lines of output on the movies graph — which is the rule
+ * `docs/batches/9-find.md` wrote down being broken: *a flag would hide a
+ * thousandfold cost behind an option*, and a column hides it just as well. The
+ * summary was the only place unchecked prose reached a tabulated output, and a
+ * tab in it made the row four columns.
+ *
+ * A description is served where it belongs: `kg label <word>` reads that one
+ * file, for the word you named.
+ */
+export async function labelsList(cwd: string, asJsonToo = false): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const space = resolved.space;
-
-  const counts = new Map<string, number>();
-  for (const id of await ids(space)) {
-    if (!isId(id)) continue;
-    const found = await read(space, id);
-    if (found.kind !== "read") continue;
-    const carried = found.properties[LABELS];
-    if (!frontmatter.isList(carried)) continue;
-    for (const word of carried) counts.set(word, (counts.get(word) ?? 0) + 1);
-  }
-
-  const rows: string[] = [];
-  for (const word of await label.words(space)) {
-    const found = await label.read(space, word);
-    const summary = found.kind === "read" ? firstLine(found.description) : "";
-    rows.push([word, String(counts.get(word) ?? 0), summary].join("\t").trimEnd());
-  }
-  return lines(rows);
+  const words = await label.words(resolved.space);
+  return asJsonToo ? asJson(words) : lines(words);
 }
 
 /** The reserved slot relations live in. */
@@ -554,7 +611,11 @@ async function carry(space: Space, id: Uuid, entry: Entry): Promise<Outcome | un
   );
 }
 
-export async function linkRead(cwd: string, id: Uuid): Promise<Outcome> {
+export async function linkRead(
+  cwd: string,
+  id: Uuid,
+  asJsonToo = false,
+): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
   const found = await link.read(resolved.space, id);
@@ -565,13 +626,12 @@ export async function linkRead(cwd: string, id: Uuid): Promise<Outcome> {
     return refused(`cannot read link ${id}: ${found.reason}`);
   }
 
+  // A record is a document of properties, so it prints as one — the three
+  // fields are keys among the rest, and being unwritable is a rule about
+  // writing that the output shape has no reason to show.
   const r = found.record;
-  const rows = [["type", r.type], ["from", r.from], ["to", r.to]];
-  for (const name of (Object.keys(r.properties) as Name[]).sort()) {
-    const value = r.properties[name];
-    rows.push([name, Array.isArray(value) ? value.join(", ") : String(value)]);
-  }
-  return lines(rows.map((row) => row.join("\t")));
+  const all = { ...r.properties, type: r.type, from: r.from, to: r.to } as Properties;
+  return asJsonToo ? asJson(all) : lines(render(all));
 }
 
 /** Ending a link ends the record. A label outlives its last use because

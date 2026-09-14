@@ -18,7 +18,7 @@ Deno.test("batch 6 — the labels system", async () => {
   );
 
   // 2. Carrying a word is what creates it, so the vocabulary exists already.
-  assertEquals((await kg(dir, ["labels", "list"])).out, "auth\t1\ndecision\t1\n");
+  assertEquals((await kg(dir, ["labels", "list"])).out, "auth\ndecision\n");
 
   const labelled = await kg(dir, ["node", a, "label", "pattern"]);
   assertEquals(labelled.err.trim(), "labelled 1");
@@ -34,7 +34,8 @@ Deno.test("batch 6 — the labels system", async () => {
     (await kg(dir, ["node", a, "--properties"])).out,
     "labels:\n  - auth\n  - pattern\n",
   );
-  assertStringIncludes((await kg(dir, ["labels", "list"])).out, "decision\t0");
+  // A word outlives its last use, so it is still listed with nothing carrying it.
+  assertStringIncludes((await kg(dir, ["labels", "list"])).out, "decision");
 
   // 4. A description is the label file's body, written from stdin.
   const wrote = await kg(
@@ -46,9 +47,11 @@ Deno.test("batch 6 — the labels system", async () => {
   assertEquals((await kg(dir, ["label", "auth"])).out, "how a request proves who it is");
 
   // 5. Word, count, first line — alphabetical, so `auth` sits beside `authn`.
+  assertEquals((await kg(dir, ["labels", "list"])).out, "auth\ndecision\npattern\n");
+  // The description is served by the word you named, not by the listing.
   assertEquals(
-    (await kg(dir, ["labels", "list"])).out,
-    "auth\t1\thow a request proves who it is\ndecision\t0\npattern\t1\n",
+    (await kg(dir, ["label", "auth"])).out.trim(),
+    "how a request proves who it is",
   );
 
   // 6. `forget` drops the word from the vocabulary; nodes keep carrying it.
