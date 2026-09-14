@@ -75,11 +75,6 @@ JSON splits by ecosystem, and CLI argument keys split too — git camelCase by 6
 to 7, npm kebab throughout. So every argument of the form *that is the
 convention* is weak, and this page does not make one.
 
-**camelCase for keys, because it is the only choice that fits both data media.**
-It wins markdown frontmatter outright and ties JSON; snake wins neither. And
-kebab is impossible in either: `o.valid-until` is a **subtraction** in
-JavaScript, which is why no API ships kebab keys.
-
 **camelCase for a key, typed and stored alike.** It is the only form that fits
 both data media — it wins markdown frontmatter outright and ties JSON, where
 snake wins neither. And kebab cannot be a key in either: `o.valid-until` is a

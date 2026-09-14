@@ -107,7 +107,7 @@ Everything the writing door would, plus what the format cannot carry:
 
 | refused | because |
 |---|---|
-| `Kind:`, `valid_until:` | not a property name — the tool could never write it |
+| `Kind:`, `valid-until:` | not a key — the tool could never have written it ([naming](naming.md)) |
 | a value holding a control character | not a value — `set` refuses the same text |
 | a YAML null, in any spelling | there is no second way to be absent |
 | an empty list | a key carrying nothing is not a value |

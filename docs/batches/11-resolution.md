@@ -184,6 +184,26 @@ wants counts can ask a question that names itself; nobody has asked yet.
 The description is served where it belongs: `kg label <word>` reads that one
 file, for the word you named.
 
+## The naming convention, which the JSON makes due
+
+A key is `validUntil` — typed and stored alike, nothing translated.
+[`design/naming.md`](../design/naming.md) settles it, and this batch is where it
+lands, because printing keys as JSON is the moment the form stops being an
+internal detail.
+
+What the code carries today is an earlier version of that page: a key typed in
+kebab and translated to camelCase at the file. Three things go with the
+translation —
+
+- `asKey` and `asName` in `frontmatter.ts`, and the two call sites
+- the segment rule that made the translation reversible, which only existed for it
+- the asymmetry where a caller read `validUntil` and typed `valid-until`
+
+**A label word does not move.** `acted-in` stays kebab, enforced at the door,
+because the file is the word and a case-insensitive filesystem merges
+`actedIn.md` with `actedin.md`. Values do not move either: they are stored as
+given.
+
 ## What it leaves
 
 Ordering the results · `~` over prose · the reserved operands · traversal, which
