@@ -285,10 +285,32 @@ The discipline went to documents with frontmatter, and a record was not one.
 So `.kg/links/<uuid>.yaml` — a properties document, same rules, same serialiser,
 and inside the one writer that batch 10 established.
 
-**What it asks of `document.ts`**: a second shape. A markdown document is
-frontmatter *and* content; a record is properties *alone*, with no `---` fences
-and no body. That is a small generalisation of `open` / `blank` / `flush`, and it
-is the thing to settle before this is built rather than during.
+## `document.ts` holds two file formats
+
+It becomes the custodian of two on-disk forms rather than one:
+
+```
+markdown     ---\n<yaml>\n---\n\n<content>        nodes, labels
+yaml         <yaml>                               link records
+```
+
+Only two things differ: what `open` separates, and what `flush` assembles. The
+atomic write, the failure vocabulary and the rule that a write carries
+everything it read are the same for both.
+
+**The shape is named by the caller, not inferred from the extension.**
+`node.ts` and `label.ts` want markdown, `link.ts` wants YAML, and each knows
+which. Guessing from `.md` or `.yaml` would be detection where this tool
+declares — the rule [batch 4](4-stops-guessing.md) settled.
+
+**Two handles, not one with an optional half.** A markdown document has content
+and a record does not, so a single type with an optional `content` would invite
+setting one on a record and then have to decide whether that is dropped or
+refused. Two types make the question unaskable.
+
+**`link.ts` shrinks the way `label.ts` did in batch 10**, and gains what it
+lacks: the temporary file and the rename, and a write that carries what it read.
+It keeps where records live and how one is created; the rest becomes calls.
 
 ## The shortcuts, emptied
 
