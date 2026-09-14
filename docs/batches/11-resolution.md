@@ -150,9 +150,24 @@ It already does: content for `kg node <id> write --stdin`, ids for
 `kg nodes --stdin`. One reading, not two, and per-command flags are what make it
 unambiguous.
 
-**Ids arrive only on stdin.** There is no argv form, because one id is already
-`kg node <id> --properties` — a second path to the same answer is the drift this
-repo deletes rather than documents.
+**Ids arrive on stdin or in argv, never both.** Two channels, not two paths:
+they feed the same code and cannot diverge, and what separates them is a ceiling
+rather than a meaning.
+
+```
+kg nodes --properties <id> <id> …        a handful, written out
+kg nodes --stdin --properties            a pipeline, however long
+```
+
+`ARG_MAX` is 1 MB here, so 133 ids is about 5 KB and passes, while 100 000 is
+3.7 MB and does not. A caller with three ids should not have to open a pipe, and
+a caller with a hundred thousand cannot avoid one. `--with-nodes <id>...`
+already takes a variadic id list, so argv is not a new shape either.
+
+**Both at once is refused**, as is neither: one says which ids twice and the
+other says nothing. `kg nodes --properties` alone names what is missing rather
+than reading an empty stdin, which is the trap
+[batch 4](4-stops-guessing.md) removed — *content is declared, not detected*.
 
 ## The labels, which the same rule pulls in
 
