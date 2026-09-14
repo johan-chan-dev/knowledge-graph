@@ -25,14 +25,34 @@ every caller re-parses the tool's own output to get one value back out.
 ## What it should look like
 
 ```console
-$ kg nodes find 'released > 2010 and released < 2015' | kg nodes properties title released --stdin
-[
-  {"id":"01a090ed-4ac5-76b1-a3ae-dc5c97394e86","title":"Cloud Atlas","released":"2012"}
-]
-
-$ kg node 01a090ed-4ac5-76b1-a3ae-dc5c97394e86 --properties
-{"id":"01a090ed-4ac5-76b1-a3ae-dc5c97394e86","labels":["movie"],"title":"Cloud Atlas","released":"2012","tagline":"Everything is connected"}
+$ kg nodes find 'released > 2000' | kg nodes --stdin --properties --json | jq -r '.[].title'
+The Matrix Reloaded
+Cloud Atlas
+…
 ```
+
+**The plural is the singular with its ids on stdin.** Same flag, same meaning;
+only where the ids come from changes:
+
+```
+kg node <id> --properties          one id, in argv
+kg nodes --stdin --properties      many ids, on stdin
+```
+
+**No projection.** An earlier version of this page had the command take names —
+`kg nodes properties title released --stdin` — and that raised a question per
+name: which verb, what happens when a name is carried by no node, one name or
+several, and columns or objects for several. **Selecting is `jq`'s**, and the
+command hands over what it has.
+
+Each object carries its `id`, which the singular form does not need: with one
+node the caller knows which, with many they do not.
+
+**It does not need an action either.** *A collection has many read-shaped
+operations, so one has to be named* — `list` enumerates, `find` selects. This
+enumerates nothing: the caller already chose, and handed the ids over. What is
+left to say is which view, and `--properties` says it, exactly as it does for
+one node.
 
 **Will be backed by** `batch 11 — resolution`, as `11_test.ts` in
 [`tool/tests/batches/`](../../tool/tests/batches/) — written when the batch is.
@@ -46,7 +66,7 @@ $ kg node 01a090ed-4ac5-76b1-a3ae-dc5c97394e86 --properties
 | **an open set** | JSON | authored names, different per node, any of them optional, values that nest |
 
 **The scope names the shape.** `kg node <id> --properties` is one object;
-`kg nodes properties …` is an array. Plural in, plural out.
+`kg nodes --stdin --properties` is an array. Plural in, plural out.
 
 **This is not a `--json` mode.** A format flag spanning every command is the
 global flag union one layer up — it forces one answer onto commands whose
@@ -71,8 +91,8 @@ for the body wants the body.
 
 ## An object has no empty cell
 
-This is the whole reason resolution can carry several names where a table
-could not.
+This is why many nodes come back as objects rather than as a table — and it
+holds whether or not anyone selects among them.
 
 A column needs a value for a node that carries nothing, and the empty string is
 a legal value — [`absence.md`](../design/absence.md) accepts `title: ""` as an
@@ -124,35 +144,15 @@ This is the price of asking for several names at once. The single-name form has
 no such trap — a node that carries nothing produces no line, and there is
 nothing to mistake for a value.
 
-## A name nothing carries
-
-Property names are open, so nothing validates the one you asked for. A typo
-therefore answers successfully:
-
-```console
-$ kg nodes find '"movie" in labels' | kg nodes properties tilte --stdin
-[{"id":"01a0…"}, {"id":"01a0…"}, … ]
-```
-
-Thirty-eight objects carrying only `id`, exit `0`, and indistinguishable from a
-name no node happens to use. That is the silence
-[batch 4](4-stops-guessing.md) removed `--where` for.
-
-It cannot be a refusal — `tilte` is unused, not invalid. So the tool says so on
-stderr: **`no node carries tilte`**, and only when the count is zero. Where five
-of 133 lack `born` the caller can count the objects missing the key, and
-repeating it is telling them what they already hold. Zero is different: it reads
-as a typo, and the tool knows something the caller does not — that the name is
-unused across the whole set it just read.
-
 ## `--stdin` means what this command needs
 
-It already does: content for `write`, ids for a resolver. One reading, not two,
-and per-command flags are what make it unambiguous.
+It already does: content for `kg node <id> write --stdin`, ids for
+`kg nodes --stdin`. One reading, not two, and per-command flags are what make it
+unambiguous.
 
-**Ids arrive only on stdin.** There is no argv form, because a single node is
-already `kg node <id> --properties` — a second path to the same answer is the
-drift this repo deletes rather than documents.
+**Ids arrive only on stdin.** There is no argv form, because one id is already
+`kg node <id> --properties` — a second path to the same answer is the drift this
+repo deletes rather than documents.
 
 ## The labels, which the same rule pulls in
 
@@ -260,10 +260,11 @@ Which is what makes parking the shortcuts free rather than costly:
 ```bash
 kg node "$CA" --properties --json \
   | jq -r '.links[] | select(.type == "directed" and .direction == "in") | .neighbour' \
-  | kg nodes get name --stdin
+  | kg nodes --stdin --properties --json \
+  | jq -r '.[].name'
 ```
 
-Three processes and no loop. `jq` does what `grep '^directed' | cut -f3` did and
+Four processes and no loop. `jq` does what `grep '^directed' | cut -f3` did and
 does it better — a named field rather than a line prefix, and the direction too,
 which the columns never exposed.
 
