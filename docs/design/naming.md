@@ -15,9 +15,13 @@ that is a different reader in each place.
 | CLI commands and flags | `--with-labels`, `set valid-until` | a command line |
 | a **key**, in frontmatter or JSON | `validUntil` | a program |
 | a **value** | `acted-in`, `github-issue-412` | nobody — stored as given |
-| a source file | `frontmatter_test.ts` | Deno |
-| a doc file | `query-language.md` | a URL |
-| a label's file | `acted-in.md` | it **is** the word |
+| a `.ts` file | `frontmatter_test.ts` | Deno |
+| a `.md` file | `query-language.md`, `acted-in.md` | a URL |
+
+**A label's file is not a separate rule.** It is a markdown file and it is
+kebab, like every other one — but for a different reason: nobody chose the name.
+`label.ts` puts it as *the file **is** the word*, and a word is kebab by its own
+rule, so the two can never disagree.
 
 **Only keys are translated.** Everything else in a file is the author's data,
 and [storage](../spec/storage.md) already says properties are **stored as given
