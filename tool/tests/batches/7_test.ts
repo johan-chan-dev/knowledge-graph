@@ -27,16 +27,19 @@ Deno.test("batch 7 — relations", async () => {
   ])).out.trim().split("\n");
   assertEquals(two.length, 2);
 
-  // 2. Both directions are one node read — `backlinks` is the same read filtered.
-  const out = (await kg(dir, ["node", a, "links"])).out;
-  assertEquals(out.split("\n").filter(Boolean).length, 3);
-  assertStringIncludes(out, `supersedes\t${one}\t${b}`);
+  // 2. Both ends carry an entry, so both directions are one node read. Batch 11
+  //    removed the two commands that filtered it and resolves the far end in
+  //    `--properties` instead, which is what `neighbour` is.
+  const out = (await kg(dir, ["node", a, "--properties"])).out;
+  assertEquals(out.split("\n").filter((l) => l.startsWith("  - ")).length, 3);
+  assertStringIncludes(out, `neighbour: ${b}`);
+  assertStringIncludes(out, "type: supersedes");
   assertStringIncludes(
-    (await kg(dir, ["node", b, "backlinks"])).out,
-    `supersedes\t${one}\t${a}`,
+    (await kg(dir, ["node", b, "--properties"])).out,
+    `direction: in`,
   );
-  // c is only ever a target, so it has no outgoing links at all.
-  assertEquals((await kg(dir, ["node", c, "links"])).out, "");
+  // c is only ever a target, so every entry it carries points inward.
+  assertEquals((await kg(dir, ["node", c, "--properties"])).out.includes("out"), false);
 
   // 3. The record holds type, endpoints and properties; `--with-properties`
   //    applied to every link the command made.
@@ -115,12 +118,8 @@ Deno.test("batch 7 — relations", async () => {
   // 9. Forgetting ends the relation: the record goes and both ends drop it.
   assertStringIncludes((await kg(dir, ["link", one, "forget"])).err, `forgot ${one}`);
   assertEquals((await kg(dir, ["link", one])).code, 2);
-  assertEquals(
-    (await kg(dir, ["node", a, "links"])).out.split("\n").filter(Boolean).length,
-    2,
-  );
-  assertEquals(
-    (await kg(dir, ["node", b, "backlinks"])).out.split("\n").filter(Boolean).length,
-    1,
-  );
+  const entries = (out: string) =>
+    out.split("\n").filter((l) => l.startsWith("  - ")).length;
+  assertEquals(entries((await kg(dir, ["node", a, "--properties"])).out), 2);
+  assertEquals(entries((await kg(dir, ["node", b, "--properties"])).out), 1);
 });

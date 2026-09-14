@@ -16,10 +16,7 @@ kg [-C <dir>] <scope> [<id>] [action] [arguments] [--flags]
 
 A single resource is one thing to address, so a verb would add nothing —
 `kg node <id>` cannot mean anything but *that node*. Which **aspect** of it is a
-selector: `--properties` rather than an action. This read *one thing to fetch*
-when it was written, and a node has since grown three — which is how `links` and
-`backlinks` came to be actions instead.
-[Batch 11](../batches/11-resolution.md) makes them selectors. A collection has many
+selector — `--properties` — rather than an action. A collection has many
 read-shaped operations, so one has to be named: you do not read a collection,
 you list it, and later you may query or count it. Every write names itself,
 always.
@@ -365,17 +362,20 @@ and `remove` refuse it, and `link` writes it.
 
 ```
 kg node <id> link --as <type> --with-nodes <id>...   relate it to those nodes
-kg node <id> links                                   what it points at
-kg node <id> backlinks                               what points at it
 kg link <id>                                         its fields and properties
 kg link <id> forget                                  end the relation
 kg link <id> set / unset / add / remove              its properties
 ```
 
-**Both ends carry an entry**, `{type, link, direction}`, so `links` and
-`backlinks` are the same node read filtered on direction — no scan, whatever the
-size of the space. `type` and `direction` are duplicated from the record so that
-grouping costs no record reads; the record stays authoritative.
+**Both ends carry an entry**, `{type, link, direction}`, so a node's relations
+are one node read whichever way they point — no scan, whatever the size of the
+space. `type` and `direction` are duplicated from the record so that grouping
+costs no record reads; the record stays authoritative.
+
+**`kg node <id> --properties` resolves them.** `link` holds the record's uuid,
+not the neighbour's, so each entry comes back with `neighbour` — the node at the
+other end — and the relation's own properties read in. Nothing is duplicated on
+disk: a duplicate has to be kept true, and resolving has nothing to keep.
 
 **A record has fields and properties.** `type`, `from` and `to` are the link's
 own data and cannot be set — a link's identity *is* those three, so altering one
@@ -425,7 +425,6 @@ stop reading, which then costs you the lines that matter.
 | `label <word> forget` | — | `forgot auth` |
 | `labels list` | word, count, first line — tab-separated | — |
 | `node <id> link` | the new link ids, one per line | — |
-| `node <id> links` / `backlinks` | type, link id, the other end — tab-separated | — |
 | `link <id>` | `type`, `from`, `to`, then one property per row | — |
 | `link <id> forget` | — | `forgot <id>` |
 | `link <id> set` / `unset` / `add` / `remove` | — | as `node <id>`'s |

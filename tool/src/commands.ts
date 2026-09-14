@@ -2,7 +2,7 @@ import { absent, lines, ok, type Outcome, refused } from "./outcome.ts";
 import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
 import * as frontmatter from "./frontmatter.ts";
-import type { Label, Name, Properties, Text } from "./frontmatter.ts";
+import type { Label, Name, Properties, Text, Value } from "./frontmatter.ts";
 import * as label from "./label.ts";
 import * as link from "./link.ts";
 import type { Entry } from "./frontmatter.ts";
@@ -142,8 +142,41 @@ export async function node(
   }
 
   // stdout is one half of a node or the other, never both.
-  const rendered = render(found.properties);
+  const rendered = render(await resolveLinks(resolved.space, found.properties));
   return asProperties ? lines(rendered) : ok(found.content, ...rendered);
+}
+
+/**
+ * Each `links` entry, with the node at the other end and the relation's own
+ * properties read in.
+ *
+ * The file keeps `{type, link, direction}`: `link` is the **record's** uuid, so
+ * a node's own file cannot answer *who am I connected to*. Duplicating the far
+ * end into the entry would have to be kept true; resolving it has nothing to
+ * keep, and nothing stored moves.
+ *
+ * `neighbour` rather than `target` or `to` — with `direction: in` the node at
+ * the other end is the source, so either would be wrong half the time.
+ */
+async function resolveLinks(space: Space, properties: Properties): Promise<Properties> {
+  const carried = properties[LINKS];
+  if (!frontmatter.isLinks(carried)) return properties;
+
+  const resolved: Value[] = [];
+  for (const entry of carried) {
+    const found = await link.read(space, entry.link);
+    if (found.kind !== "read") {
+      resolved.push(entry as unknown as Value);
+      continue;
+    }
+    const other = entry.direction === "out" ? found.record.to : found.record.from;
+    resolved.push({
+      ...entry,
+      neighbour: other,
+      ...found.record.properties,
+    } as unknown as Value);
+  }
+  return { ...properties, [LINKS]: resolved as Value };
 }
 
 /** An empty node is legal — one carrying `kind: decision` with no prose yet is
@@ -519,32 +552,6 @@ async function carry(space: Space, id: Uuid, entry: Entry): Promise<Outcome | un
     id,
     result as { kind: "malformed" } | { kind: "unparseable"; reason: string },
   );
-}
-
-/** Type, link id, the other end — tab-separated, as `labels list` is. */
-export async function nodeLinks(
-  cwd: string,
-  id: Uuid,
-  direction: "out" | "in",
-): Promise<Outcome> {
-  const resolved = await resolve(cwd);
-  if (resolved.kind === "stop") return resolved.outcome;
-  const space = resolved.space;
-
-  const found = await read(space, id);
-  if (found.kind === "absent") return absent(`no such node: ${id} in ${space.name}`);
-  if (found.kind !== "read") return unreadable(id, found);
-
-  const rows: string[] = [];
-  for (const entry of entriesOf(found.properties)) {
-    if (entry.direction !== direction) continue;
-    const record = await link.read(space, entry.link);
-    const other = record.kind === "read"
-      ? (direction === "out" ? record.record.to : record.record.from)
-      : "";
-    rows.push([entry.type, entry.link, other].join("\t").trimEnd());
-  }
-  return lines(rows.sort());
 }
 
 export async function linkRead(cwd: string, id: Uuid): Promise<Outcome> {

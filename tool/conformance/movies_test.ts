@@ -25,6 +25,18 @@ async function sh(dir: string, script: string): Promise<number> {
   return (await child.output()).code;
 }
 
+type Entry = { type: string; direction: string; neighbour: string };
+
+/** A node's relations, as `--properties` now hands them back: the stored entry
+ * plus the far end and the relation's own properties, resolved on the way out.
+ * Batch 11 removed `links` and `backlinks`; this is what replaced them. */
+async function entries(dir: string, id: string): Promise<Entry[]> {
+  const parsed = parseYaml(await kg(dir, ["node", id, "--properties"])) as
+    | { links?: Entry[] }
+    | null;
+  return parsed?.links ?? [];
+}
+
 async function kg(dir: string, argv: string[]): Promise<string> {
   const child = new Deno.Command(BINARY, {
     args: ["-C", dir, ...argv],
@@ -96,15 +108,14 @@ Deno.test({
         .split("\n").find((l) => l.startsWith("name: ") || l.startsWith("title: "))
         ?.replace(/^(?:name|title): /, "").replace(/^'|'$/g, "");
       if (shown === undefined) continue;
-      const rows = (text: string) =>
-        text.trim() === "" ? 0 : text.trim().split("\n").length;
+      const carried = await entries(dir, id);
       assertEquals(
-        rows(await kg(dir, ["node", id, "links"])),
+        carried.filter((e) => e.direction === "out").length,
         outward.get(shown) ?? 0,
         `outgoing links for ${shown}`,
       );
       assertEquals(
-        rows(await kg(dir, ["node", id, "backlinks"])),
+        carried.filter((e) => e.direction === "in").length,
         inward.get(shown) ?? 0,
         `incoming links for ${shown}`,
       );
@@ -164,12 +175,13 @@ Deno.test({
     assertEquals(await find("released > 2010 and released < 2015"), [cloudAtlas]);
 
     // Q4, Q5 — people who directed, and acted in, a film released after 2010.
-    // `find` chooses the films; the tab-separated backlinks do the rest.
+    // `find` chooses the films; the enriched entries carry the far end.
     const byRelation = async (film: string, type: string) => {
       const people: string[] = [];
-      for (const row of rows(await kg(dir, ["node", film, "backlinks"]))) {
-        const [kind, , person] = row.split("\t");
-        if (kind === type) people.push((await shown(person!, "name"))!);
+      for (const entry of await entries(dir, film)) {
+        if (entry.type === type && entry.direction === "in") {
+          people.push((await shown(entry.neighbour, "name"))!);
+        }
       }
       return people.sort();
     };
@@ -182,8 +194,8 @@ Deno.test({
     ]);
     assertEquals((await byRelation(after2010[0]!, "acted-in")).length, 4);
 
-    // Q10 — directors of Cloud Atlas. Tab-separated output filters by pipe, so
-    // `backlinks` needs no type flag of its own.
+    // Q10 — directors of Cloud Atlas, which is this batch's own validation:
+    // one `--properties`, a filter on type and direction, then the names.
     assertEquals(await byRelation(cloudAtlas, "directed"), [
       "Lana Wachowski",
       "Lilly Wachowski",
@@ -192,9 +204,9 @@ Deno.test({
 
     // Q12 — everyone connected to Cloud Atlas, and by what.
     const byType = new Map<string, number>();
-    for (const row of rows(await kg(dir, ["node", cloudAtlas, "backlinks"]))) {
-      const type = row.split("\t")[0]!;
-      byType.set(type, (byType.get(type) ?? 0) + 1);
+    for (const entry of await entries(dir, cloudAtlas)) {
+      if (entry.direction !== "in") continue;
+      byType.set(entry.type, (byType.get(entry.type) ?? 0) + 1);
     }
     assertEquals([...byType.entries()].sort(), [
       ["acted-in", 4],
@@ -204,17 +216,18 @@ Deno.test({
       ["wrote", 1],
     ]);
 
-    // Q11 — Tom Hanks' co-actors. Two hops, and the shape a script has to take
-    // while traversal lives in commands rather than in a pattern. Q13, three
-    // hops from Kevin Bacon, is the one this deliberately cannot reach.
+    // Q11 — Tom Hanks' co-actors. Two hops, one call per node: the entries of
+    // his films carry the actors, so each hop is a read rather than a join.
+    // Q13, three hops from Kevin Bacon, is the one this deliberately cannot
+    // reach.
     const tom = await only('name = "Tom Hanks"');
     const coactors = new Set<string>();
-    for (const row of rows(await kg(dir, ["node", tom, "links"]))) {
-      const [type, , film] = row.split("\t");
-      if (type !== "acted-in") continue;
-      for (const back of rows(await kg(dir, ["node", film!, "backlinks"]))) {
-        const [t, , person] = back.split("\t");
-        if (t === "acted-in" && person !== tom) coactors.add(person!);
+    for (const acted of await entries(dir, tom)) {
+      if (acted.type !== "acted-in" || acted.direction !== "out") continue;
+      for (const other of await entries(dir, acted.neighbour)) {
+        if (other.type === "acted-in" && other.neighbour !== tom) {
+          coactors.add(other.neighbour);
+        }
       }
     }
     assertEquals(coactors.size, 34);
