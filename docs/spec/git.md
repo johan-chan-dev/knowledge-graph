@@ -7,6 +7,25 @@ unambiguous prior state.
 
 **The external binary, resolved from `PATH`, and nothing else.**
 
+## The tool never commits
+
+`space init` runs `git init` where there is no repository, and nothing after
+that touches git. Every write lands in the working tree; **committing is the
+caller's**, done when they want a checkpoint and not before.
+
+That is the same rule as the binary itself, one step further: git is the user's,
+so the history is theirs too. An automatic commit would decide for them what
+counts as a unit of work, and a knowledge graph edited over an afternoon has no
+obvious one.
+
+**What follows, and should be read rather than discovered:**
+
+- `git diff` is what shows a write, and `git status` what shows a batch of them
+- an accidental write is undone by `git checkout`, and only if the space was
+  committed beforehand — a bulk write over many nodes is as recoverable as the
+  caller's own discipline makes it
+- the tool reads the branch, and nothing else about the history
+
 ## No bundled git
 
 A packaged application could ship one — that is what GitHub Desktop does — but

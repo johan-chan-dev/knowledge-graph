@@ -150,10 +150,12 @@ Nothing attempts repair. Detecting damage systematically is a later concern.
 rename. An interrupted rewrite would corrupt the one thing the tool is custodian
 of. Rename is atomic on every filesystem that matters; write-in-place is not.
 
-**Labels and link records are not written that way**, and that is a defect
-rather than a decision — the discipline is attached to `nodes/<uuid>.md` instead
-of to the form, so the second and third things wearing it never received it.
-[Batch 10](../batches/10-one-writer.md) moves it.
+**Every write is**, since [batch 10](../batches/10-one-writer.md) put the
+discipline on the form rather than on `nodes/<uuid>.md`: a node, a label and a
+link record all go through the one writer.
+
+**None of them commits.** The working tree is where a write lands, and
+[git](git.md) says why: the history is the caller's.
 
 **Serialisation is canonical** — frontmatter keys alphabetical, sequences in
 block style, one element per line. A property write is read-modify-write over
