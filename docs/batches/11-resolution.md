@@ -19,8 +19,9 @@ Measured on the imported movies graph: **10.7 s for 133 nodes, against 0.66 s
 for one process reading all 171.** Sixteen times, and it is not file reads —
 `find` alone is 0.47 s of that 0.66 s. It is process spawns, about 80 ms each.
 
-The `sed` is the other half. `--properties` returns every property as YAML, so
-every caller re-parses the tool's own output to get one value back out.
+The `sed` is the other half. `--properties` prints YAML that a caller then
+re-derives with a line-matching expression, which is not parsing a format so
+much as guessing at one.
 
 ## What it should look like
 
@@ -61,29 +62,34 @@ one node.
 
 | | | |
 |---|---|---|
-| **ids** | one per line | a uuid has nothing to structure, and `wc -l`, `grep`, `cut` and `xargs` all work on it |
-| **a closed set of names** | tab-separated | the tool knows them ahead of time, every row carries all of them, and a value provably cannot contain a tab |
-| **an open set** | JSON | authored names, different per node, any of them optional, values that nest |
+| **ids and names** | one per line | a uuid has nothing to structure, and `wc -l`, `grep`, `cut` and `xargs` all work on it |
+| **properties** | a mapping — YAML, or JSON with `--json` | authored names, different per node, any of them optional, values that nest |
 
-**The scope names the shape.** `kg node <id> --properties` is one object;
-`kg nodes --stdin --properties` is an array. Plural in, plural out.
+A third row stood here — *a closed set of names, tab-separated* — and this batch
+empties it. `kg labels list` becomes one name per line and
+`kg node <id> links` is removed, which leaves `kg link <id>` as the only tabbed
+output, and its set is not closed: three fields the tool names, beside however
+many properties an author wrote.
 
-**This is not a `--json` mode.** A format flag spanning every command is the
-global flag union one layer up — it forces one answer onto commands whose
-outputs have nothing in common. The shape belongs to a command's contract, and
-three commands' contracts differ because the things they return differ.
+**So `kg link <id>` is the open question this batch raises and does not
+answer.** By the rule above it is a mapping like any other record of
+properties — YAML, `--json` to convert — and saying so would remove the last
+tab-separated output in the tool. It is not listed in what this batch changes,
+and it should be settled before the batch is built rather than found during it.
+
+**The scope names the shape.** One node's properties are one thing; many nodes'
+are an array of them. Plural in, plural out, in whichever format.
+
+**`--json` is per command, not a mode.** A format flag spanning every command is
+the global flag union one layer up — it forces one answer onto commands whose
+outputs have nothing in common.
 [`parked/structured-output.md`](../design/parked/structured-output.md) proposed
-the flag; what it was really waiting for was this distinction.
+exactly that. Declared on one command, against that command's own contract, it
+is an ordinary flag.
 
-**`links` and `backlinks` keep their tabs.** Three names the tool chose, on
-every row. That is what lets `backlinks | grep '^directed' | cut -f3` answer two
-of the guide's questions in one line each.
-
-**Only that question decides the shape**, and it is not the question `set`
-answers. A link's `type`, `from` and `to` are [fields](../spec/api.md) in the
-batch 7 sense — its identity, which is a rule about writing and leaves the
-output shape alone. So `link <id>`, which returns three known names beside
-however many authored ones, is an object.
+**`kg nodes find '<expression>'` and `kg labels list` stay line-shaped by
+default**, because a line is what `wc -l`, `grep`, `cut` and `xargs` work on,
+and that is how their output composes.
 
 **`node <id>` still returns content byte for byte.** Wrapping prose in an
 escaped string is strictly worse than handing it over, and an agent that asked
@@ -102,16 +108,16 @@ cannot carry the difference: both are an empty cell.
 
 That is a claim about what has to be *represented*, not about what a query
 returns. `find` evaluates a predicate and hands back ids; it never carries a
-value, so it cannot be the evidence here. The resolver is the command whose job
-is the value, and it is the one that needs a shape able to say *nothing is
-recorded* without saying *the recorded value is nothing*.
+value, so it cannot be the evidence here. `kg nodes --stdin --properties` is
+the command whose job is the value, and it is the one that needs a shape able to
+say *nothing is recorded* without saying *the recorded value is nothing*.
 
 **A JSON object simply has no such key**, which is exactly how the frontmatter
 represents it. Nothing is invented and nothing is lost:
 
 ```json
-{"id":"01a0…","name":"Tom Hanks","born":"1956"}
-{"id":"01a0…","name":"Naomie Harris"}
+[{"id":"01a0…","name":"Tom Hanks","born":"1956"},
+ {"id":"01a0…","name":"Naomie Harris"}]
 ```
 
 Five of the movies graph's 133 people carry no `born`. They are objects with one
@@ -140,9 +146,9 @@ invalid syntax.
 key, a JSON null and the string `"null"` all print as the same four characters
 under `jq -r .k`. Separating them takes `has("k")` or `// empty`.
 
-This is the price of asking for several names at once. The single-name form has
-no such trap — a node that carries nothing produces no line, and there is
-nothing to mistake for a value.
+That is the price of a structured answer, and it is the consumer's to pay
+knowingly: the command hands over what it has, and `jq` decides what to do with
+an absence.
 
 ## `--stdin` means what this command needs
 
@@ -220,7 +226,7 @@ same object, which is what a format flag is for and not the drift two
 **Nothing about absence argues for JSON here.** *An object has no empty cell*
 separates an object from a table, not JSON from YAML: a YAML mapping has
 optional keys exactly as a JSON object does. That argument belongs to the
-resolver below, where the alternative was columns.
+plural form below, where the alternative was columns.
 
 **It is declared per command**, with that command's own contract — not the
 global mode [`parked/structured-output.md`](../design/parked/structured-output.md)
