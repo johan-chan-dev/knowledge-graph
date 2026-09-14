@@ -359,7 +359,7 @@ description's **first line**; the tool takes it without reading it.
 
 ## links
 
-**A relation is a record**, `.kg/links/<uuid>.json`, holding its type, both
+**A relation is a record**, `.kg/links/<uuid>.yaml`, holding its type, both
 endpoints and its properties once. `links` is reserved: `set`, `add`, `unset`
 and `remove` refuse it, and `link` writes it.
 

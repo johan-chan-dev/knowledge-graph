@@ -1,4 +1,5 @@
 import { assertEquals } from "@std/assert";
+import { parse as parseYaml } from "@std/yaml";
 import { BINARY } from "../tests/batches/spawn.ts";
 import { dirname, fromFileUrl, join } from "@std/path";
 
@@ -55,9 +56,9 @@ Deno.test({
     // Every relationship type, with the counts the cypher declares.
     const types = new Map<string, number>();
     for await (const entry of Deno.readDir(join(dir, ".kg", "links"))) {
-      const record = JSON.parse(
+      const record = parseYaml(
         await Deno.readTextFile(join(dir, ".kg", "links", entry.name)),
-      );
+      ) as { type: string };
       types.set(record.type, (types.get(record.type) ?? 0) + 1);
     }
     assertEquals([...types.entries()].sort(), [

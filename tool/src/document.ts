@@ -22,6 +22,13 @@ import type { Properties } from "./frontmatter.ts";
  *
  * What it does not know: where files live, what a name means, how an id is
  * minted. Those stay with `space.ts`, `frontmatter.ts` and `node.ts`.
+ *
+ * **Two shapes, and the caller names which.** A node or a label is markdown —
+ * fences, then a body. A link record is YAML alone: properties, no fences, no
+ * body, because a link carries no prose. Only what `open` separates and what
+ * `flush` assembles differ; the atomic write, the failure vocabulary and the
+ * rule that a write carries what it read are shared. Guessing the shape from
+ * `.md` or `.yaml` would be detection where this tool declares.
  */
 
 export type Unwritable = { readonly kind: "unwritable"; readonly reason: string };
@@ -57,6 +64,41 @@ function handle(path: string, properties: Properties, content: string): Document
   };
   return document;
 }
+
+/** Properties alone — a link record. No fences, no body, so there is no second
+ * half to lose and no `content` to set by mistake. */
+export type Record_ = {
+  properties: Properties;
+  flush(): Promise<Written>;
+};
+
+export type Read = { readonly kind: "read"; readonly record: Record_ } | Failure;
+
+function holder(path: string, properties: Properties): Record_ {
+  const record: Record_ = {
+    properties,
+    flush: () => atomically(path, frontmatter.write(record.properties)),
+  };
+  return record;
+}
+
+/** A YAML document: the whole file is the mapping. */
+export async function read(path: string): Promise<Read> {
+  let raw: string;
+  try {
+    raw = await Deno.readTextFile(path);
+  } catch {
+    return { kind: "absent" };
+  }
+  const parsed = frontmatter.read(raw);
+  if (parsed.kind === "unreadable") {
+    return { kind: "unparseable", reason: parsed.reason };
+  }
+  return { kind: "read", record: holder(path, { ...parsed.properties }) };
+}
+
+/** A YAML document not yet on disk. */
+export const empty = (path: string): Record_ => holder(path, {});
 
 export async function open(path: string): Promise<Opened> {
   let raw: string;

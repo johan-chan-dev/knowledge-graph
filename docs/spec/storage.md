@@ -104,9 +104,12 @@ refuses the node rather than loading — otherwise it would display a property n
 command could then unset. [`design/boundaries.md`](../design/boundaries.md)
 argues why, and names the one exception: a reserved name still reads.
 
-**A link is a record.** `.kg/links/<uuid>.json` — JSON, not markdown, because a
-link carries no prose, so a body would be dead weight and none of frontmatter's
-coercion applies. Each endpoint holds an entry under the reserved `links`
+**A link is a record.** `.kg/links/<uuid>.yaml` — a document of properties, no
+fences and no body, because a link carries no prose. It was JSON until
+[batch 11](../batches/11-resolution.md), on a reason that argued against
+markdown rather than against YAML — and the format is what had kept records
+outside the one writer, so they had neither the rename nor the
+read-modify-write. Each endpoint holds an entry under the reserved `links`
 property; that is the one nested shape in the format, validated against exactly
 `{type, link, direction}`, and nothing authored may nest.
 

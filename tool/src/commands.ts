@@ -560,7 +560,7 @@ export async function linkRead(cwd: string, id: Uuid): Promise<Outcome> {
 
   const r = found.record;
   const rows = [["type", r.type], ["from", r.from], ["to", r.to]];
-  for (const name of Object.keys(r.properties).sort()) {
+  for (const name of (Object.keys(r.properties) as Name[]).sort()) {
     const value = r.properties[name];
     rows.push([name, Array.isArray(value) ? value.join(", ") : String(value)]);
   }
