@@ -12,11 +12,17 @@ that is a different reader in each place.
 
 | what | how | read by |
 |---|---|---|
-| CLI commands and flags | `--with-labels`, `set valid-until` | a command line |
-| a **key**, in frontmatter or JSON | `validUntil` | a program |
+| a command or a flag | `find`, `--with-labels` | a command line |
+| a **key**, typed | `set valid-until 2027` | a command line |
+| a **key**, stored or printed | `validUntil: 2027` | a program |
 | a **value** | `acted-in`, `github-issue-412` | nobody — stored as given |
 | a `.ts` file | `frontmatter_test.ts` | Deno |
 | a `.md` file | `query-language.md`, `acted-in.md` | a URL |
+
+The second and third rows are **one name in two places**, which is the whole of
+what the translation does. A key typed on the command line sits in argument
+position, and that says where it is, not what it is — it is still the key, and
+the row that matters for it is its own, not the one above.
 
 **A label's file is not a separate rule.** It is a markdown file and it is
 kebab, like every other one — but for a different reason: nobody chose the name.
