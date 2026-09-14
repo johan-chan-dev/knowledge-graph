@@ -8,36 +8,56 @@ type again later.
 space is excluded, the separator is decided by **whoever reads the name**, and
 that is a different reader in each place.
 
-## One reader, one convention
+## The guide
 
-| what | how | read by |
-|---|---|---|
-| a command or a flag | `find`, `--with-labels` | a command line |
-| a **key**, typed | `set valid-until 2027` | a command line |
-| a **key**, stored or printed | `validUntil: 2027` | a program |
-| a **value** | `acted-in`, `github-issue-412` | nobody — stored as given |
-| a `.ts` file | `frontmatter_test.ts` | Deno |
-| a `.md` file | `query-language.md`, `acted-in.md` | a URL |
+| what | form | who decides | enforced |
+|---|---|---|---|
+| a command, a flag | `find`, `--with-labels` | the tool | it is the tool's own word |
+| a **key** | `set validUntil 2027`, `validUntil: 2027` | the tool | at the door |
+| a **label word**, a **relation type** | `acted-in` | the author picks the word, **not its form** | at the door |
+| a **value** | `Cloud Atlas`, `github-issue-412` | the author | one line, printable — nothing else |
+| a `.ts` file | `frontmatter_test.ts` | Deno | — |
+| a `.md` file | `query-language.md`, `acted-in.md` | a URL | — |
 
-The second and third rows are **one name in two places**, which is the whole of
-what the translation does. A key typed on the command line sits in argument
-position, and that says where it is, not what it is — it is still the key, and
-the row that matters for it is its own, not the one above.
+Three levels of constraint, not two. A key's form is the tool's; a label word's
+form is the tool's while the word itself is the author's; a value is the
+author's entirely.
 
-**A label's file is not a separate rule.** It is a markdown file and it is
-kebab, like every other one — but for a different reason: nobody chose the name.
-`label.ts` puts it as *the file **is** the word*, and a word is kebab by its own
-rule, so the two can never disagree.
+### A key: one form, typed and stored alike
 
-**Only keys are translated.** Everything else in a file is the author's data,
-and [storage](../spec/storage.md) already says properties are **stored as given
-and never retyped** — so a label word arrives as `acted-in` and stays
-`acted-in`, in the `labels` list, in a link entry's `type`, in a record, and as
-the name of its file. Translating it would be retyping it.
+camelCase, and **the same string in both places** — `set validUntil` writes
+`validUntil:`. Nothing is translated, so nothing has to be reversible, and what
+a command prints is what the next command takes.
 
-That leaves a file carrying two shapes, and that is the honest reading rather
-than an oversight: `validUntil` is a key the tool wrote, `acted-in` is a word
-the author chose.
+That symmetry is the argument. A translation the caller performs in their head
+is where errors come from, and the caller here is mostly a model reading one
+command's output to build the next.
+
+An earlier version of this page had the key typed in kebab and stored in
+camelCase. It was defended on the strength of a **lowercase** rule that
+`frontmatter.ts` never argued either — the comment there justifies *nothing
+needing quotes*, and says nothing about capitals. Two unargued rules propping
+each other up is not a reason.
+
+### A label word: kebab, and that follows rather than being chosen
+
+**It is a filename.** `label.ts` puts it as *the file **is** the word*, so the
+word has to be safe as one — which decides its form twice over:
+
+- **lowercase**, because a case-insensitive filesystem merges `actedIn.md` and
+  `actedin.md` into one file, silently, holding whichever was written last. A
+  space's vocabulary would depend on the filesystem under it.
+- **kebab**, because that is already the rule for a `.md` file.
+
+So this row is not a fourth decision — it is the two rows below it, applied to a
+word that happens to name a file. And because it is a filename, the form cannot
+be left to taste: the door enforces it.
+
+### A value: the author's, and untouched
+
+One line of printable text, and no separator rule at all. `Cloud Atlas`,
+`github-issue-412`, `2027-01-01` — [storage](../spec/storage.md) says properties
+are **stored as given and never retyped**, and that is the whole rule.
 
 ## What the evidence says
 
@@ -60,54 +80,43 @@ It wins markdown frontmatter outright and ties JSON; snake wins neither. And
 kebab is impossible in either: `o.valid-until` is a **subtraction** in
 JavaScript, which is why no API ships kebab keys.
 
-**kebab on the command line, because typing the stored form would reopen the
-trap.** `set validUntil` forces a choice and both answers are bad: match
-case-insensitively, as git does — measured, `user.testKey` reads back as
-`user.testkey` — and `validUntil` and `validuntil` become two spellings of one
-property, with the file having to pick one; match case-sensitively and they
-become two different properties, which is exactly what the lowercase rule
-exists to prevent. Kebab has one spelling and needs neither answer.
+**camelCase for a key, typed and stored alike.** It is the only form that fits
+both data media — it wins markdown frontmatter outright and ties JSON, where
+snake wins neither. And kebab cannot be a key in either: `o.valid-until` is a
+**subtraction** in JavaScript, which is why no API ships one.
 
-The capital is therefore **produced, never typed**. Nobody has to decide between
-`validUntil` and `validuntil`, because nobody writes it.
+**kebab for a label word**, because it is a filename, and filenames here are
+kebab for the reason `.md` files are.
 
-It also keeps the command line consistent with its flags — `set valid-until …
---with-labels x` reads as one sentence — but that is the smaller reason.
+**kebab for commands and flags**, which is the one place the measurements are
+unanimous.
 
-## The lowercase rule survives, because it governs what is typed
+## What this drops, and why that is a gain
 
-`Title` and `title` as two different properties is a trap, and the rule against
-it is the better-argued of the pair. camelCase does not threaten it: the capital
-exists only in the **stored** key, which the tool produces and nobody types. A
-`ValidUntil:` written by hand is refused by the reading door, as any name the
-tool could not have written already is.
+An earlier version had a key typed in kebab and stored in camelCase, translated
+at the file. Two things existed only to hold that up, and both go with it:
 
-It is also why a label's word is never camelCase. A word is a value, and its
-file is named after it — and on a case-insensitive filesystem `actedIn.md` and
-`actedin.md` are **one file**, silently, holding whichever was written last. A
-space's vocabulary would depend on the filesystem under it.
+**The tightened name rule.** `a-2x` and `a2x` are different names that both
+become `a2x`, so a segment after the first had to begin with a letter for the
+translation to be reversible. With one form there is nothing to reverse and
+nothing to forbid.
 
-## The translation, and the one thing it costs
+**The asymmetry.** A caller read `validUntil` and had to type `valid-until`.
+It failed loudly rather than silently, which is the right way to fail — but not
+failing at all is better, and a translation performed in the caller's head is
+where errors come from. The caller here is mostly a model reading one command's
+output to build the next.
 
-`valid-until` ↔ `validUntil`, and the shapes are the same segments:
+## What is still enforced, and where
 
-```
-name   [a-z0-9]+(-[a-z][a-z0-9]*)*
-key    [a-z0-9]+([A-Z][a-z0-9]*)*
-```
+The doors do not change in what they do, only in what they compare against.
 
-**A segment after the first begins with a letter.** Without that, `a-2x` and
-`a2x` are both names and both become `a2x` — one of them could never be read
-back. That shape is the only thing the rule loses; `2fa`, `v2-index` and
-`valid-until` are all still names.
-
-So a stored key is legal exactly when it is the image of a name, and the reading
-door keeps refusing anything else — unchanged in what it does, and now with
-something to compare against.
-
-**An expression is surface.** `find 'valid-until > 2020'` is typed by a caller,
-so it is kebab, and the rule that tells `-0.5` from `valid-until`
-([batch 9](../batches/9-find.md)) stays exactly as it is.
+| | |
+|---|---|
+| a key, at the argv door | the key's form |
+| a key, at the reading door | the same form — *a block is read only if the tool could have written it* |
+| a label word, at the argv door | the filename-safe form, because the file is the word |
+| a value | one line, printable — the rule it already had |
 
 ---
 
