@@ -184,6 +184,39 @@ wants counts can ask a question that names itself; nobody has asked yet.
 The description is served where it belongs: `kg label <word>` reads that one
 file, for the word you named.
 
+## Showing a file, or answering
+
+`kg node <id> --properties` prints the frontmatter block, byte for byte — the
+same serialiser writes both. [`spec/api.md`](../spec/api.md) claimed the
+opposite from the start, *a rendering is the tool answering rather than showing
+its file*, and the claim is what kept the gap invisible: it justified the shape
+by asserting it was already an answer.
+
+**That is this batch's sentence.** Not *change the format* — **stop showing the
+file**. The JSON follows from it, and so does dropping `links`: a file contains
+the tool's bookkeeping, an answer does not.
+
+So `kg node <id> --properties` has **one** form. A `--json` flag there would
+keep the dump as the default and put the answer behind an option, which is the
+thing being removed.
+
+## Where `--json` does earn itself
+
+On the outputs that stay line- or column-shaped **so that pipes work**:
+
+```
+kg nodes find '<expression>'      one id per line
+kg node <id> links                type, link id, the other end — tab-separated
+kg node <id> backlinks            the same, filtered the other way
+kg labels list                    one word per line
+```
+
+A caller may want the structure instead of the columns, and the tabbed default
+is what makes `| grep '^directed' | cut -f3` answer question 10 in one line.
+`--json` is declared **per command**, with that command's own contract — not the
+global mode [`parked/structured-output.md`](../design/parked/structured-output.md)
+proposed, which forces one answer onto outputs that have nothing in common.
+
 ## The naming convention, which the JSON makes due
 
 A key is `validUntil` — typed and stored alike, nothing translated.
