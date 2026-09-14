@@ -54,6 +54,31 @@ const noncharacter = (s: string): boolean => {
 export const isName = (s: string): s is Name => NAME.test(s);
 
 /**
+ * A name is written two ways, and which one depends on the medium.
+ *
+ * On the command line it is kebab, where `--with-labels` already is and where
+ * kebab is what a command line is written in. As a **key** — in the
+ * frontmatter, and in the JSON a command prints — it is snake, because
+ * `o.valid_until` is an accessor in JavaScript where `o.valid-until` is a
+ * subtraction. `docs/design/naming.md` has the evidence.
+ *
+ * Only keys. A label word, a relation type and every other value arrives as the
+ * author typed it and is stored as given — translating one would be retyping
+ * it, which this format does not do.
+ *
+ * The two shapes are one character apart, so the substitution is total and
+ * trivially reversible: no name in one form has two antecedents in the other.
+ */
+const KEY = /^[a-z0-9]+(_[a-z0-9]+)*$/;
+
+/** The key a name is stored under. */
+export const asKey = (name: Name): string => name.replaceAll("-", "_");
+
+/** The name a key came from, or nothing if the tool could not have written it. */
+export const asName = (key: string): Name | undefined =>
+  KEY.test(key) ? key.replaceAll("_", "-") as Name : undefined;
+
+/**
  * Names the tool holds facts under, which a property may not shadow. `body` is
  * the node's other half; `created` is arithmetic on its filename. A property
  * carrying either name would sit beside the fact rather than being it.
@@ -189,9 +214,10 @@ export function read(frontmatter: string): Read {
   }
 
   const out: Properties = {};
-  for (const [name, value] of Object.entries(parsed)) {
-    if (!isName(name)) {
-      return unreadable(`${name} is not a property name`);
+  for (const [key, value] of Object.entries(parsed)) {
+    const name = asName(key);
+    if (name === undefined) {
+      return unreadable(`${key} is not a property name`);
     }
     // `links` is the one nested shape in the format, and the format owns it:
     // an author still cannot nest, and this is validated against exactly the
@@ -245,10 +271,13 @@ export function read(frontmatter: string): Read {
  * serialiser quotes exactly what would otherwise change meaning coming back,
  * which is what tells a list from a scalar that looks like one.
  */
-export const write = (properties: Properties): string =>
-  Object.keys(properties).length === 0
-    ? ""
-    : toYaml(properties, { sortKeys: true, lineWidth: -1 });
+export const write = (properties: Properties): string => {
+  const keys = Object.keys(properties) as Name[];
+  if (keys.length === 0) return "";
+  const stored: Record<string, Value> = {};
+  for (const name of keys) stored[asKey(name)] = properties[name]!;
+  return toYaml(stored, { sortKeys: true, lineWidth: -1 });
+};
 
 /** The entries, or why they will not read. */
 function readLinks(value: unknown): Entry[] | string {

@@ -158,11 +158,14 @@ Deno.test("an empty list is an absence, not a value", () => {
 // `docs/design/boundaries.md`: what the tool cannot write, it must not read —
 // otherwise a hand-written name loads, displays, and can never be unset.
 Deno.test("the reading door enforces the writing door's vocabulary", () => {
-  assertStringIncludes(why("Kind: Decision\n") ?? "", "Kind is not a property name");
+  assertStringIncludes(why("Title: x\n") ?? "", "Title is not a property name");
+  // A key is stored in snake, so the kebab a caller types is not what the tool
+  // could have written — `docs/design/naming.md`.
   assertStringIncludes(
-    why("valid_until: x\n") ?? "",
-    "valid_until is not a property name",
+    why("valid-until: x\n") ?? "",
+    "valid-until is not a property name",
   );
+  assertEquals(props("valid_until: x\n"), like({ "valid-until": "x" }));
 
   // A control character reaches a value only as a YAML escape. Written raw it
   // is not YAML at all, and the parser refuses it first — also correct, and a

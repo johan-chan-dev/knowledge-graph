@@ -36,7 +36,7 @@ Deno.test("properties are stored as given and never retyped", async () => {
   // date. The quotes are the tool preserving that it was handed text.
   assertEquals(
     stdout(await kg("node", id, "--properties")),
-    "count: '42'\nvalid-until: '2027-01-01'\n",
+    "count: '42'\nvalid_until: '2027-01-01'\n",
   );
 });
 

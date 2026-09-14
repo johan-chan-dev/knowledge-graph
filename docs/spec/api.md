@@ -210,9 +210,16 @@ nothing it needed.
 
 ```
 $ kg node 01997a3e-… --properties
-decided-by: 01997b12-…
-valid-until: 2027-01-01
+decided_by: 01997b12-…
+valid_until: 2027-01-01
 ```
+
+**A key is snake, a typed name is kebab.** `set valid-until` stores
+`valid_until`, and `--properties` prints the key. The command line is written in
+kebab, as its flags are; a key is read by a machine, where `o.valid_until` is an
+accessor and `o.valid-until` is a subtraction.
+[`design/naming.md`](../design/naming.md) has the evidence, and the rule is for
+keys only — a label word or a relation type is a value, stored as given.
 
 **Rendered, not the stored block.** Printing the frontmatter would leak the
 format and invite parsing it; a rendering is the tool answering rather than
