@@ -38,6 +38,14 @@ a caller writes the loop in shell.
 That is the shape of what a shortcut here buys — not speed on disk, but
 processes not spawned.
 
+## What batch 11 does instead
+
+An entry gains a `neighbour` field, so the node at the other end is in the
+node's own file. The join disappears, and `jq` over
+`kg node <id> --properties --json` reaches the neighbours without either of
+these commands. What is parked here is therefore the **shortcut**, not the
+capability.
+
 ## What would unpark it
 
 The foundation being settled: what `kg node <id> --properties` returns, and

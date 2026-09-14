@@ -228,6 +228,49 @@ kg nodes find '<expression>'      one id per line, and `--json` for an array
 kg labels list                    one word per line
 ```
 
+## An entry carries its neighbour
+
+A relation's entry is `{type, link, direction}`, where `link` is the **record's**
+uuid. The node at the other end is in the record, so a node's own file cannot
+answer *who am I connected to* — the most elementary question asked of it.
+
+It gains a fourth field:
+
+```yaml
+links:
+  - type: directed
+    link: 01a090ed-513c-…        the record
+    direction: in
+    neighbour: 01a090ed-1ee8-…   the node at the other end
+```
+
+**The duplication is safe by construction.** `type`, `from` and `to` are the
+record's immutable fields — [`spec/api.md`](../spec/api.md) says altering one
+would make it a different link — and a fact that cannot change cannot drift.
+That is already the argument that admitted `type` and `direction`; this applies
+it to the third.
+
+**It is not a performance change**, and that is worth saying because it looks
+like one. A file read is about 69 µs, so resolving ten records costs well under
+a millisecond against 300 ms of process startup. What it removes is a **join**:
+the neighbour stops being somewhere else.
+
+Which is what makes parking the shortcuts free rather than costly:
+
+```bash
+kg node "$CA" --properties --json \
+  | jq -r '.links[] | select(.type == "directed" and .direction == "in") | .neighbour' \
+  | kg nodes get name --stdin
+```
+
+Three processes and no loop. `jq` does what `grep '^directed' | cut -f3` did and
+does it better — a named field rather than a line prefix, and the direction too,
+which the columns never exposed.
+
+**`neighbour`, not `target` or `to`.** With `direction: in` the node at the
+other end is the **source**, so either of those would be wrong half the time.
+In a graph a neighbour is a neighbour, whichever way the edge points.
+
 ## The foundation before its shortcuts
 
 `kg node <id> links` and `kg node <id> backlinks` are removed. They fuse two
