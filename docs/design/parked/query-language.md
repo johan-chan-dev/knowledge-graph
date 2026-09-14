@@ -25,6 +25,25 @@ store that can traverse. Neo4j is fast because of index-free adjacency —
 fixed-size records, `address = id × record_size`, memory-mapped. Over markdown
 files, `(a)-[*1..3]->(b)` across 10k nodes reads most of them repeatedly.
 
+**That objection is written against traversing files, and
+[batch 11](../../batches/11-resolution.md) stopped requiring it.** Two calls now
+hand over the whole graph — `kg nodes list | kg nodes --stdin --properties
+--json` — and each entry carries `neighbour`, so the snapshot **is** an
+adjacency list. Matching over it is pointer-chasing in memory, and *reads most
+of them repeatedly* describes nothing.
+
+Measured on the movies graph: 171 nodes in **0.4 s** and 98 KB, about 578 bytes
+a node — so **5.8 MB at ten thousand, 58 MB at a hundred thousand**, and the
+full scan behind it was measured at 7 s at that size. For the sizes this tool is
+for, load-then-match is ordinary rather than heroic, and no planner is needed to
+make a naive match fast enough over an object graph.
+
+So what is left to weigh is not the store. It is the **grammar's** cost — 600 to
+900 lines, above — against what a pattern buys, which is **binding**: `MATCH
+(p:Person)-[:DIRECTED]->(m:Movie {title:'Cloud Atlas'}) RETURN p.name` names the
+far node and reuses it in the projection. Reaching those nodes is already four
+`jq` lines; naming them in one expression is not.
+
 ### What the search found, so it is not re-run from memory
 
 - **JSR has nothing.** No Cypher, openCypher, GQL or ANTLR package exists there.

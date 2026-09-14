@@ -36,7 +36,7 @@ trigger that empties a page is a batch; so is the moment to read it.
 | [partial-edits](partial-edits.md) | reading and writing part of a node, and the token that guards it |
 | [structured-output](structured-output.md) | `--json`, and why nothing needs it yet |
 | [comparison](comparison.md) | ordering; comparison itself is batch 9's, and settled here |
-| [query-language](query-language.md) | openCypher, what it would cost, and what exists |
+| [query-language](query-language.md) | openCypher — its cost, and the store objection that batch 11 removed |
 | [validation](validation.md) | declared schemas — immature, and blocked on a practice existing |
 | [lifecycle](lifecycle.md) | withdrawing a node — unblocked since batch 7, undecided |
 | [sharing](sharing.md) | knowledge travels, and edges run toward the more-shared space |
