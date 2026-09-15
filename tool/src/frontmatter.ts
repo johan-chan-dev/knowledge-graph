@@ -50,6 +50,10 @@ const WORD = /^[\p{ID_Start}_][\p{ID_Continue}]*$/u;
  */
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
+/** Said in one place, because four doors refuse for it. */
+const WORD_WHY =
+  "a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote";
+
 /**
  * A value is a single line of printable text. The reason is what a property is
  * *for*, not storage and not rendering: **a value wanting several lines is
@@ -304,6 +308,113 @@ export function read(frontmatter: string): Read {
     }
   }
   return { kind: "properties", properties: out };
+}
+
+export type FromJson =
+  | { readonly kind: "properties"; readonly properties: Properties }
+  | { readonly kind: "refused"; readonly message: string };
+
+/**
+ * Properties from a JSON object — what `set --stdin` is handed.
+ *
+ * **Stricter than the reading door, and deliberately.** YAML types a scalar
+ * *implicitly*: someone writing `released: 2000` by hand gets a number whether
+ * they meant one or not, so the door reads it as the text it stands for. JSON
+ * types it *explicitly* — `2000` and `"2000"` are different keystrokes — so a
+ * number here is a choice, and the honest answer to a choice the store cannot
+ * hold is to refuse it rather than to reinterpret it.
+ */
+export function fromJson(text: string): FromJson {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    return { kind: "refused", message: `not JSON: ${(error as Error).message}` };
+  }
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { kind: "refused", message: "the input is not an object" };
+  }
+
+  const out: Properties = {};
+  for (const [name, value] of Object.entries(parsed as Record<string, unknown>)) {
+    const reserved = reservedReason(name);
+    if (reserved !== undefined) {
+      return { kind: "refused", message: `${name} is reserved — ${reserved}` };
+    }
+    if (name === "id") {
+      return {
+        kind: "refused",
+        message: "id is not a property — it is the node's filename",
+      };
+    }
+    const held = valueFromJson(name, name, value);
+    if (!held.ok) return { kind: "refused", message: held.why };
+    out[name as Name] = held.value;
+  }
+  return { kind: "properties", properties: out };
+}
+
+/**
+ * One value, at a path, with the refusal naming the path rather than the key —
+ * because the path is what a caller would use to fix it.
+ *
+ * The result is tagged rather than `Value | string`, because a valid value **is**
+ * a string: the union could not tell `"x"` the value from `"x"` the complaint.
+ */
+type Held = { readonly ok: true; readonly value: Value } | {
+  readonly ok: false;
+  readonly why: string;
+};
+
+const no = (why: string): Held => ({ ok: false, why });
+const yes = (value: Value): Held => ({ ok: true, value });
+
+function valueFromJson(at: string, key: string, value: unknown): Held {
+  // `at` is the path to report; `key` is what the author actually wrote. They
+  // differ from the second level down, and conflating them let a literal
+  // `config.port` pass by being split into a valid tail.
+  if (!isName(key)) {
+    return no(
+      key.includes(".")
+        ? `not a property name: ${at} — a name is not a path, and a path addresses from outside the object`
+        : `not a property name: ${at} — ${WORD_WHY}`,
+    );
+  }
+  if (value === null) {
+    return no(
+      `not a value: null at ${at} — a property is removed with \`delete\`, which is a verb`,
+    );
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return no(`not a value: ${value} at ${at} — a property is text, so write it quoted`);
+  }
+  if (typeof value === "string") {
+    return isValue(value)
+      ? yes(value as Text)
+      : no(`${at} holds a value with a control character`);
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return no(`${at} is an empty list`);
+    const values: Text[] = [];
+    for (const each of value) {
+      if (typeof each !== "string") {
+        return no(
+          `${at} holds something that is not a value — a list is a dimension, not a container`,
+        );
+      }
+      if (!isValue(each)) return no(`${at} holds a value with a control character`);
+      values.push(each as Text);
+    }
+    return yes(values);
+  }
+  const out: Record<string, Value> = {};
+  for (const [name, nested] of Object.entries(value as Record<string, unknown>)) {
+    const held = valueFromJson(`${at}.${name}`, name, nested);
+    if (!held.ok) return held;
+    out[name] = held.value;
+  }
+  if (Object.keys(out).length === 0) return no(`${at} is an empty map`);
+  return yes(out);
 }
 
 /**

@@ -251,3 +251,54 @@ Deno.test("the reading door enforces the writing door's vocabulary", () => {
   // tool can represent and declines to write, not one it cannot hold.
   assertEquals(props("body: stale\n"), like({ body: "stale" }));
 });
+
+Deno.test("a JSON object becomes properties, and refuses what the store cannot hold", () => {
+  const ok = (text: string) => {
+    const out = frontmatter.fromJson(text);
+    if (out.kind !== "properties") throw new Error(out.message);
+    return out.properties;
+  };
+  const no = (text: string): string => {
+    const out = frontmatter.fromJson(text);
+    if (out.kind !== "refused") throw new Error(`accepted: ${text}`);
+    return out.message;
+  };
+
+  assertEquals(
+    ok('{"title": "x", "config": {"port": "8080"}, "tags": ["a", "b"]}'),
+    like({ title: "x", config: { port: "8080" }, tags: ["a", "b"] }),
+  );
+
+  // JSON types a scalar explicitly, so a number here is a choice — and the
+  // honest answer to a choice the store cannot hold is to refuse it.
+  assertStringIncludes(
+    no('{"released": 2000}'),
+    "a property is text, so write it quoted",
+  );
+  assertStringIncludes(no('{"live": true}'), "a property is text");
+  assertStringIncludes(no('{"status": null}'), "removed with `delete`, which is a verb");
+
+  // The slots the tool owns, and the one thing that is not a property at all.
+  assertStringIncludes(no('{"labels": ["Decision"]}'), "labels is reserved");
+  assertStringIncludes(no('{"links": []}'), "links is reserved");
+  assertStringIncludes(no('{"id": "x"}'), "id is not a property");
+
+  // A name is not a path: the dot addresses, and it does so outside the object.
+  assertStringIncludes(no('{"config.port": "x"}'), "a name is not a path");
+
+  // The same rules at every depth, with the path named rather than the key.
+  assertStringIncludes(no('{"config": {"port": 8080}}'), "config.port");
+  assertStringIncludes(
+    no('{"config": {"port-x": "y"}}'),
+    "not a property name: config.port-x",
+  );
+  assertStringIncludes(no('{"config": {}}'), "config is an empty map");
+  assertStringIncludes(no('{"tags": []}'), "tags is an empty list");
+  assertStringIncludes(
+    no('{"tags": [{"a": "b"}]}'),
+    "a list is a dimension, not a container",
+  );
+
+  assertStringIncludes(no("[1, 2]"), "the input is not an object");
+  assertStringIncludes(no("{"), "not JSON");
+});
