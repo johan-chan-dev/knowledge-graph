@@ -1,9 +1,9 @@
-# Batch 13 — match
+# Batch 14 — match
 
 **Done when** a pattern selects a subgraph in one command, and `find` is gone —
 the command and the grammar behind it.
 
-Needs [batch 12](12-vocabulary.md) first. A `match` shipped on the old
+Needs [batch 12](12-vocabulary.md) for the vocabulary and [batch 13](13-output.md) for the output, in that order. A `match` shipped on the old
 vocabulary would have people writing `(:person)-[:acted-in]->`, and every one of
 those patterns breaks when the vocabulary lands.
 
@@ -39,24 +39,28 @@ would be the whole connected component.
 
 ```console
 $ kg nodes match '(:Person)-[:DIRECTED]->(:Movie {title: "Cloud Atlas"})'
-01a09f8b-263b-7033-bab3-3dc6b88b66e7
-01a09f8b-2b41-7e70-9a4b-6a4d3d2f1c88
-01a09f8b-3102-7a55-8f3e-1b2c9e7a4d10
-01a09f8b-54a0-7cb0-beec-5e78f58b4686
+[
+  {
+    "id": "01a09f8b-263b-7033-bab3-3dc6b88b66e7",
+    "labels": ["Movie"],
+    "links": [ … ],
+    "title": "Cloud Atlas"
+  },
+  …
+]
 
 $ kg nodes match '(:Person)-[:DIRECTED]->(:Movie {title: "Cloud Atlas"})' \
-    | kg nodes --stdin --properties --json \
     | jq -r '.[] | select(.labels | index("Person")) | .name'
 Lana Wachowski
 Lilly Wachowski
 Tom Tykwer
 ```
 
-**The four ids are the subgraph; the three names are a projection of it.** The
-anchor is in the match because a pattern returns both ends of what it names —
-that is the point of it — so asking for one side is the caller's `select`.
-**That `jq` is the `RETURN`**, and it is why the grammar does not need one: it
-says which side and which field, which is exactly what a `RETURN` says.
+**Four nodes are the subgraph; three names are a projection of it.** The anchor
+is in the match because a pattern returns both ends of what it names — that is
+the point of it — so asking for one side is the caller's `select`. **That `jq`
+is the `RETURN`**, and it is why the grammar does not need one: it says which
+side and which field, which is exactly what a `RETURN` says.
 
 And the refusals, which are half of what it decides:
 
@@ -71,33 +75,34 @@ $ kg nodes match '(:Person)-[:directed]->(:Movie)'
 no such relation type: directed — did you mean DIRECTED?
 
 $ kg nodes match '(m:Movie) where m.released > 2000'
-a pattern takes no condition yet — filter with `jq`, and see batch 14
+a pattern takes no condition yet — filter with `jq`, and see batch 15
 ```
 
 **Named, not linked:** `tool/tests/batches/13_test.ts`.
 
 ## What it returns
 
-**Every matched node's id, deduplicated, one per line** — the same shape as
-`nodes list`, for the same reason, and an empty result prints nothing and exits
-`0`.
+**The matched subgraph, resolved, as JSON** — every matched node with its
+properties and its entries, deduplicated, in the shape
+[batch 13](13-output.md) settled. An empty result is `[]` and exits `0`.
 
-**In the natural order**, which is `nodes list`'s: an id sorts into creation
-order, to the millisecond, because it is a uuid v7. A set has no order of its
-own and a caller piping into `kg nodes --stdin` does not need one — but a
-transcript does, or it is flaky, so the order is stated rather than left to fall
-out of whatever the evaluation happened to visit first.
+**Not ids, because it already has the data.** A pattern is matched by loading
+the graph; handing back identities would make the caller parse the same files
+again to get what the command had in memory and threw away. Measured on the
+movies graph: **161 ms to match, 161 ms to resolve again — twice the work for
+the same bytes.** A caller who wants only ids writes `jq -r '.[].id'`, which
+costs nothing the command already paid.
 
-**And no `--json`.** `kg nodes find` carries the flag and nothing here replaces
-it. A list of uuids is already shell-shaped, so wrapping it in an array adds a
-format without adding a fact — and `jq -R` is right there for a caller who wants
-one.
+**In creation order**, which is `nodes list`'s: an id sorts to the millisecond
+because it is a uuid v7. A set has no order of its own, but a transcript does,
+so the order is stated rather than left to fall out of whatever the evaluation
+visited first.
 
-**Flat, and nothing is lost by that.** Returning *which `p` went with which `m`*
-looks like the thing a pattern uniquely knows, but the graph already holds it:
-`p`'s entry carries `type: DIRECTED, direction: out, neighbour: <m>`. Piped into
-`kg nodes --stdin --properties --json`, the subgraph comes back with its edges
-attached, and the binding is an index over ids in the consumer.
+**No projection, and none is missing.** Returning *which `p` went with which `m`*
+looks like the thing a pattern uniquely knows, but the subgraph already carries
+it: `p`'s entry is `type: DIRECTED, direction: out, neighbour: <m>`, so the
+edges come back attached to the nodes and the binding is an index over ids in
+the consumer.
 
 **So variables are optional, and only ever express a join.** `(:Person)` needs
 no name because nothing refers to it. A name earns its place when it appears
@@ -140,7 +145,7 @@ Properties         : MapLiteral | Parameter ;
 
 | out | why |
 |---|---|
-| `Where` | **batch 14** — below, and it is a deferral rather than a decision |
+| `Where` | **batch 15** — below, and it is a deferral rather than a decision |
 | `RETURN`, projection | the piped `jq` is the `RETURN` — see above |
 | aggregates, `WITH`, `ORDER BY` | the tool composes by pipes; putting them in the language is a second path to the same thing |
 | `OPTIONAL MATCH` | it produces nulls, and absence here is two-valued — [absence](../design/absence.md) |
@@ -256,10 +261,8 @@ along the first edge.
 untyped, undirected form:
 
 ```bash
-CA=$(kg nodes match '(:Movie {title: "Cloud Atlas"})')
 kg nodes match '(:Movie {title: "Cloud Atlas"})-[]-()' \
-  | kg nodes --stdin --properties --json \
-  | jq -r --arg anchor "$CA" '.[] | select(.id != $anchor) | .name // .title'
+  | jq -r '.[] | select(.title != "Cloud Atlas") | .name'
 ```
 
 **Both guide answers are the match minus its anchor**, and that is arithmetic
@@ -275,7 +278,7 @@ The command goes, and so does the grammar under it — `expression.ts`,
 `expression_test.ts` and the evaluator, 435 lines. **Not extended, deleted.**
 Grafting qualified names onto a home-grown expression to make it serve a
 pattern would have built a hybrid that is neither; openCypher has its own
-`Expression`, and batch 14 implements that one rather than adapting ours.
+`Expression`, and batch 15 implements that one rather than adapting ours.
 
 Four of the conformance's seven selections are patterns already:
 
@@ -285,7 +288,7 @@ Four of the conformance's seven selections are patterns already:
 | `'"Movie" in labels'` | `(:Movie)` |
 | `'title = "Cloud Atlas"'` | `({title: "Cloud Atlas"})` |
 | `'name = "Tom Hanks"'` | `({name: "Tom Hanks"})` |
-| `'released > 2000'`, `'released > 2010'`, `'…and…'` | a `jq` `select`, until batch 14 |
+| `'released > 2000'`, `'released > 2010'`, `'…and…'` | a `jq` `select`, until batch 15 |
 
 **The three comparisons are the interim cost, and it is an interim.** Until
 `where` lands they are a `select` over the resolved array, which is one line
@@ -296,7 +299,7 @@ join entirely, six keep the filter they already had, and none gains work.
 **Batch 9's loop still closes, in a different spelling.** Its *done when* is
 *you can ask which nodes match a condition over their properties*, and
 `match '({title: "Cloud Atlas"})'` still does that for equality, with the rest
-returning in 14. So [`9_test.ts`](../../tool/tests/batches/9_test.ts) is
+returning in 15. So [`9_test.ts`](../../tool/tests/batches/9_test.ts) is
 rewritten rather than retired, and [9-find.md](9-find.md) says what replaced it.
 
 ## The sequence
@@ -317,7 +320,7 @@ that mechanism there; this step only reads it.
 
 ## What it leaves
 
-**The `where` clause — batch 14, and it is a deferral, not a decision.** The
+**The `where` clause — batch 15, and it is a deferral, not a decision.** The
 condition is a `jq` `select` in the meantime, and the page's transcripts say so
 where it would go. This is written down because this repository has twice let an
 interim read as doctrine: [batch 9](9-find.md) wrote *Traversal — deliberately
@@ -354,4 +357,4 @@ variable `p = (a)-[:X]->(b)` is out of the grammar above.
 
 ---
 
-[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [9](9-find.md) · [10](10-one-writer.md) · [11](11-resolution.md) · [12](12-vocabulary.md) · 13
+[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [9](9-find.md) · [10](10-one-writer.md) · [11](11-resolution.md) · [12](12-vocabulary.md) · [13](13-output.md) · 14

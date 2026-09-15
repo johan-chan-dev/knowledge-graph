@@ -102,7 +102,7 @@ put it here: the only place a label word appears is as a *value* inside
 two-valued rule [absence](../design/absence.md) is built on — a comparison that
 cannot be made is false, not an error.
 
-The lookup site arrives with `(:Person)` in [batch 13](13-match.md), and the
+The lookup site arrives with `(:Person)` in [batch 14](14-match.md), and the
 floor goes there.
 
 ## What it leaves
@@ -113,4 +113,4 @@ confusables in general stay out of scope, as does any equivalence beyond NFD.
 
 ---
 
-[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [9](9-find.md) · [10](10-one-writer.md) · [11](11-resolution.md) · 12 · [13](13-match.md)
+[docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [9](9-find.md) · [10](10-one-writer.md) · [11](11-resolution.md) · 12 · [13](13-output.md) · [14](14-match.md)

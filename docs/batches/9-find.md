@@ -271,12 +271,12 @@ is between nodes, which is a different subject and belongs to a different
 command, for the same reason `list` and `find` split rather than `list` growing
 a flag.
 
-> **[Batch 13](13-match.md) grows it, and removes `find` doing so — the command
+> **[Batch 14](14-match.md) grows it, and removes `find` doing so — the command
 > and this grammar both.** The two commands named here had already gone in
 > [batch 11](11-resolution.md), which resolved the entries instead. What
 > survives is this page's *question*, not its language: equality and the label
 > test become a pattern — `({title: "Cloud Atlas"})`, `(:Person)` — and the
-> comparisons return in batch 14 as openCypher's `Expression` rather than as
+> comparisons return in batch 15 as openCypher's `Expression` rather than as
 > this one extended. Grafting qualified names onto a home-grown expression would
 > have built a hybrid that is neither.
 >
