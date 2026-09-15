@@ -5,10 +5,10 @@ import { isId } from "./node.ts";
 import type { Flags } from "./argv.ts";
 import type { Outcome } from "./outcome.ts";
 import {
-  labelForget,
-  labelRead,
-  labelsList,
-  labelWrite,
+  wordForget,
+  wordRead,
+  wordsList,
+  wordWrite,
   linkChange,
   linkForget,
   linkRead,
@@ -90,7 +90,15 @@ export type Command<A extends readonly unknown[] = readonly string[], I = string
   /** The form as `--help` prints it, and as a reader recognises it. */
   readonly form: string;
   readonly summary: string;
-  readonly scope: "space" | "nodes" | "node" | "label" | "labels" | "link";
+  readonly scope:
+    | "space"
+    | "nodes"
+    | "node"
+    | "label"
+    | "labels"
+    | "type"
+    | "types"
+    | "link";
   /** A second positional that identifies rather than naming an action — a uuid
    * for a node, a word for a label. Absent means the scope takes none. */
   readonly id?: z.ZodType<I>;
@@ -304,7 +312,15 @@ export const COMMANDS: readonly Command[] = [
     scope: "labels",
     action: "list",
     flags: { json: { kind: "boolean" } },
-    run: ({ cwd, flags }) => labelsList(cwd, flags.json === true),
+    run: ({ cwd, flags }) => wordsList(cwd, "label", flags.json === true),
+  }),
+  command({
+    form: "types list",
+    summary: "every relation type the space knows",
+    scope: "types",
+    action: "list",
+    flags: { json: { kind: "boolean" } },
+    run: ({ cwd, flags }) => wordsList(cwd, "type", flags.json === true),
   }),
   command({
     form: "label <word>",
@@ -312,7 +328,15 @@ export const COMMANDS: readonly Command[] = [
     scope: "label",
     id: Word,
     flags: {},
-    run: ({ cwd, id }) => labelRead(cwd, id),
+    run: ({ cwd, id }) => wordRead(cwd, "label", id),
+  }),
+  command({
+    form: "type <word>",
+    summary: "what the relation type means here",
+    scope: "type",
+    id: Word,
+    flags: {},
+    run: ({ cwd, id }) => wordRead(cwd, "type", id),
   }),
   command({
     form: "label <word> write --stdin",
@@ -322,7 +346,17 @@ export const COMMANDS: readonly Command[] = [
     action: "write",
     flags: { stdin: { kind: "boolean" } },
     needsStdin: true,
-    run: async ({ cwd, id, stdin }) => labelWrite(cwd, id, await stdin()),
+    run: async ({ cwd, id, stdin }) => wordWrite(cwd, "label", id, await stdin()),
+  }),
+  command({
+    form: "type <word> write --stdin",
+    summary: "stdin becomes the description",
+    scope: "type",
+    id: Word,
+    action: "write",
+    flags: { stdin: { kind: "boolean" } },
+    needsStdin: true,
+    run: async ({ cwd, id, stdin }) => wordWrite(cwd, "type", id, await stdin()),
   }),
   command({
     form: "node <id> link --as <type> --with-nodes <id>...",
@@ -461,7 +495,16 @@ export const COMMANDS: readonly Command[] = [
     id: Word,
     action: "forget",
     flags: {},
-    run: ({ cwd, id }) => labelForget(cwd, id),
+    run: ({ cwd, id }) => wordForget(cwd, "label", id),
+  }),
+  command({
+    form: "type <word> forget",
+    summary: "drop it from the vocabulary",
+    scope: "type",
+    id: Word,
+    action: "forget",
+    flags: {},
+    run: ({ cwd, id }) => wordForget(cwd, "type", id),
   }),
 ];
 

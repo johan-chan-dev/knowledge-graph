@@ -428,7 +428,7 @@ const asText = (word: Label): Text => word as unknown as Text;
 /** Why a word could not be brought into a vocabulary. The slug is lossy on
  * purpose, so the collision it reports is the thing to explain: two words that
  * fold to one file, and which one is already there. */
-function notStored(kind: string, word: Label, made: vocabulary.Written): string {
+function notStored(kind: Store, word: Label, made: vocabulary.Written): string {
   if (made.kind === "unwritable") return `cannot create the ${kind} ${word}: ${made.reason}`;
   if (made.kind === "taken" && made.by !== undefined) {
     return `cannot create the ${kind} ${word}: it folds to ${made.slug}.md, which holds ${made.by}`;
@@ -482,22 +482,34 @@ export async function nodeUnlabel(
   });
 }
 
-export async function labelRead(cwd: string, word: Label): Promise<Outcome> {
+/**
+ * Which vocabulary a command is about. The stores are identical in mechanism
+ * and separate in namespace, so one set of commands takes the store rather than
+ * two sets differing only in a path — and a word may be a label and a relation
+ * type at once without either shadowing the other.
+ */
+export type Store = "label" | "type";
+
+const storeOf = (space: Space, store: Store): string =>
+  store === "label" ? space.labels : space.types;
+
+export async function wordRead(cwd: string, store: Store, word: Label): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const found = await vocabulary.read(resolved.space.labels, word);
+  const found = await vocabulary.read(storeOf(resolved.space, store), word);
   switch (found.kind) {
     case "absent":
-      return absent(`no such label: ${word} in ${resolved.space.name}`);
+      return absent(`no such ${store}: ${word} in ${resolved.space.name}`);
     case "malformed":
-      return refused(`cannot read label ${word}: no frontmatter block`);
+      return refused(`cannot read ${store} ${word}: no frontmatter block`);
     case "read":
       return ok(found.description);
   }
 }
 
-export async function labelWrite(
+export async function wordWrite(
   cwd: string,
+  store: Store,
   word: Label,
   description: string,
 ): Promise<Outcome> {
@@ -506,18 +518,18 @@ export async function labelWrite(
   }
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const wrote = await vocabulary.write(resolved.space.labels, word, description);
-  if (wrote.kind !== "written") return refused(notStored("label", word, wrote));
+  const wrote = await vocabulary.write(storeOf(resolved.space, store), word, description);
+  if (wrote.kind !== "written") return refused(notStored(store, word, wrote));
   return ok("", `wrote ${new TextEncoder().encode(description).length} bytes`);
 }
 
-export async function labelForget(cwd: string, word: Label): Promise<Outcome> {
+export async function wordForget(cwd: string, store: Store, word: Label): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const gone = await vocabulary.forget(resolved.space.labels, word);
+  const gone = await vocabulary.forget(storeOf(resolved.space, store), word);
   switch (gone.kind) {
     case "absent":
-      return absent(`no such label: ${word} in ${resolved.space.name}`);
+      return absent(`no such ${store}: ${word} in ${resolved.space.name}`);
     case "unwritable":
       return refused(`cannot forget ${word}: ${gone.reason}`);
     case "forgotten":
@@ -547,10 +559,14 @@ export async function labelForget(cwd: string, word: Label): Promise<Outcome> {
  * A description is served where it belongs: `kg label <word>` reads that one
  * file, for the word you named.
  */
-export async function labelsList(cwd: string, asJsonToo = false): Promise<Outcome> {
+export async function wordsList(
+  cwd: string,
+  store: Store,
+  asJsonToo = false,
+): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const words = await vocabulary.words(resolved.space.labels);
+  const words = await vocabulary.words(storeOf(resolved.space, store));
   return asJsonToo ? asJson(words) : lines(words);
 }
 
@@ -585,6 +601,9 @@ export async function nodeLink(
     if (found.kind === "absent") return absent(`no such node: ${id} in ${space.name}`);
     if (found.kind !== "read") return unreadable(id, found);
   }
+
+  const known = await vocabulary.ensure(space.types, type);
+  if (known.kind !== "written") return refused(notStored("type", type, known));
 
   const made: string[] = [];
   for (const to of targets) {
