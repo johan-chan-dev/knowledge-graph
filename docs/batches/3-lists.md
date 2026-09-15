@@ -150,6 +150,12 @@ are about the property, `add`/`remove` about its contents — so one value passe
 to `set` is a scalar and one passed to `add` is a single-element list, and
 neither has to be inferred.
 
+> **[Batch 15](15-one-write.md) keeps the reason and drops the division.** The
+> verb had to carry the shape because argv offered no other signal; a JSON
+> object says it outright, so `set --stdin` writes a list without anything being
+> inferred. `add` keeps the job no whole-value write can do — growing a list
+> without knowing what is in it.
+
 **What `add` does to a scalar.** Refuses. Promoting `auth` to `[auth, pattern]`
 would be the tool deciding what was meant.
 
