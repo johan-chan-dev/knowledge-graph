@@ -55,8 +55,13 @@ const Word = z.string().refine(isLabel, {
 
 const Name = z.string()
   .refine(isName, {
+    // A dot gets its own answer. `set` and `delete` take a path and this does
+    // not, so a caller who wrote one is not making a spelling mistake — telling
+    // them about hyphens would point at the wrong thing entirely.
     error: (issue) =>
-      `not a property name: ${issue.input} — a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote`,
+      String(issue.input).includes(".")
+        ? `not a property name: ${issue.input} — this verb takes a name, not a path: a list inside a structure is replaced whole, with \`set\``
+        : `not a property name: ${issue.input} — a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote`,
   })
   .refine((name) => reservedReason(name) === undefined, {
     error: (issue) =>

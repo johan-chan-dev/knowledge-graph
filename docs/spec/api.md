@@ -169,6 +169,12 @@ nothing guesses. [batch 15](../batches/15-one-write.md) has the argument.
 A JSON object is the shape to write it with; a path is how to compare it and how
 to remove part of it.
 
+**The output is not an input.** `--properties` prints the stored shape plus the
+resolution: `neighbour` is computed, `labels` and `links` have their own verbs,
+and the plural form adds `id`. Feeding it back needs
+`jq 'del(.labels, .links)'`, and a `set` handed one of them refuses rather than
+ignoring it.
+
 **The prose is the node.** `kg node <id>` returns it and nothing else — no
 properties inline, no id header, no separator. It is the only command whose stdout is data rather
 than a report, which is what lets it be piped into anything.

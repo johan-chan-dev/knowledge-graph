@@ -35,6 +35,14 @@ Everything under `tests/` drives the command line rather than a function —
 fresh's shape: module tests beside their module, a `tests/` tree for the ones
 that need the program.
 
+`crossings_test.ts` is the one that is about no single subject and no single
+batch: use cases that reach across a seam. A subject test is right about its
+subject and a batch test is right about its loop, and **neither catches a rule
+that holds on both sides of a join and fails across it** — a path meeting a verb
+that takes names, a shape landing on a list, one command's output fed to
+another. Those are written as a caller reaches them, because a seam is only
+visible from outside.
+
 `tests/batches/` holds one file per batch, numbered to match
 [`../docs/batches/`](../docs/batches/), so a failing loop names the document
 whose transcript needs revisiting. `binary_test.ts` is the one that is about no

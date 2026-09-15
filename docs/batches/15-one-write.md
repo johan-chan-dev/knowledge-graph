@@ -213,6 +213,27 @@ one leaf replaced, not one key touched. Counting keys would report `1` whether
 the object carried one leaf or forty, which tells the caller nothing they did
 not already send.
 
+## The round trip needs a filter, and the page should say so
+
+```bash
+kg node "$ID" --properties | jq '.status = "live"' | kg node "$ID" set --stdin
+labels is reserved — it is how a node classifies, written with `label`
+```
+
+**The output is not an input, and never was.** `--properties` prints the stored
+shape **plus** the resolution — `neighbour` is computed, `labels` and `links`
+belong to their own verbs, and the plural form adds `id`. So the obvious
+pipeline refuses, loudly, and the filter is the correction:
+
+```bash
+kg node "$ID" --properties | jq 'del(.labels, .links) | .status = "live"' \
+  | kg node "$ID" set --stdin
+```
+
+That refusal is right — a write that silently ignored three keys would be worse
+— but a page that makes output and input the same format owes the reader the
+sentence that they are still not the same object.
+
 ## Two things a path forces
 
 **A path may not pass through a scalar.** `set config.port "x"` where `config`
@@ -220,9 +241,17 @@ holds `"abc"` is **refused**: replacing a value with a structure because a path
 needed one to exist is the tool deciding what was meant, which
 [batch 4](4-stops-guessing.md) removed it for.
 
-**An object may land on a scalar.** `set title --stdin` with an object replaces
-what is at `title`, because that is what `set` does to the place it is given —
-the path names it, and naming it is the whole of the instruction.
+**An object may land on a scalar or a list**, replacing it — that is what `set`
+does to the place it is given, and naming the place is the whole of the
+instruction. **The value it destroys is counted**, because losing one in silence
+is what this tool refuses everywhere else: writing `{"a": {"deep": "x"}}` over a
+scalar `a` answers `set 1, replaced 1`, not `set a.deep`.
+
+**And `add` and `remove` say so when handed a path.** They take a name, so a
+caller who writes `add config.tags c` is not misspelling anything — telling them
+about hyphens would point at the wrong thing. The refusal names the verb's own
+shape instead, and where a list inside a structure is changed: whole, with
+`set`.
 
 ## `delete`, in full
 

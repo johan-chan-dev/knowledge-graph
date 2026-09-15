@@ -147,6 +147,10 @@ function into(
     return value;
   }
   const out: Record<string, Value> = isStructure(had) ? { ...(had as Structure) } : {};
+  // A shape landing on a scalar or a list destroys it, and silently losing a
+  // value is what this tool refuses everywhere else — so the leaf that went is
+  // counted where the caller can see it.
+  if (had !== undefined && !isStructure(had)) counted.replaced.push(at);
   for (const [name, nested] of Object.entries(value as Structure)) {
     out[name] = into(
       isStructure(had) ? out[name] : undefined,
