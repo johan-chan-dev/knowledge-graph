@@ -70,10 +70,10 @@ $ kg node 01a0…7c2f set --stdin <<'JSON'
   "config": { "port": "8080", "host": "api.example.com" },
   "sources": ["batch-12", "batch-14"] }
 JSON
-set 3
+set 3, replaced 0
 
 $ kg node 01a0…7c2f set config --stdin <<< '{"port": "9090"}'
-set 1
+set 0, replaced 1
 
 $ kg node 01a0…7c2f --properties
 {
@@ -103,18 +103,19 @@ labels is reserved — it is how a node classifies, written with `label`
 
 ## It is `set`, generalised — not a standard adopted
 
-`set <name> <value>` writes one key and leaves the others. `set --stdin` writes
-several and leaves the others. **Same verb, same semantics, a different number
-of keys** — the symmetry `nodes --properties <id>...` and
-`nodes --stdin --properties` already have.
+`set <name> <value>` writes one key, at the top, and leaves the others.
+`set <path> --stdin` writes several, anywhere, and leaves the others. **Same
+verb, same semantics, generalised along both axes at once** — how many keys, and
+how deep the place. Neither axis is new in kind: the second key is the first one
+again, and the second level is the first one again.
 
 **RFC 7396 was the obvious shape and is the wrong one.** Its merge-patch makes
 `null` mean *delete this key*, and inheriting that would reopen by the format a
 door the design closed: [absence](../design/absence.md) settled that **absence
 is a verb**, because argv cannot carry *no value* — every candidate arrives as a
 legal one. JSON can carry it, so the original argument no longer holds by itself
-and has to be retaken. It is retaken the same way: one path to a thing, and the
-verb is that path.
+and has to be retaken. It is retaken the same way it was settled: **one way to
+remove a thing**, and that way is a verb.
 
 What is taken from the RFC is the **deep** merge, and only because it is what
 makes a shape an address.
@@ -171,6 +172,27 @@ dimension changes without being restated, and they are unaffected.
 The same line answers a path: `delete sources.0` is **refused**. An index is
 not an address here, because position is not what a list means.
 
+## What `set` says, and its arity
+
+`set` names what it touched and **splits created from replaced** — `set note`
+against `replaced note` — because that split is what the caller could not have
+worked out without reading first. With several keys the split stays and the
+names give way to counts, which is the same information at a size a person can
+read: `set 3, replaced 0`.
+
+Three forms, and the fourth is a refusal:
+
+```
+set <path> <value>       a scalar, there
+set <path> --stdin       an object, merged there
+set --stdin              an object, merged at the root
+set <path> <value> --stdin   takes a value, or --stdin, and not both
+```
+
+The last is the message `nodes --properties` already gives for ids against
+`--stdin`, and `set <path>` alone keeps the one it gives today — *needs a name
+and a value*, now *needs a value or `--stdin`*.
+
 ## Two things a path forces
 
 **A path may not pass through a scalar.** `set config.port "x"` where `config`
@@ -188,7 +210,7 @@ the path names it, and naming it is the whole of the instruction.
 |---|---|
 | several paths | `delete title config.port` — one act, one write |
 | an absent path | says so and succeeds, as `unset` does today: the end state asked for is the end state |
-| a reserved name | refused, naming the verb — `delete labels` points at `unlabel`, exactly as `unset labels` does |
+| a reserved name | refused, naming the slot's owner — `delete labels` says *written with `label`*, the message `unset labels` gives today. The slot belongs to a command, not to that command's inverse |
 | an ill-formed path | refused before the node is opened — `config.`, `.port`, `a..b` |
 
 ## What it refuses, and most of it is not new
