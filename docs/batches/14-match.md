@@ -74,11 +74,11 @@ unexpected end of pattern — an arrow needs a node after it
 $ kg nodes match '(:Person)-[:directed]->(:Movie)'
 no such relation type: directed — did you mean DIRECTED?
 
-$ kg nodes match '(m:Movie) where m.released > 2000'
-a pattern takes no condition yet — filter with `jq`, and see batch 15
+$ kg nodes match '(:Movie) {released: 2000'
+unclosed map — `{` needs a matching `}`
 ```
 
-**Named, not linked:** `tool/tests/batches/13_test.ts`.
+**Named, not linked:** `tool/tests/batches/14_test.ts`.
 
 ## What it returns
 
@@ -145,7 +145,7 @@ Properties         : MapLiteral | Parameter ;
 
 | out | why |
 |---|---|
-| `Where` | **batch 15** — below, and it is a deferral rather than a decision |
+| `Where` | [parked](../design/parked/condition.md) — below, and it is a deferral rather than a decision |
 | `RETURN`, projection | the piped `jq` is the `RETURN` — see above |
 | aggregates, `WITH`, `ORDER BY` | the tool composes by pipes; putting them in the language is a second path to the same thing |
 | `OPTIONAL MATCH` | it produces nulls, and absence here is two-valued — [absence](../design/absence.md) |
@@ -189,59 +189,47 @@ A variable used twice is a different thing from a node binding twice: the first
 is a constraint the author wrote, the second is what the engine is allowed to do
 with two separate variables.
 
-## What it costs, and how the anchor decides it
+## What it costs
 
 ```
 kg nodes list     reads the directory. Parses nothing
-kg nodes match    parses every node once, then walks the edges it needs
+kg nodes match    parses every node and every link record
 ```
 
 Two tiers, and the action names which — the line [batch 9](9-find.md) drew when
 it made `find` an action rather than a flag, *because a flag would hide a
 thousandfold cost behind an option*.
 
-**The scan is for the anchor only.** A pattern is not matched by reading
-everything: one node pattern is chosen as the entry point and found by a pass
-over the nodes, and every other position is **reached by following relations**
-from it. The pass is unavoidable — a label's file does not list its members, and
-[batch 6](6-labels.md) refused to make it, because *the count it used to carry
-forced a parse of every node*. So the floor is fixed and everything above it is
-the anchor's doing.
+**Flat, and that is a property rather than a concession.** A pattern is matched
+over an adjacency list, and building one means reading the store — so the cost
+does not depend on the pattern's shape, and the worst case *is* the ordinary
+case. Nothing degenerates, and nothing has to be explained.
 
-Measured on the movies graph, for
-`(:Person)-[:DIRECTED]->(:Movie {title: "Cloud Atlas"})`:
+Measured on the movies graph: **424 files, 171 ms**, 96 KB of resolved JSON at
+578 bytes a node. That is the same work
+`kg nodes list | kg nodes --stdin --properties` already does, which is why
+`match` adds no cost class — it moves the join into the process that had the
+data in memory anyway.
 
-| anchor | reads |
-|---|---|
-| the film, by its map | 171 nodes + 10 records + 3 neighbours = **184** |
-| `(:Person)` | 171 nodes + 256 records + their neighbours = **683** |
-| the worst case, `()-[]-()` | 171 + 506 = 677 |
+**The second read is not optional, and the reason is on disk.** A node's entry
+is `{type, link, direction}`: `link` is the **record's** id, not the
+neighbour's. `neighbour` is added at read time by
+[batch 11](11-resolution.md)'s resolution. So a relationship cannot be followed
+from a node alone.
 
-**Choosing badly is 3.7× worse, and worse than matching everything naively.**
+**Where the cost actually is: parsing, not reading.** Reading all 424 files
+takes **10 ms** against **143 ms** of work — **93% is parsing**, 7% is I/O. Two
+levers follow, and both are parked rather than built: a reader that takes
+`labels` and `links` without parsing an author's properties, and
+[label-index](../design/parked/label-index.md), which would turn the entry point
+from *parse every node* into *read one file*. `design/parked/query-language.md`
+reasons in bytes and file reads and points at neither.
 
-**So the anchor is chosen syntactically, because there are no statistics to
-choose it by.** A real planner uses cardinality estimates from an index; this
-has neither. What it does have is the pattern's own shape, which says how
-constrained each position is before a single file is opened:
-
-```
-a property map   the most constrained — equality on a value
-a label          fewer than the space, by an unknown factor
-bare ()          no constraint at all
-```
-
-Rank the node patterns by that and enter at the highest. It is a heuristic and
-it is stated as one — it can lose, on a map over a value every node shares —
-but it needs nothing measured, it is deterministic, and it separates 184 from
-683 on the pattern this batch exists to answer.
-
-**Where the cost actually is: parsing, not reading.** Measured on the same
-graph, reading all 424 files takes **10 ms** and the whole resolution takes
-**143 ms** — so **93%** is YAML parsing and resolution and 7% is I/O. If this
-ever needs to be faster, the lever is a reader that extracts `labels` and
-`links` without parsing an author's properties, not a cache or a different
-layout. `design/parked/query-language.md` reasons in bytes and file reads and
-points the other way.
+**The anchor is a join order, not a cost.** Which node pattern the matcher
+enters at decides how much pointer-chasing it does in memory, and nothing about
+how many files it opens. It earns a decision the day the index above exists;
+until then, entering at the most constrained position is free to do and changes
+nothing measurable.
 
 ## What validates it
 
@@ -266,7 +254,7 @@ kg nodes match '(:Movie {title: "Cloud Atlas"})-[]-()' \
 ```
 
 **Both guide answers are the match minus its anchor**, and that is arithmetic
-rather than a discrepancy: 4 ids for 3 directors, 11 for 10 neighbours. Every
+rather than a discrepancy: 4 nodes for 3 directors, 11 for 10 neighbours. Every
 question in the guide asks for one side of a relation, while the command returns
 the relation. Naming the subtraction is the honest way to use them as
 validators — hiding it inside a `.name // .title` that happens to print whatever
@@ -278,7 +266,7 @@ The command goes, and so does the grammar under it — `expression.ts`,
 `expression_test.ts` and the evaluator, 435 lines. **Not extended, deleted.**
 Grafting qualified names onto a home-grown expression to make it serve a
 pattern would have built a hybrid that is neither; openCypher has its own
-`Expression`, and batch 15 implements that one rather than adapting ours.
+`Expression`, and [condition](../design/parked/condition.md) is where that one is argued.
 
 Four of the conformance's seven selections are patterns already:
 
@@ -288,7 +276,7 @@ Four of the conformance's seven selections are patterns already:
 | `'"Movie" in labels'` | `(:Movie)` |
 | `'title = "Cloud Atlas"'` | `({title: "Cloud Atlas"})` |
 | `'name = "Tom Hanks"'` | `({name: "Tom Hanks"})` |
-| `'released > 2000'`, `'released > 2010'`, `'…and…'` | a `jq` `select`, until batch 15 |
+| `'released > 2000'`, `'released > 2010'`, `'…and…'` | a `jq` `select` |
 
 **The three comparisons are the interim cost, and it is an interim.** Until
 `where` lands they are a `select` over the resolved array, which is one line
@@ -299,7 +287,7 @@ join entirely, six keep the filter they already had, and none gains work.
 **Batch 9's loop still closes, in a different spelling.** Its *done when* is
 *you can ask which nodes match a condition over their properties*, and
 `match '({title: "Cloud Atlas"})'` still does that for equality, with the rest
-returning in 15. So [`9_test.ts`](../../tool/tests/batches/9_test.ts) is
+left to [condition](../design/parked/condition.md). So [`9_test.ts`](../../tool/tests/batches/9_test.ts) is
 rewritten rather than retired, and [9-find.md](9-find.md) says what replaced it.
 
 ## The sequence
@@ -315,20 +303,25 @@ rewritten rather than retired, and [9-find.md](9-find.md) says what replaced it.
 
 **The near neighbour is the slug.** `person` folds to `person.md`, which holds
 `Person` — one file read, no distance metric, and a word whose fold names
-nothing simply gets `no such label: Persn`. [batch 12](12-vocabulary.md) put
-that mechanism there; this step only reads it.
+nothing simply gets `no such label: Persn`.
+
+**And `vocabulary.ts` needs one read-only addition for it.** `read` answers
+`absent` when the slug holds a different word, deliberately — asking about
+`sci_fi` must not come back with `SciFi`'s description — so it cannot say who
+holds the file. `ensure` knows, and writes. Step 3 adds the reader that only
+looks: *which word holds this word's slug*.
 
 ## What it leaves
 
-**The `where` clause — batch 15, and it is a deferral, not a decision.** The
+**The `where` clause — [parked](../design/parked/condition.md), and a deferral rather than a decision.** The
 condition is a `jq` `select` in the meantime, and the page's transcripts say so
 where it would go. This is written down because this repository has twice let an
 interim read as doctrine: [batch 9](9-find.md) wrote *Traversal — deliberately
 never grows* and [batch 11](11-resolution.md) wrote *a label word does not
 move*, and both needed a note added afterwards when a later batch reversed them.
 
-What 14 implements is openCypher's `Expression`, not a return of ours — which is
-also what brings the **pattern predicate**, `where not (p)-[:PARTY_TO]->(:Crime)`.
+What it would implement is openCypher's `Expression`, not a return of ours —
+which is also what brings the **pattern predicate**, `where not (p)-[:PARTY_TO]->(:Crime)`.
 Measured on 39 queries from two of Neo4j's example datasets, that shape is 6 of
 the 23 `WHERE` conditions and a plain property comparison is 1, so it is the
 dominant real use rather than a corner. It costs no new engine: the same
@@ -353,7 +346,8 @@ cannot be longer than the number of relations in the graph, and the bound in
 
 **Paths.** Reachability is what this returns; *which route* is not, and a flat
 id list cannot carry one. Same deferral, same reason — and it is why the path
-variable `p = (a)-[:X]->(b)` is out of the grammar above.
+variable `p = (a)-[:X]->(b)` is out of the grammar above: a set of nodes cannot
+carry a route, whatever shape it is printed in.
 
 ---
 
