@@ -17,7 +17,7 @@ Deno.test("batch 5 — the entry point", async () => {
     const argv of [
       ["node", id, "set", "body", "something"],
       ["node", id, "add", "body", "something"],
-      ["node", id, "unset", "body"],
+      ["node", id, "delete", "body"],
       ["node", id, "remove", "body", "something"],
     ]
   ) {
@@ -51,7 +51,7 @@ Deno.test("batch 5 — the entry point", async () => {
   assertEquals(unknown.code, 4);
   assertStringIncludes(
     unknown.err,
-    "node <id> takes one action: write, set, unset, add, remove",
+    "node <id> takes one action: write, set, delete, add, remove",
   );
 
   // 4. A flag means something on the command that declares it, and nowhere else.
@@ -67,7 +67,7 @@ Deno.test("batch 5 — the entry point", async () => {
   // 5. Too few arguments is the form; too many is usually the shell.
   const few = await kg(dir, ["node", id, "set", "title"]);
   assertEquals(few.code, 4);
-  assertStringIncludes(few.err, "needs a name and a value");
+  assertStringIncludes(few.err, "needs a path and a value, or --stdin");
   const many = await kg(dir, ["node", id, "set", "title", "one", "two", "three"]);
   assertEquals(many.code, 4);
   assertStringIncludes(many.err, "quote it if it contains spaces");

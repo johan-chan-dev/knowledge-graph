@@ -6,10 +6,13 @@ import type { Flags } from "./argv.ts";
 import type { Outcome } from "./outcome.ts";
 import {
   linkChange,
+  linkDelete,
   linkForget,
   linkRead,
+  linkSet,
   node,
   nodeAdd,
+  nodeDelete,
   nodeLabel,
   nodeLink,
   nodeNew,
@@ -19,7 +22,6 @@ import {
   nodesMatch,
   nodesProperties,
   nodeUnlabel,
-  nodeUnset,
   nodeWrite,
   space,
   spaceInit,
@@ -227,30 +229,34 @@ export const COMMANDS: readonly Command[] = [
     needsStdin: true,
   }),
   command({
-    form: "node <id> set <name> <value>",
-    run: ({ cwd, id, args }) => nodeSet(cwd, id, args[0], args[1]),
+    form: "node <id> set <path> <value>",
+    run: ({ cwd, id, args, flags, stdin }) =>
+      nodeSet(cwd, id, args[0], args[1] as Text | undefined, flags.stdin === true, stdin),
     summary: "write one property",
     scope: "node",
     id: Id,
     action: "set",
-    args: z.tuple([Name, Value]),
+    args: z.array(z.string()).max(2),
     arity: {
-      few: "node <id> set needs a name and a value",
+      few: "node <id> set needs a path and a value, or --stdin",
       many: "node <id> set takes one value — quote it if it contains spaces",
     },
-    flags: {},
+    flags: { stdin: { kind: "boolean" } },
+    variants: [
+      { form: "node <id> set <path> --stdin", summary: "…a JSON object, merged there" },
+      { form: "node <id> set --stdin", summary: "…merged at the root" },
+    ],
   }),
   command({
-    form: "node <id> unset <name>",
-    run: ({ cwd, id, args }) => nodeUnset(cwd, id, args[0]),
-    summary: "remove one",
+    form: "node <id> delete <path>...",
+    run: ({ cwd, id, args }) => nodeDelete(cwd, id, args),
+    summary: "remove them, at any depth",
     scope: "node",
     id: Id,
-    action: "unset",
-    args: z.tuple([Name]),
+    action: "delete",
+    args: z.array(z.string()).min(1),
     arity: {
-      few: "node <id> unset needs a name",
-      many: "node <id> unset takes one name",
+      few: "node <id> delete needs at least one path",
     },
     flags: {},
   }),
@@ -393,40 +399,34 @@ export const COMMANDS: readonly Command[] = [
     flags: {},
   }),
   command({
-    form: "link <id> set <name> <value>",
-    run: ({ cwd, id, args }) =>
-      linkChange(cwd, id, args[0], (properties) => {
-        const had = args[0] in properties;
-        properties[args[0]] = args[1] as Text;
-        return had ? `replaced ${args[0]}` : `set ${args[0]}`;
-      }),
+    form: "link <id> set <path> <value>",
+    run: ({ cwd, id, args, flags, stdin }) =>
+      linkSet(cwd, id, args[0], args[1] as Text | undefined, flags.stdin === true, stdin),
     summary: "write one property",
     scope: "link",
     id: Id,
     action: "set",
-    args: z.tuple([Name, Value]),
+    args: z.array(z.string()).max(2),
     arity: {
-      few: "link <id> set needs a name and a value",
+      few: "link <id> set needs a path and a value, or --stdin",
       many: "link <id> set takes one value — quote it if it contains spaces",
     },
-    flags: {},
+    flags: { stdin: { kind: "boolean" } },
+    variants: [
+      { form: "link <id> set <path> --stdin", summary: "…a JSON object, merged there" },
+      { form: "link <id> set --stdin", summary: "…merged at the root" },
+    ],
   }),
   command({
-    form: "link <id> unset <name>",
-    run: ({ cwd, id, args }) =>
-      linkChange(cwd, id, args[0], (properties) => {
-        const had = args[0] in properties;
-        delete properties[args[0]];
-        return had ? `unset ${args[0]}` : `${args[0]} was not set`;
-      }),
-    summary: "remove one",
+    form: "link <id> delete <path>...",
+    run: ({ cwd, id, args }) => linkDelete(cwd, id, args),
+    summary: "remove them, at any depth",
     scope: "link",
     id: Id,
-    action: "unset",
-    args: z.tuple([Name]),
+    action: "delete",
+    args: z.array(z.string()).min(1),
     arity: {
-      few: "link <id> unset needs a name",
-      many: "link <id> unset takes one name",
+      few: "link <id> delete needs at least one path",
     },
     flags: {},
   }),

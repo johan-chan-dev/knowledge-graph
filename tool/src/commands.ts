@@ -5,6 +5,7 @@ import * as frontmatter from "./frontmatter.ts";
 import type { Label, Name, Properties, Text, Value } from "./frontmatter.ts";
 import * as vocabulary from "./vocabulary.ts";
 import * as pattern from "./pattern.ts";
+import * as path from "./path.ts";
 import { matched } from "./match.ts";
 import * as link from "./link.ts";
 import type { Entry } from "./frontmatter.ts";
@@ -270,32 +271,220 @@ export async function nodeWrite(
 /** `set` and `unset` are about the property; `add` and `remove` are about its
  * contents. The shape follows from the verb rather than from how many values
  * arrived, so `set x a` is a scalar and `add x a` is a one-element list. */
+/**
+ * A place and a thing. `set title "x"` is a path of length one and a scalar;
+ * `set config --stdin` is a path and an object; `set --stdin` is the root and an
+ * object. The verb is the same and so is its meaning — write here, leave the
+ * rest — which is why the third form is the root case rather than a form of its
+ * own. `docs/batches/15-one-write.md`.
+ */
+/**
+ * What `set` was handed: where to write, and what. Shared by a node and a
+ * record, because a record is a document of properties too.
+ */
+type Asked =
+  | {
+    readonly kind: "held";
+    readonly first: string | undefined;
+    readonly targets: readonly { at: path.Path; value: Value }[];
+  }
+  | { readonly kind: "stop"; readonly outcome: Outcome };
+
+async function asked(
+  where: string | undefined,
+  value: Text | undefined,
+  fromStdin: boolean,
+  stdin: () => Promise<string>,
+): Promise<Asked> {
+  // Three forms and a refusal. The refusal is the one `nodes --properties`
+  // gives for ids against `--stdin`: two sources for one thing is a question
+  // the command cannot answer for the caller.
+  if (fromStdin && value !== undefined) {
+    return {
+      kind: "stop",
+      outcome: usage("set takes a value, or --stdin, and not both"),
+    };
+  }
+  if (!fromStdin && value === undefined) {
+    return { kind: "stop", outcome: usage("set needs a path and a value, or --stdin") };
+  }
+
+  let held: Value;
+  if (value === undefined) {
+    const read = frontmatter.fromJson(await stdin());
+    if (read.kind === "refused") return { kind: "stop", outcome: refused(read.message) };
+    held = read.properties as unknown as Value;
+  } else {
+    // The argument schema cannot check this any more: `set` takes one
+    // positional or two, so what a value must be is the command's to enforce.
+    const why = frontmatter.notAValue(value);
+    if (why !== undefined) {
+      return {
+        kind: "stop",
+        outcome: refused(`not a property value: ${why} — a value is a single line`),
+      };
+    }
+    held = value;
+  }
+
+  if (where === undefined) {
+    // The root case: an object with no path merges key by key, which is the
+    // same act one level up rather than a different one.
+    const targets = Object.keys(held as Record<string, Value>).map((name) => ({
+      at: [name] as unknown as path.Path,
+      value: (held as Record<string, Value>)[name]!,
+    }));
+    return { kind: "held", first: targets[0] && path.render(targets[0].at), targets };
+  }
+  const parsed = path.parse(where);
+  if (parsed.kind === "refused") {
+    return { kind: "stop", outcome: refused(parsed.message) };
+  }
+  return {
+    kind: "held",
+    first: parsed.path[0],
+    targets: [{ at: parsed.path, value: held }],
+  };
+}
+
+/** The edit itself, over whichever document. */
+function write(
+  properties: Properties,
+  targets: readonly { at: path.Path; value: Value }[],
+): string | undefined | { refuse: string } {
+  const counted = { set: [] as string[], replaced: [] as string[] };
+  for (const target of targets) {
+    const reserved = frontmatter.reservedReason(target.at[0]!);
+    if (reserved !== undefined) {
+      return { refuse: `${target.at[0]} is reserved — ${reserved}` };
+    }
+    const wrote = path.merge(properties, target.at, target.value);
+    if (wrote.kind === "refused") return { refuse: wrote.message };
+    counted.set.push(...wrote.set);
+    counted.replaced.push(...wrote.replaced);
+  }
+  const touched = counted.set.length + counted.replaced.length;
+  if (touched === 0) return undefined;
+  // One leaf is named — and named by **its own** path, since writing
+  // `{port: "9090"}` at `config` replaces `config.port`, not `config`.
+  // Several give way to counts, the same split at a size a person reads.
+  if (touched === 1) {
+    return counted.replaced.length === 1
+      ? `replaced ${counted.replaced[0]}`
+      : `set ${counted.set[0]}`;
+  }
+  return `set ${counted.set.length}, replaced ${counted.replaced.length}`;
+}
+
+type Paths =
+  | { readonly kind: "paths"; readonly paths: readonly path.Path[] }
+  | { readonly kind: "stop"; readonly outcome: Outcome };
+
+function asPaths(wheres: readonly string[]): Paths {
+  const paths: path.Path[] = [];
+  for (const where of wheres) {
+    const parsed = path.parse(where);
+    if (parsed.kind === "refused") {
+      return { kind: "stop", outcome: refused(parsed.message) };
+    }
+    const reserved = frontmatter.reservedReason(parsed.path[0]!);
+    if (reserved !== undefined) {
+      return {
+        kind: "stop",
+        outcome: refused(`${parsed.path[0]} is reserved — ${reserved}`),
+      };
+    }
+    paths.push(parsed.path);
+  }
+  return { kind: "paths", paths };
+}
+
+function erase(
+  properties: Properties,
+  paths: readonly path.Path[],
+): string | undefined | { refuse: string } {
+  // `delete`, never an assignment: a key holding `undefined` would be a
+  // second way to be absent, and `in` would stop agreeing with a lookup.
+  const out = path.remove(properties, paths);
+  if (out.kind === "refused") return { refuse: out.message };
+  if (out.gone.length === 0) return `${out.absent.join(", ")} was not set`;
+  const said = `deleted ${out.gone.join(", ")}`;
+  return out.absent.length === 0 ? said : `${said}; ${out.absent.join(", ")} was not set`;
+}
+
+/**
+ * A place and a thing. `set title "x"` is a path of length one and a scalar;
+ * `set config --stdin` is a path and an object; `set --stdin` is the root and an
+ * object. The verb is the same and so is its meaning — write here, leave the
+ * rest — which is why the third form is the root case rather than a form of its
+ * own. `docs/batches/15-one-write.md`.
+ */
 export async function nodeSet(
   cwd: string,
   id: Uuid,
-  name: Name,
-  value: Text,
+  where: string | undefined,
+  value: Text | undefined,
+  fromStdin: boolean,
+  stdin: () => Promise<string>,
 ): Promise<Outcome> {
-  return await change(cwd, id, (properties) => {
-    const had = name in properties;
-    properties[name] = value;
-    return had ? `replaced ${name}` : `set ${name}`;
-  });
+  const held = await asked(where, value, fromStdin, stdin);
+  if (held.kind !== "held") return held.outcome;
+  return await change(cwd, id, (properties) => write(properties, held.targets));
 }
 
-export async function nodeUnset(cwd: string, id: Uuid, name: Name): Promise<Outcome> {
-  return await change(cwd, id, (properties) => {
-    // `delete`, never an assignment: a key holding `undefined` would be a
-    // second way to be absent, and `in` would stop agreeing with a lookup.
-    const had = name in properties;
-    delete properties[name];
-    return had ? `unset ${name}` : `${name} was not set`;
-  });
+/** One way to remove a thing, at any depth, several at a time. */
+export async function nodeDelete(
+  cwd: string,
+  id: Uuid,
+  wheres: readonly string[],
+): Promise<Outcome> {
+  const paths = asPaths(wheres);
+  if (paths.kind !== "paths") return paths.outcome;
+  return await change(cwd, id, (properties) => erase(properties, paths.paths));
 }
 
-/** Idempotent: adding one already present, or removing one absent, is the end
- * state that was asked for. The count reported is the effective one — you know
- * how many you passed; what you could not know is how many were already there. */
+/**
+ * `set` and `delete`, over a link's properties.
+ *
+ * A record **is** a document of properties — [batch 11](../../docs/batches/11-resolution.md)
+ * settled that when it stopped being JSON — so the generalisation batch 15
+ * gives a node's properties has to reach these too. Leaving `link <id> unset`
+ * alive beside `node <id> delete` would be two names for one act, told apart
+ * only by which scope you are in.
+ */
+export async function linkSet(
+  cwd: string,
+  id: Uuid,
+  where: string | undefined,
+  value: Text | undefined,
+  fromStdin: boolean,
+  stdin: () => Promise<string>,
+): Promise<Outcome> {
+  const held = await asked(where, value, fromStdin, stdin);
+  if (held.kind !== "held") return held.outcome;
+  return await linkChange(
+    cwd,
+    id,
+    held.first ?? "",
+    (properties) => write(properties as Properties, held.targets),
+  );
+}
+
+export async function linkDelete(
+  cwd: string,
+  id: Uuid,
+  wheres: readonly string[],
+): Promise<Outcome> {
+  const paths = asPaths(wheres);
+  if (paths.kind !== "paths") return paths.outcome;
+  return await linkChange(
+    cwd,
+    id,
+    paths.paths[0]![0]!,
+    (properties) => erase(properties as Properties, paths.paths),
+  );
+}
+
 export async function nodeAdd(
   cwd: string,
   id: Uuid,

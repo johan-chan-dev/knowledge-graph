@@ -51,7 +51,7 @@ const WORD = /^[\p{ID_Start}_][\p{ID_Continue}]*$/u;
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /** Said in one place, because four doors refuse for it. */
-const WORD_WHY =
+export const WORD_WHY =
   "a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote";
 
 /**

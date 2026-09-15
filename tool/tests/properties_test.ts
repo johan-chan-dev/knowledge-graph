@@ -48,15 +48,15 @@ Deno.test("properties come back in a stable order, whatever order they went in",
   );
 });
 
-Deno.test("unset removes one, is idempotent, and says which it was", async () => {
+Deno.test("delete removes them, is idempotent, and says which it was", async () => {
   const { kg, id } = await seeded();
   await kg("node", id, "set", "kind", "decision");
   await kg("node", id, "set", "other", "keep");
 
-  const first = await kg("node", id, "unset", "kind");
-  assert(first.kind === "ok" && first.notes.join().includes("unset kind"));
+  const first = await kg("node", id, "delete", "kind");
+  assert(first.kind === "ok" && first.notes.join().includes("deleted kind"));
 
-  const again = await kg("node", id, "unset", "kind");
+  const again = await kg("node", id, "delete", "kind");
   assertEquals(exitCode(again), 0, "removing what is absent is the end state asked for");
   assert(again.kind === "ok" && again.notes.join().includes("was not set"));
 
@@ -75,7 +75,7 @@ Deno.test("a node with no properties prints an empty object", async () => {
 
 Deno.test("a property name is a word, and a hyphen is what it may not be", async () => {
   const { kg, id } = await seeded();
-  for (const name of ["valid until", "valid-until", "with.dot", "2fa"]) {
+  for (const name of ["valid until", "valid-until", "2fa"]) {
     const outcome = await kg("node", id, "set", name, "x");
     assertEquals(exitCode(outcome), 1, name);
     assertStringIncludes(
@@ -83,11 +83,17 @@ Deno.test("a property name is a word, and a hyphen is what it may not be", async
       "never a hyphen, which a pattern would have to quote",
     );
   }
+  // A dot is not a name here and never was — it is a path now, which is the
+  // one position batch 15 gave it. So `with.dot` writes a leaf rather than
+  // refusing, and the key it writes carries no dot at all.
+  assertEquals(exitCode(await kg("node", id, "set", "with.dot", "x")), 0);
+  assertEquals(parsed(await kg("node", id, "--properties")).with, { dot: "x" });
+  assertEquals(exitCode(await kg("node", id, "delete", "with.dot")), 0);
   // A capital and an underscore are the author's to choose: one rule for keys,
   // labels and relation types, and it is openCypher's.
   for (const name of ["Valid_Until", "release_date", "Title"]) {
     assertEquals(exitCode(await kg("node", id, "set", name, "x")), 0, name);
-    assertEquals(exitCode(await kg("node", id, "unset", name)), 0, name);
+    assertEquals(exitCode(await kg("node", id, "delete", name)), 0, name);
   }
   // A single dash is not a flag here: the tool's only one is `-C`, which is
   // global and taken before a command is matched. So `-leading` reaches
@@ -96,7 +102,7 @@ Deno.test("a property name is a word, and a hyphen is what it may not be", async
   assertEquals(exitCode(dashed), 1);
   assertStringIncludes(message(dashed), "not a property name: -leading");
   assertEquals(exitCode(await kg("node", id, "set", "score", "-1.5")), 0);
-  assertEquals(exitCode(await kg("node", id, "unset", "score")), 0);
+  assertEquals(exitCode(await kg("node", id, "delete", "score")), 0);
   assertEquals(parsed(await kg("node", id, "--properties")), {}, "nothing written");
 });
 
