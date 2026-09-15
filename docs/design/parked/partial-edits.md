@@ -37,7 +37,7 @@ a function of flag combinations is where a surface starts needing a table to
 read — and because the ranged form is the only one that can corrupt a node by
 being slightly wrong.
 
-**The read that gives you line numbers gives you the hash.** `--json` returns
+**The read that gives you line numbers gives you the hash.** Structured output returns
 the content with it, so a ranged read and a ranged write share one coordinate
 system, verified by one token.
 

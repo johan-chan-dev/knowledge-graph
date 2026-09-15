@@ -137,6 +137,11 @@ only what would otherwise change type on the way back — `hello world` stays
 bare, `'42'` and `'2027-01-01'` keep their quotes. Those quotes are the tool
 *preserving* that it was handed text, not deciding what the text means.
 
+That is a rule about the **store**. Output is JSON since
+[batch 13](../batches/13-output.md), where a string is a string and no quoting
+rule is needed to say so — so reading `--properties` no longer shows you the
+file's own form, and the two serialisers are now separate jobs.
+
 **Splitting frontmatter is a regex and one `parse` call.** `@std/front-matter`
 was dropped for this: its `extract()` accepts no options, so there is no way to
 hold the parser to the core schema through it.

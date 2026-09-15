@@ -133,7 +133,7 @@ still parked.
 
 Three reviews split two to one for lists, and the deciding argument was
 structural. Reading part of a node hands back a content hash to guard the write
-that follows, and that hash was specified to arrive via `--json` — which
+that follows, and that hash was specified to arrive in the structured output — which
 [structured-output](../design/parked/structured-output.md) says waits until a
 value can nest, which is what *this* batch creates. So partial edits in batch 3
 would ship a required flag with no sanctioned source for its value.

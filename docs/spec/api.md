@@ -252,24 +252,26 @@ indistinguishable from one that never had the property.
 unordered by definition; a sequence is ordered by definition, so sorting one
 discards what the author supplied.
 
-**Properties are rendered as YAML.** That is what distinguishes a list from a
-scalar that merely looks like one, because the serialiser quotes exactly what
-would otherwise change meaning coming back:
+**Properties are rendered as JSON, indented.** That is what distinguishes a
+list from a scalar that merely looks like one — an array is an array and a
+string is a string, with no quoting rule to carry the difference:
 
+```json
+{
+  "count": "42",
+  "labels": ["auth", "pattern"],
+  "looks": "[auth, pattern]"
+}
 ```
-count: '42'
-labels:
-  - auth
-  - pattern
-looks: '[auth, pattern]'
-```
 
-Every rendering invented instead collided with a value that is already legal.
-YAML does not, because it was designed not to — and *printing frontmatter leaks
-the format* is a weak objection when the caller parses YAML natively.
+`looks` is a string that reads like a list and stays one; `labels` is a list and
+looks like one. Under YAML that distinction rested on the serialiser quoting
+exactly what would otherwise change meaning coming back, which was correct and
+took a rule to state. JSON carries it in the shape.
 
-**A property name is camelCase, beginning lowercase** — `[a-z][a-zA-Z0-9]*`,
-and the same string typed and stored. Anything needing quoting or escaping is a
+**A property name follows the same rule as a label word** — openCypher's
+`UnescapedSymbolicName`, and the same string typed and stored. Anything a
+pattern would have to quote is a
 name that will eventually be typed wrong and fail by silently matching nothing,
 and camelCase is what markdown frontmatter writes.
 [`design/naming.md`](../design/naming.md) has the measurements.
@@ -408,11 +410,18 @@ target, each with the same type and properties, and prints their ids in order.
 refusals. A command's stdout is always safe to pipe, and nothing a script
 consumes is mixed with a message meant for a person.
 
-**`--json` is a format, declared per command.** `kg node <id> --properties`,
-`kg nodes --properties`, `kg nodes list`, `kg nodes find`, `kg labels list` and
-`kg link <id>` each take it; the default is the shape the thing is held in, and
-the flag converts. It is not a mode the tool can be put into — a format spanning
-every command would force one answer onto outputs that have nothing in common.
+**There is no format flag.** The command's subject picks the shape:
+
+| the output is | the shape |
+|---|---|
+| a list of identities — ids, words | one per line |
+| anything structured — properties, a record, an array of either | **JSON, indented** |
+| a readout for a person — `kg space` | prose, as it is |
+
+Seven `--json` flags asked the same question seven times, and
+[batch 13](../batches/13-output.md) removed them: the subject had already
+answered. A node carrying nothing prints `{}` rather than nothing, because an
+output that is JSON except when empty is not JSON.
 
 **stderr reports what the caller could not have worked out.** A count of the
 bytes you just sent, or the lines you were just handed, is telling you something

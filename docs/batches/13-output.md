@@ -66,7 +66,7 @@ declare. No special case is added for a flag that used to exist: a message
 explaining a removal is a convenience layer with one user, and it would outlive
 the habit it was written for.
 
-**Named, not linked:** `tool/tests/batches/13_test.ts`.
+**Backed by** [`13_test.ts`](../../tool/tests/batches/13_test.ts).
 
 ## The rule
 

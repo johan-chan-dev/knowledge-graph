@@ -34,7 +34,7 @@ property, which `jq` does — and does better, since a named field beats a line
 prefix and the direction is reachable where the columns never exposed it:
 
 ```bash
-kg node "$CA" --properties --json \
+kg node "$CA" --properties \
   | jq -r '.links[] | select(.type == "directed" and .direction == "in") | .neighbour'
 ```
 

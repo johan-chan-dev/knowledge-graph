@@ -33,7 +33,7 @@ much as guessing at one.
 ## What it should look like
 
 ```console
-$ kg nodes find 'released > 2000' | kg nodes --stdin --properties --json | jq -r '.[].title'
+$ kg nodes find 'released > 2000' | kg nodes --stdin --properties | jq -r '.[].title'
 The Matrix Reloaded
 Cloud Atlas
 …
@@ -66,14 +66,14 @@ one node.
 ## What validates it
 
 The guide's question 10 — *who directed Cloud Atlas* — exercises every piece at
-once: the enrichment, the plural form, the stdin channel and `--json`.
+once: the enrichment, the plural form and the stdin channel.
 
 ```bash
 CA=$(kg nodes find 'title = "Cloud Atlas"')
 
-kg node "$CA" --properties --json \
+kg node "$CA" --properties \
   | jq -r '.links[] | select(.type == "directed" and .direction == "in") | .neighbour' \
-  | kg nodes --stdin --properties --json \
+  | kg nodes --stdin --properties \
   | jq -r '.[].name'
 ```
 
@@ -105,7 +105,7 @@ where its dependencies are already met.
 | **4** | `--properties` enriches the `links` entries | reads records, so it reads them through the handle step 3 put them behind |
 | **5** | `kg node <id> links` and `backlinks` are removed | only safe once step 4 exists, or traversal goes with them. Batch 7's test and the conformance both use them and change here |
 | **6** | `kg nodes --properties <id>...` and `--stdin` | the one new command, on shapes that are now settled |
-| **7** | `--json`, per command | a format over outputs whose content stopped moving at step 6 |
+| **7** | `--json`, per command | a format over outputs whose content stopped moving at step 6. [Batch 13](13-output.md) removed it again — the transcripts above are written without it, because this page's test is what holds them and the flag no longer exists |
 | **8** | `kg labels list` returns names | independent of all of it, and the smallest — last because nothing waits on it |
 
 **Step 3 is the one that touches stored data.** A record written as JSON does not
@@ -119,6 +119,12 @@ re-created.
 |---|---|---|
 | **ids and names** | one per line | a uuid has nothing to structure, and `wc -l`, `grep`, `cut` and `xargs` all work on it |
 | **properties** | a mapping — YAML, or JSON with `--json` | authored names, different per node, any of them optional, values that nest |
+
+> **[Batch 13](13-output.md) removed the choice.** Structured output is JSON and
+> no flag selects it: measured, YAML wins by 3% on a flat node and loses by 6%
+> on an array of them, so the default was being chosen per command and the flag
+> existed to undo it. The row's distinction — identities are lines, properties
+> are a mapping — is what survives, and is what 13 derives the rest from.
 
 A third row stood here — *a closed set of names, tab-separated* — and this batch
 empties it. `kg labels list` becomes one name per line and
@@ -221,7 +227,7 @@ elementary question asked of it.
 **The file does not change.** The command resolves it:
 
 ```console
-$ kg node <id> --properties --json
+$ kg node <id> --properties
 {"links":[{"type":"directed","link":"01a090ed-513c-…","direction":"in",
            "neighbour":"01a090ed-1ee8-…","since":"2012"}]}
 ```
@@ -332,6 +338,13 @@ an absence.
 
 ## 7 · `--json`, per command
 
+> **[Batch 13](13-output.md) took the flag back out**, and the section reads as
+> history from here. Structured output became JSON with nothing to select it —
+> which is this section's own reasoning carried one step further: *a format,
+> declared per command* stops being a choice when every command would declare
+> the same one. The transcripts above are written without the flag, because the
+> test that holds them is written without it.
+
 `kg node <id> --properties` shows the properties. All of them — `labels` and
 `links` included, because those **are** properties, reserved against `set`
 rather than hidden from a read. There is no content decision here, and an
@@ -351,7 +364,7 @@ $ kg node <id> --properties
 released: '2012'
 title: Cloud Atlas
 
-$ kg node <id> --properties --json
+$ kg node <id> --properties
 {"released":"2012","title":"Cloud Atlas"}
 ```
 

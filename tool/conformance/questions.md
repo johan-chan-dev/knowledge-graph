@@ -19,7 +19,7 @@ Expected answers are computed from `movies.cypher`, not remembered.
 | 7 | `title` and `released` for every film | `find` + a loop | ✓ |
 | 8 | the film titled *Cloud Atlas* | `find` | ✓ |
 | 9 | films released between 2010 and 2015 — **Cloud Atlas** | `find` with `and` | ✓ |
-| 10 | directors of *Cloud Atlas* — **Tom Tykwer, Lilly Wachowski, Lana Wachowski** | `--properties --json \| jq` | ✓ |
+| 10 | directors of *Cloud Atlas* — **Tom Tykwer, Lilly Wachowski, Lana Wachowski** | `--properties \| jq` | ✓ |
 | 11 | Tom Hanks' co-actors — **34** | two hops, scripted | ✓ awkward |
 | 12 | everyone connected to *Cloud Atlas* — **10** | the entries, grouped by type | ✓ |
 | 13 | everything three hops from Kevin Bacon | one call per hop, scripted | ✓ awkward |

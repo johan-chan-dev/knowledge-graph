@@ -27,8 +27,8 @@ files, `(a)-[*1..3]->(b)` across 10k nodes reads most of them repeatedly.
 
 **That objection is written against traversing files, and
 [batch 11](../../batches/11-resolution.md) stopped requiring it.** Two calls now
-hand over the whole graph — `kg nodes list | kg nodes --stdin --properties
---json` — and each entry carries `neighbour`, so the snapshot **is** an
+hand over the whole graph — `kg nodes list | kg nodes --stdin --properties` —
+and each entry carries `neighbour`, so the snapshot **is** an
 adjacency list. Matching over it is pointer-chasing in memory, and *reads most
 of them repeatedly* describes nothing.
 

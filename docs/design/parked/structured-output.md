@@ -1,5 +1,12 @@
 # Structured output
 
+> **Shipped, and not as a flag.**
+> [Batch 13](../../batches/13-output.md) made structured output JSON with
+> nothing to select it. What this page got right is the distinction below —
+> *format, never a selector* — and what it got wrong is that a format worth
+> having everywhere does not need a flag at all: uniform is one step short of
+> absent.
+
 ```
 kg <anything> --json
 ```

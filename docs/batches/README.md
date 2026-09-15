@@ -23,7 +23,7 @@ history: what a batch was for, what building it forced, what it settled.
 | 10 | [one writer for the frontmatter](10-one-writer.md) | shipped |
 | 11 | [resolution](11-resolution.md) | shipped |
 | 12 | [the vocabulary](12-vocabulary.md) | shipped |
-| 13 | [one output format](13-output.md) | planned |
+| 13 | [one output format](13-output.md) | shipped |
 | 14 | [match](14-match.md) | planned |
 
 ## Read the parked pages before declaring a question open
