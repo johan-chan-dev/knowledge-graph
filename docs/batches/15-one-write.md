@@ -193,6 +193,25 @@ The last is the message `nodes --properties` already gives for ids against
 `--stdin`, and `set <path>` alone keeps the one it gives today — *needs a name
 and a value*, now *needs a value or `--stdin`*.
 
+## Three things the review found missing
+
+**A nested key follows the word rule, at every depth.** `{"config": {"port-x":
+"y"}}` is refused for the same reason `set port-x` is: a hyphen is a name that
+needs quoting. And it is what keeps a path unambiguous — a `.` cannot occur in
+a key at any level, so `config.port` can only ever be an address.
+
+**An emptied container goes, and the tool already says so.** `remove tags b`
+today answers *removed 1 from tags, tags is now unset* and leaves `{}` behind on
+the node rather than an empty list. `delete config.port` does the same to
+`config` when `port` was the last key — a map holding nothing is not a fact
+about the node, it is the absence of one.
+
+**The counts count leaves, not top-level keys.** `set config --stdin` with
+`{"port": "9090"}` on a node that had `config.port` says `set 0, replaced 1` —
+one leaf replaced, not one key touched. Counting keys would report `1` whether
+the object carried one leaf or forty, which tells the caller nothing they did
+not already send.
+
 ## Two things a path forces
 
 **A path may not pass through a scalar.** `set config.port "x"` where `config`
