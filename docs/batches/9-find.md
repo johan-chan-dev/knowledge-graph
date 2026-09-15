@@ -271,6 +271,15 @@ is between nodes, which is a different subject and belongs to a different
 command, for the same reason `list` and `find` split rather than `list` growing
 a flag.
 
+> **[Batch 13](13-match.md) grows it, and replaces `find` doing so.** The two
+> commands it names here were already removed by
+> [batch 11](11-resolution.md), which resolved the entries instead. What
+> survives is this page's question — *which nodes match a condition over their
+> properties* — answered by `match '(m) where m.released > 2000'` rather than by
+> `find`. The command changes; the loop still closes, and
+> [`9_test.ts`](../../tool/tests/batches/9_test.ts) is rewritten rather than
+> retired.
+
 ---
 
 [docs](../README.md) · [design](../design/) · [spec](../spec/) · [batches](README.md) · [1](1-a-space-with-nodes.md) · [2](2-properties.md) · [3](3-lists.md) · [4](4-stops-guessing.md) · [5](5-the-entry-point.md) · [6](6-labels.md) · [7](7-relations.md) · [8](8-movies.md) · 9 · [10](10-one-writer.md) · [11](11-resolution.md)
