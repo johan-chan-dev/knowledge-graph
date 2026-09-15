@@ -11,7 +11,7 @@ function props(text: string): frontmatter.Properties {
 
 /** A literal, as properties. Tests are the one place a checked value is
  * written rather than parsed, so the assertion lives here and nowhere else. */
-function like(o: Record<string, string | string[]>): frontmatter.Properties {
+function like(o: Record<string, unknown>): frontmatter.Properties {
   return o as frontmatter.Properties;
 }
 
@@ -86,14 +86,37 @@ Deno.test("an empty block reads as no properties, and writes back as nothing", (
   assertEquals(frontmatter.write({}), "");
 });
 
-Deno.test("what is neither a value nor a list does not read at all", () => {
+Deno.test("a property may hold a map, recursively", () => {
+  assertEquals(props("config:\n  port: '8080'\n"), like({ config: { port: "8080" } }));
+  assertEquals(
+    props("config:\n  tls:\n    ca: here\n  port: '8080'\n"),
+    like({ config: { tls: { ca: "here" }, port: "8080" } }),
+  );
+  // A list inside a map is a dimension like any other.
+  assertEquals(
+    props("config:\n  tags:\n    - a\n    - b\n"),
+    like({ config: { tags: ["a", "b"] } }),
+  );
+  // A refusal names the path a caller would use to fix it, not just the key.
+  assertStringIncludes(
+    why("config:\n  tls:\n    ca: null\n") ?? "",
+    "config.tls.ca has no value",
+  );
+});
+
+Deno.test("what is neither a value, a list nor a map does not read at all", () => {
   for (
     const text of [
-      "nested:\n  a: 1\n",
       "listy:\n  - a: 1\n",
       "scalar\n",
       "- a\n- b\n",
       "unbalanced: [\n",
+      // A map holding nothing is not a fact about the node, and `delete`
+      // removes a parent when it empties, so the tool never writes one.
+      "hollow: {}\n",
+      // A nested key is a key: the same word rule, at every depth, which is
+      // also what keeps `config.port` unambiguously an address.
+      "config:\n  port-x: '1'\n",
     ]
   ) {
     assertEquals(why(text) !== undefined, true, JSON.stringify(text));

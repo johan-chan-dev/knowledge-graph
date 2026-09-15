@@ -176,8 +176,25 @@ export type Entry = {
   readonly direction: Direction;
 };
 
-export type Value = Text | Text[] | Entry[];
+/**
+ * A map of values, recursively — what [batch 15](../../docs/batches/15-one-write.md)
+ * opened the door to. A property may hold a structure because two things now
+ * exist that did not: a shape to write it with, and a path to reach into it.
+ *
+ * Its keys follow the word rule at every depth, which is also what keeps a path
+ * unambiguous — a `.` cannot occur in a key at any level, so `config.port` can
+ * only ever be an address.
+ */
+export type Structure = { readonly [name: string]: Value };
+
+export type Value = Text | Text[] | Entry[] | Structure;
 export type Properties = Record<Name, Value>;
+
+/** A list is a dimension and a map is a container, which is why one may nest
+ * and the other may not: two values on one dimension is not a thing holding
+ * things. `docs/batches/9-find.md` has the argument. */
+export const isStructure = (value: Value | undefined): value is Structure =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
 
 /** A list of values, which a list of relations is not. */
 export const isList = (value: Value | undefined): value is Text[] =>
@@ -252,6 +269,14 @@ export function read(frontmatter: string): Read {
       out[name] = entries;
       continue;
     }
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      // A map, recursively — the same rules one level down, so nothing about a
+      // value changes with depth except how far a path has to walk.
+      const nested = readStructure(name, value as Record<string, unknown>);
+      if (typeof nested === "string") return unreadable(nested);
+      out[name] = nested;
+      continue;
+    }
     if (Array.isArray(value)) {
       // An empty list is a key carrying nothing — present, with no value on
       // that dimension. `remove` deletes a key rather than leaving one, so the
@@ -268,7 +293,7 @@ export function read(frontmatter: string): Read {
         return unreadable(`${name} holds a value with a control character`);
       }
       out[name] = values;
-    } else if (value === null || typeof value === "object") {
+    } else if (value === null) {
       return unreadable(`${name} has no value`);
     } else {
       const text = String(value);
@@ -279,6 +304,46 @@ export function read(frontmatter: string): Read {
     }
   }
   return { kind: "properties", properties: out };
+}
+
+/**
+ * A structure, checked the way the top level is — because a nested key is a key
+ * and a nested value is a value. The path a refusal names is the path a caller
+ * would use to fix it.
+ */
+function readStructure(
+  at: string,
+  parsed: Record<string, unknown>,
+): Structure | string {
+  const out: Record<string, Value> = {};
+  for (const [name, value] of Object.entries(parsed)) {
+    const path = `${at}.${name}`;
+    if (!isName(name)) return `${path} is not a property name`;
+    if (value === null) return `${path} has no value`;
+    if (Array.isArray(value)) {
+      if (value.length === 0) return `${path} is an empty list`;
+      if (value.some((each) => each === null || typeof each === "object")) {
+        return `${path} holds something that is not a value`;
+      }
+      const values = value.map(String);
+      if (!values.every(isValue)) return `${path} holds a value with a control character`;
+      out[name] = values;
+      continue;
+    }
+    if (typeof value === "object") {
+      const nested = readStructure(path, value as Record<string, unknown>);
+      if (typeof nested === "string") return nested;
+      out[name] = nested;
+      continue;
+    }
+    const text = String(value);
+    if (!isValue(text)) return `${path} holds a value with a control character`;
+    out[name] = text as Text;
+  }
+  // A map holding nothing is not a fact about the node; `delete` removes the
+  // parent when it empties, so the tool never writes one.
+  if (Object.keys(out).length === 0) return `${at} is an empty map`;
+  return out;
 }
 
 /**
