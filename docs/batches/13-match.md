@@ -184,22 +184,59 @@ A variable used twice is a different thing from a node binding twice: the first
 is a constraint the author wrote, the second is what the engine is allowed to do
 with two separate variables.
 
-## What it costs, and why the action says so
+## What it costs, and how the anchor decides it
 
 ```
 kg nodes list     reads the directory. Parses nothing
-kg nodes match    opens every node, and every link record
+kg nodes match    parses every node once, then walks the edges it needs
 ```
 
 Two tiers, and the action names which — the line [batch 9](9-find.md) drew when
 it made `find` an action rather than a flag, *because a flag would hide a
 thousandfold cost behind an option*.
 
-**The second read is not optional, and the reason is on disk.** A node's entry
-is `{type, link, direction}`: `link` is the **record's** id, not the
-neighbour's. `neighbour` is added at read time by
-[batch 11](11-resolution.md)'s resolution. So a relationship cannot be followed
-from a node alone — 171 nodes and 253 records here, one pass over each.
+**The scan is for the anchor only.** A pattern is not matched by reading
+everything: one node pattern is chosen as the entry point and found by a pass
+over the nodes, and every other position is **reached by following relations**
+from it. The pass is unavoidable — a label's file does not list its members, and
+[batch 6](6-labels.md) refused to make it, because *the count it used to carry
+forced a parse of every node*. So the floor is fixed and everything above it is
+the anchor's doing.
+
+Measured on the movies graph, for
+`(:Person)-[:DIRECTED]->(:Movie {title: "Cloud Atlas"})`:
+
+| anchor | reads |
+|---|---|
+| the film, by its map | 171 nodes + 10 records + 3 neighbours = **184** |
+| `(:Person)` | 171 nodes + 256 records + their neighbours = **683** |
+| the worst case, `()-[]-()` | 171 + 506 = 677 |
+
+**Choosing badly is 3.7× worse, and worse than matching everything naively.**
+
+**So the anchor is chosen syntactically, because there are no statistics to
+choose it by.** A real planner uses cardinality estimates from an index; this
+has neither. What it does have is the pattern's own shape, which says how
+constrained each position is before a single file is opened:
+
+```
+a property map   the most constrained — equality on a value
+a label          fewer than the space, by an unknown factor
+bare ()          no constraint at all
+```
+
+Rank the node patterns by that and enter at the highest. It is a heuristic and
+it is stated as one — it can lose, on a map over a value every node shares —
+but it needs nothing measured, it is deterministic, and it separates 184 from
+683 on the pattern this batch exists to answer.
+
+**Where the cost actually is: parsing, not reading.** Measured on the same
+graph, reading all 424 files takes **10 ms** and the whole resolution takes
+**143 ms** — so **93%** is YAML parsing and resolution and 7% is I/O. If this
+ever needs to be faster, the lever is a reader that extracts `labels` and
+`links` without parsing an author's properties, not a cache or a different
+layout. `design/parked/query-language.md` reasons in bytes and file reads and
+points the other way.
 
 ## What validates it
 
@@ -270,7 +307,7 @@ rewritten rather than retired, and [9-find.md](9-find.md) says what replaced it.
 | **2** | a single node pattern evaluates — labels and map | at this point `match` answers four of the conformance's seven selections; nothing is removed yet |
 | **3** | the floor — an unknown label or type refuses and names its near neighbour | needs step 2 to have a lookup site; this is the site [batch 12](12-vocabulary.md) had nowhere to put. Both halves read a directory, because 12 gave a relation type the same store a label has — without it this step would scan every link record to learn the vocabulary |
 | **4** | one relationship — direction, type alternation, its own map and variable | the first thing `find` cannot do |
-| **5** | chaining, several parts, and a repeated variable as a join | needs step 4; the only step that needs a notion of binding at all |
+| **5** | chaining, several parts, and a repeated variable as a join | needs step 4; the only step that needs a notion of binding at all. The anchor is chosen here, because before it there is one node pattern and nothing to choose between |
 | **6** | `find` and the expression are removed; the conformance and `9_test.ts` rewritten | last, so the guide's questions are rewritten **once** rather than at step 2 and again at step 5 |
 
 **The near neighbour is the slug.** `person` folds to `person.md`, which holds
