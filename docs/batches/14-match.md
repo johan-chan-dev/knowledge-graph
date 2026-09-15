@@ -154,10 +154,18 @@ Properties         : MapLiteral | Parameter ;
 | `Variable '=' PatternElement` — a path variable | a path is not what this returns, and [what it leaves](#what-it-leaves) says why |
 | `RangeLiteral` — `*`, `*2`, `*..3`, `*1..3` | below |
 
-Everything stays inside `UnescapedSymbolicName`, so **no pattern this tool
-accepts ever needs a backtick** — [batch 12](12-vocabulary.md) is what made that
-true, and it is the property that lets a pattern be pasted into a real engine
-unchanged.
+Everything stays inside `UnescapedSymbolicName`, so **no name in a pattern ever
+needs quoting** — [batch 12](12-vocabulary.md) made that true, and the reason is
+[naming](../design/naming.md)'s own: a word two people must reach independently
+cannot be one that needs quotes.
+
+**What is borrowed is a grammar, not a promise.** This is openCypher's shape
+because a great many readers already know it — measured, and the reason batch 12
+took its vocabulary. It is not a conformance claim: nothing here undertakes that
+a pattern written for `kg` runs elsewhere, and a later one will break it
+deliberately where a property path is wanted. A divergence that fails at the
+other parser is the kind to want; one that parses there and means something else
+is not.
 
 ## What a match means
 

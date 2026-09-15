@@ -84,11 +84,19 @@ IdentifierPart        = ID_Continue | Sc     letters, digits, _
 which is `/^[\p{ID_Start}_][\p{ID_Continue}]*$/u`. Stored as written, case
 included. Three reasons, in order of weight.
 
-**A pattern must never need a backtick.** Anything outside that set has to be
-escaped in Cypher — `` [:`acted-in`] `` — so refusing it is what keeps
-`kg match` a strict subset: every pattern it accepts pastes into a real engine
-unchanged. That is the adoption property, and it is cheap to hold as long as
-nothing outside the set is ever stored.
+**A name must never need quoting.** Anything outside that set has to be escaped
+in Cypher — `` [:`acted-in`] `` — and the reason to refuse it is the one this
+page opens with rather than a compatibility claim: **a word two people must
+arrive at independently cannot be one that needs quotes.** Cypher's escape rule
+is evidence that the line is in the right place, not the rule this follows.
+
+**The relationship to openCypher is inspiration, not conformance.** What is
+borrowed is a grammar a great many people already know; what is not promised is
+that everything written here runs there. `kg nodes match` already means to break
+it in one place — a property **path** like `{config.port: "x"}`, which openCypher
+cannot express at all, having no nested property. That is deliberate, and it
+fails at *their* parser rather than meaning something else there, which is the
+behaviour to want from a divergence.
 
 **The failure it removes is a silence, not a friction.** The movies dataset is
 the most reproduced graph example there is, so a Cypher-trained agent writes
