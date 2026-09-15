@@ -100,7 +100,7 @@ ambiguous.
 
 ```
 kg nodes list                            every id, in creation order
-kg nodes find <expression>               the ids of nodes matching a condition
+kg nodes match <pattern>                 the subgraph a pattern names, resolved
 kg nodes --properties <id>...            the properties of each, as an array
 kg nodes --stdin --properties            …with the ids read from stdin
 ```
@@ -433,10 +433,10 @@ stop reading, which then costs you the lines that matter.
 | `space` | the readout | — |
 | `space init` | the readout | `initialised a git repository at …` *(only when it did)* |
 | `nodes list` | one id per line | — |
-| `nodes find` | the matching ids, one per line | `3 nodes could not be read` *(only when some did not)* |
+| `nodes match` | the subgraph, as JSON | — |
 | `node new` | the new id | — |
 | `node <id>` | the content, byte for byte | its properties, rendered |
-| `node <id> --properties` | one `name: value` per line | — |
+| `node <id> --properties` | the properties, as JSON | — |
 | `node <id> write` | — | `replaced 210 bytes` |
 | `node <id> set` | — | `set title`, or `replaced title` |
 | `node <id> unset` | — | `unset title`, or `title was not set` |

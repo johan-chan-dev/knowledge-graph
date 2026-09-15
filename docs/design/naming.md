@@ -13,7 +13,7 @@ backtick**, and that rule is openCypher's rather than ours.
 
 | what | form | who decides | enforced |
 |---|---|---|---|
-| a command, a flag | `nodes find`, `--with-labels` | the tool | it is the tool's own word |
+| a command, a flag | `nodes match`, `--with-labels` | the tool | it is the tool's own word |
 | a **key** | `validUntil`, `release_date` — same rule as a word; camelCase is the house form | the author; the tool when it writes | at the door |
 | a **label word**, a **relation type** | `Person`, `ACTED_IN` — openCypher's `UnescapedSymbolicName` | the author, **form included** | at the door |
 | a **value** | `Cloud Atlas`, `github-issue-412` | the author | one line, printable — nothing else |

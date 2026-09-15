@@ -1,5 +1,12 @@
 # Searching
 
+> **`find` is gone, and so is the grammar under it.**
+> [Batch 14](../../batches/14-match.md) replaced the command with a pattern and
+> deleted the expression rather than adapting it. What this page argued about
+> *narrowing before the practice reads* is unchanged; the spelling below is
+> not the one that shipped, and the half a pattern cannot say is parked in
+> [condition](condition.md).
+
 Retrieval over prose, and presence tests over properties. Designed 2026-09-08;
 [batch 9](../../batches/9-find.md) built the presence and comparison half, and
 this page keeps the rest.

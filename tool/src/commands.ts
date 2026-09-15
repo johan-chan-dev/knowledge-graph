@@ -4,11 +4,11 @@ import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
 import * as frontmatter from "./frontmatter.ts";
 import type { Label, Name, Properties, Text, Value } from "./frontmatter.ts";
 import * as vocabulary from "./vocabulary.ts";
+import * as pattern from "./pattern.ts";
+import { matched } from "./match.ts";
 import * as link from "./link.ts";
 import type { Entry } from "./frontmatter.ts";
 import { amend, create, isId, read, replace, type Uuid } from "./node.ts";
-import { parse } from "./expression.ts";
-import { matches } from "./evaluate.ts";
 
 const NO_SPACE = "no space here — run: kg space init";
 
@@ -64,44 +64,6 @@ export async function nodes(cwd: string): Promise<Outcome> {
   // The id is the filename, so this parses nothing. Filtering belonged to a
   // family whose vocabulary has not settled; see design/parked/search.md.
   return lines(await ids(resolved.space));
-}
-
-/**
- * The expression is parsed before the space is resolved, so a malformed one
- * refuses with no filesystem touched at all. *Validation precedes lookup* is
- * then a property of this function rather than a claim about a transcript.
- */
-export async function nodesFind(cwd: string, expression: string): Promise<Outcome> {
-  const parsed = parse(expression);
-  if (parsed.kind === "refused") return refused(parsed.message);
-
-  const resolved = await resolve(cwd);
-  if (resolved.kind === "stop") return resolved.outcome;
-  const space = resolved.space;
-
-  // One id per line, as `nodes list` returns — the id is the one thing every
-  // node has, which is why it is the only thing a set-shaped command can
-  // return without inventing a slot. `docs/batches/9-find.md` has the argument.
-  const matched: string[] = [];
-  let damaged = 0;
-  for (const id of await ids(space)) {
-    if (!isId(id)) continue;
-    const found = await read(space, id);
-    if (found.kind !== "read") {
-      damaged++;
-      continue;
-    }
-    if (matches(parsed.expr, found.properties)) matched.push(id);
-  }
-
-  // A node that will not parse cannot be tested, and dropping it in silence
-  // would shorten the answer without saying so. stdout stays the answer; the
-  // count goes to stderr, which is where what the caller could not have worked
-  // out belongs.
-  const note = damaged === 0
-    ? []
-    : [`${damaged} node${damaged === 1 ? "" : "s"} could not be read`];
-  return lines(matched, ...note);
 }
 
 /**
@@ -570,6 +532,115 @@ export async function wordsList(
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
   return lines(await vocabulary.words(storeOf(resolved.space, store)));
+}
+
+/**
+ * Every node with its entries resolved, in one pass over each store.
+ *
+ * `resolveLinks` reads a record **once per endpoint**, which is right when a
+ * caller asked about one node and wasteful when the answer is the whole graph:
+ * 253 records become 506 reads. Here the records are read once into a table and
+ * every entry resolves from it, so a match costs one file per node and one per
+ * record and nothing twice.
+ */
+async function snapshot(space: Space): Promise<Map<string, Properties>> {
+  const records = new Map<string, link.Record_>();
+  try {
+    for await (const entry of Deno.readDir(space.links)) {
+      if (!entry.isFile || !entry.name.endsWith(".yaml")) continue;
+      const id = entry.name.slice(0, -5);
+      if (!isId(id)) continue;
+      const found = await link.read(space, id);
+      if (found.kind === "read") records.set(id, found.record);
+    }
+  } catch {
+    // No links directory is an empty one, not a failure.
+  }
+
+  const graph = new Map<string, Properties>();
+  for (const id of await ids(space)) {
+    if (!isId(id)) continue;
+    const found = await read(space, id);
+    if (found.kind !== "read") continue;
+    const carried = found.properties[LINKS];
+    const properties = frontmatter.isLinks(carried)
+      ? {
+        ...found.properties,
+        [LINKS]: carried.map((entry) => {
+          const record = records.get(entry.link);
+          if (record === undefined) return entry as unknown as Value;
+          const other = entry.direction === "out" ? record.to : record.from;
+          return { ...entry, neighbour: other, ...record.properties } as unknown as Value;
+        }) as Value,
+      }
+      : found.properties;
+    graph.set(id, { ...properties, id } as unknown as Properties);
+  }
+  return graph;
+}
+
+/**
+ * **The floor.** A word the space does not know returns nothing, and nothing is
+ * indistinguishable from *there are none* — so a misspelling is refused with
+ * its near neighbour named instead.
+ *
+ * The neighbour is the slug: `person` folds to `person.md`, which holds
+ * `Person`. One file read, no distance metric, and a word whose fold names
+ * nothing simply has no neighbour to offer.
+ *
+ * It works because [batch 12](../../docs/batches/12-vocabulary.md) gave a
+ * relation type the same store a label has. Without it this would scan every
+ * link record to learn the vocabulary, and only the label half would be free.
+ */
+async function unknownWord(
+  space: Space,
+  pattern_: pattern.Pattern,
+): Promise<string | undefined> {
+  const asked: { kind: "label" | "relation type"; dir: string; word: Label }[] = [];
+  for (const part of pattern_) {
+    for (const word of part.first.labels) {
+      asked.push({ kind: "label", dir: space.labels, word });
+    }
+    for (const step of part.steps) {
+      for (const word of step.via.types) {
+        asked.push({ kind: "relation type", dir: space.types, word });
+      }
+      for (const word of step.to.labels) {
+        asked.push({ kind: "label", dir: space.labels, word });
+      }
+    }
+  }
+  for (const { kind, dir, word } of asked) {
+    const held = await vocabulary.holder(dir, word);
+    if (held === word) continue;
+    return held === undefined
+      ? `no such ${kind}: ${word} in ${space.name}`
+      : `no such ${kind}: ${word} — did you mean ${held}?`;
+  }
+  return undefined;
+}
+
+/**
+ * A pattern selects a subgraph: every node that takes part in any solution,
+ * resolved, as JSON. `docs/batches/14-match.md` is the argument — the anchor is
+ * a join order rather than a cost, because building an adjacency list means
+ * reading the store either way.
+ */
+export async function nodesMatch(cwd: string, source: string): Promise<Outcome> {
+  const parsed = pattern.parse(source);
+  if (parsed.kind === "refused") return refused(parsed.message);
+
+  const resolved = await resolve(cwd);
+  if (resolved.kind === "stop") return resolved.outcome;
+
+  const unknown = await unknownWord(resolved.space, parsed.pattern);
+  if (unknown !== undefined) return absent(unknown);
+  const graph = await snapshot(resolved.space);
+
+  const found = matched(parsed.pattern, graph);
+  // Creation order, which is `nodes list`'s: a v7 id sorts to the millisecond.
+  const out = [...found].sort().map((id) => graph.get(id)!);
+  return asJson(out);
 }
 
 /** The reserved slot relations live in. */

@@ -1,68 +1,72 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { kg, space } from "./spawn.ts";
 
-Deno.test("batch 9 — find", async () => {
+// Batch 14 removed `find` and the grammar under it. What this batch asked —
+// *which nodes match a condition over their properties* — survives in the half
+// a pattern can say: a label test and an equality. The comparisons, presence,
+// negation and the partition they gave return with the `where` clause, parked
+// in `design/parked/condition.md`.
+
+Deno.test("batch 9 — find, in the shape batch 14 left it", async () => {
   const dir = await space();
   await kg(dir, ["space", "init"]);
 
-  const decided = (await kg(dir, ["node", "new", "--with-labels", "decision"])).out
+  const decided = (await kg(dir, ["node", "new", "--with-labels", "Decision"])).out
     .trim();
   await kg(dir, ["node", decided, "set", "score", "0.9"]);
-  const retired = (await kg(dir, ["node", "new", "--with-labels", "decision"])).out
+  const retired = (await kg(dir, ["node", "new", "--with-labels", "Decision"])).out
     .trim();
   await kg(dir, ["node", retired, "set", "retired", "yes"]);
-  await kg(dir, ["node", retired, "set", "score", "0.2"]);
-  const other = (await kg(dir, ["node", "new", "--with-labels", "opinion"])).out.trim();
+  const other = (await kg(dir, ["node", "new", "--with-labels", "Opinion"])).out.trim();
 
-  const ids = async (expression: string) =>
-    (await kg(dir, ["nodes", "find", expression])).out.split("\n").filter(Boolean);
+  const ids = async (pattern: string) =>
+    JSON.parse((await kg(dir, ["nodes", "match", pattern])).out)
+      .map((node: { id: string }) => node.id);
 
-  // 1. The transcript the document shows.
-  assertEquals(await ids('"decision" in labels'), [decided, retired]);
-  assertEquals(await ids("retired"), [retired]);
-  assertEquals(await ids('"decision" in labels and not retired'), [decided]);
-  assertEquals(await ids('"decision" in labels and score > 0.7'), [decided]);
+  // 1. The label test was `"Decision" in labels`; it is the pattern's own
+  //    position now, which is what batch 14 meant by `find` folding two
+  //    questions that Cypher keeps apart.
+  assertEquals(await ids("(:Decision)"), [decided, retired]);
+  assertEquals(await ids("(:Opinion)"), [other]);
 
-  // 2. One id per line, in creation order, as `nodes list` returns.
-  assertEquals(await ids('"opinion" in labels'), [other]);
-  const all = (await kg(dir, ["nodes", "list"])).out;
-  assertEquals(all.split("\n").filter(Boolean).length, 3);
+  // 2. Equality was `title = "x"`; it is the map, and needs no label.
+  assertEquals(await ids('({retired: "yes"})'), [retired]);
+  assertEquals(await ids('(:Decision {score: "0.9"})'), [decided]);
 
-  // 3. An empty answer is a correct answer: nothing on stdout, and `0`.
-  const none = await kg(dir, ["nodes", "find", 'title = "nothing here"']);
-  assertEquals(none.out, "");
+  // 3. In creation order, as `nodes list` returns — a v7 id sorts to the
+  //    millisecond.
+  assertEquals(
+    (await kg(dir, ["nodes", "list"])).out.split("\n").filter(Boolean).length,
+    3,
+  );
+
+  // 4. An empty answer is a correct answer: `[]` on stdout, and `0`.
+  const none = await kg(dir, ["nodes", "match", '({title: "nothing here"})']);
+  assertEquals(none.out, "[]\n");
   assertEquals(none.code, 0);
-
-  // 4. A query and its negation partition the space. `other` carries no
-  //    `score` at all and still falls on exactly one side.
-  const over = await ids("score > 0.7");
-  const under = await ids("not score > 0.7");
-  assertEquals(over.length + under.length, 3);
-  assertEquals(over, [decided]);
-  assertStringIncludes(under.join(" "), other);
 
   // 5. Each refusal names which side to fix, and exits `1` — the argument
   //    broke a rule, so nothing was looked at.
   for (
-    const [expression, message] of [
-      ["title = Matrix", 'not a value: Matrix — `=` compares text, write "Matrix"'],
-      ['score > "0.7"', 'not a number: "0.7" — `>` compares numbers, drop the quotes'],
-      ["retired and", "unexpected end of expression — `and` needs something after it"],
+    const [pattern, message] of [
+      ["(:acted-in)", "not a label: acted-in"],
+      ["(:Movie {released: 2000})", "a property is text on disk"],
+      ["(:Decision)-[:CITES]->", "an arrow needs a node after it"],
     ] as const
   ) {
-    const ran = await kg(dir, ["nodes", "find", expression]);
-    assertEquals(ran.code, 1);
-    assertEquals(ran.err.trim(), message);
+    const ran = await kg(dir, ["nodes", "match", pattern]);
+    assertEquals(ran.code, 1, pattern);
+    assertStringIncludes(ran.err, message);
     assertEquals(ran.out, "");
   }
 
   // 6. Validation precedes lookup: the same refusal, with no space at all.
   const nowhere = await Deno.makeTempDir({ prefix: "kg-nospace-" });
-  const refused = await kg(nowhere, ["nodes", "find", "title = Matrix"]);
+  const refused = await kg(nowhere, ["nodes", "match", "(:acted-in)"]);
   assertEquals(refused.code, 1);
-  assertStringIncludes(refused.err, "not a value: Matrix");
+  assertStringIncludes(refused.err, "not a label: acted-in");
   // Well formed, so it gets as far as the space and reports the space.
-  const absent = await kg(nowhere, ["nodes", "find", 'title = "Matrix"']);
+  const absent = await kg(nowhere, ["nodes", "match", "(:Decision)"]);
   assertEquals(absent.code, 2);
   assertStringIncludes(absent.err, "no space here");
 });

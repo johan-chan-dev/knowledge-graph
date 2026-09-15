@@ -81,7 +81,12 @@ Deno.test("batch 11 — resolution", async () => {
     "Cloud Atlas",
   );
   assertEquals((await kg(dir, ["node", film, "--properties", "--json"])).code, 4);
-  assertEquals((await kg(dir, ["nodes", "find", "title"])).out, `${film}\n`);
+  // Batch 14 removed `find`; the equality it stood for here is a pattern.
+  assertEquals(
+    JSON.parse((await kg(dir, ["nodes", "match", '({title: "Cloud Atlas"})'])).out)
+      .map((node: { id: string }) => node.id),
+    [film],
+  );
 
   // 8. `labels list` is one word per line, ordered by the slug rather than by
   //    the word — so `Auth` and `auth` stay adjacent instead of landing at

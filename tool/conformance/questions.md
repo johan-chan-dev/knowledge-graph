@@ -1,4 +1,4 @@
-# The questions batch 9 has to answer
+# The questions the tool has to answer
 
 Neo4j ships this dataset with a guide, and the guide asks thirteen questions.
 They are the acceptance criteria for [`find`](../../docs/batches/9-find.md),

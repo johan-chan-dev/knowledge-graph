@@ -78,7 +78,8 @@ $ kg nodes match '(:Movie) {released: 2000'
 unclosed map — `{` needs a matching `}`
 ```
 
-**Named, not linked:** `tool/tests/batches/14_test.ts`.
+**Backed by** [`14_test.ts`](../../tool/tests/batches/14_test.ts), and by the guide's
+questions in [`movies_test.ts`](../../tool/conformance/movies_test.ts).
 
 ## What it returns
 
@@ -171,7 +172,9 @@ kg nodes match '(:Person {name: "Tom Hanks"})-[:ACTED_IN]->(:Movie)<-[:ACTED_IN]
 ```
 
 Without it the second hop could return along the first edge, and Tom Hanks would
-be his own co-actor. The expected answer is 34 **because** the rule holds.
+be his own co-actor. What that costs is measured under *What validates it*: it
+is not the count of people, which the anchor already explains, but a film
+leaving the subgraph when its only actor is the one the walk arrived from.
 
 **A node may bind more than once.** `REPEATABLE ELEMENTS` *"allows both nodes and
 relationships to occur more than once"* and `ACYCLIC` forbids the node half, so
@@ -241,9 +244,23 @@ names are already asserted against `movies.cypher` in
 
 **Question 11** — *Tom Hanks' co-actors*, 34 — is the one `questions.md` marks
 **awkward**, because two hops took a script. It becomes the single pattern in
-*What a match means*, and it is what exercises relationship uniqueness: the
-answer is 34 rather than 35 precisely because the second hop may not come back
-along the first edge.
+*What a match means*, and it is what exercises relationship uniqueness — though
+not in the way this page first claimed.
+
+**Measured, and the claim was wrong.** The pattern returns 35 people, and 35 is
+34 plus the anchor: that is the subtraction every guide answer needs, not the
+rule. What the rule actually changes is the **films**:
+
+| | |
+|---|---|
+| films Tom Hanks acted in | **12** |
+| films the two-hop pattern returns | **11** |
+| the missing one | *The Polar Express*, where he is the only actor |
+
+With the rule, the third position on that film can only bind Tom Hanks along
+the edge already walked, so the pattern has no solution there and the film
+leaves the subgraph. Without it the film would stay. The node set is what
+changes, and it changes where a relation has nowhere else to go.
 
 **Question 12** — *everyone connected to Cloud Atlas*, 10 — exercises the
 untyped, undirected form:

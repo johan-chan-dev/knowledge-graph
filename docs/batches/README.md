@@ -24,7 +24,7 @@ history: what a batch was for, what building it forced, what it settled.
 | 11 | [resolution](11-resolution.md) | shipped |
 | 12 | [the vocabulary](12-vocabulary.md) | shipped |
 | 13 | [one output format](13-output.md) | shipped |
-| 14 | [match](14-match.md) | planned |
+| 14 | [match](14-match.md) | shipped |
 
 ## Read the parked pages before declaring a question open
 

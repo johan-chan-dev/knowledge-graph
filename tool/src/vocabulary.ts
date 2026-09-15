@@ -82,6 +82,20 @@ export async function ensure(dir: string, word: Label): Promise<Written> {
   return await fresh.flush();
 }
 
+/**
+ * Which word holds this word's file, if any — the lookup `read` cannot do.
+ *
+ * `read` answers `absent` when the slug holds a different word, deliberately:
+ * asking about `sci_fi` must not come back with `SciFi`'s description. But a
+ * refusal wants exactly that hidden thing, to name the neighbour instead of
+ * answering with nothing, so this looks and does not write. `ensure` knows it
+ * too and creates the word when the slug is free, which a question must not.
+ */
+export async function holder(dir: string, word: Label): Promise<Label | undefined> {
+  const opened = await document.open(fileOf(dir, word));
+  return opened.kind === "opened" ? wordIn(opened.document.properties) : undefined;
+}
+
 export type Read =
   | { readonly kind: "read"; readonly description: string }
   | { readonly kind: "absent" }

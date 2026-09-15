@@ -42,7 +42,7 @@ That is the whole mechanism, and [`search`](search.md) already provides it —
 a bare name is a presence test, so the unqualified set is `not <name>`:
 
 ```console
-$ kg nodes find 'not kind'
+$ kg nodes match '(n where not n.kind)'   # see parked/condition.md
 ```
 
 **Which property qualifies is a practice's word.** `kind` is the example

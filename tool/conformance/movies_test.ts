@@ -124,14 +124,21 @@ Deno.test({
     }
     assertEquals(checked, 171, "every node was asked");
 
-    // The guide's own questions — see `questions.md`. Nine of the thirteen
-    // turn on `find` and nothing else.
-    const rows = (text: string) => text.trim() === "" ? [] : text.trim().split("\n");
-    const find = async (expression: string) =>
-      rows(await kg(dir, ["nodes", "find", expression]));
-    const only = async (expression: string) => {
-      const found = await find(expression);
-      assertEquals(found.length, 1, expression);
+    // The guide's own questions — see `questions.md`. Batch 14 removed `find`,
+    // so a selection is a pattern and a comparison is a filter over what the
+    // pattern hands back — the interim `design/parked/condition.md` names.
+    // deno-lint-ignore no-explicit-any
+    const nodes = async (pattern: string): Promise<any[]> =>
+      JSON.parse(await kg(dir, ["nodes", "match", pattern]));
+    const find = async (pattern: string): Promise<string[]> =>
+      (await nodes(pattern)).map((node) => node.id as string);
+    const where = async (
+      pattern: string,
+      keep: (node: Record<string, string>) => boolean,
+    ) => (await nodes(pattern)).filter(keep).map((node) => node.id as string);
+    const only = async (pattern: string) => {
+      const found = await find(pattern);
+      assertEquals(found.length, 1, pattern);
       return found[0]!;
     };
     const shown = async (id: string, name: string): Promise<string | undefined> =>
@@ -140,7 +147,7 @@ Deno.test({
     // Q1, Q2 and Q3 are one selection asked for three ways, and the difference
     // between them is the whole of what `find` returns: the ids are the answer,
     // a loop turns them into titles, a pipe reduces them to a number.
-    const recent = await find("released > 2000");
+    const recent = await where("(:Movie)", (m) => Number(m.released) > 2000);
     assertEquals(recent.length, 12);
     const titles: string[] = [];
     for (const id of recent) titles.push((await shown(id, "title"))!);
@@ -161,18 +168,24 @@ Deno.test({
 
     // Q6, Q7 — every person, and every film with its title and released year.
     // The projection is the caller's loop; `find` selects and stops there.
-    assertEquals((await find('"Person" in labels')).length, 133);
-    const films = await find('"Movie" in labels');
+    assertEquals((await find("(:Person)")).length, 133);
+    const films = await find("(:Movie)");
     assertEquals(films.length, 38);
     for (const film of films) {
       assertEquals(typeof await shown(film, "title"), "string", `title for ${film}`);
     }
 
     // Q8 — the film titled Cloud Atlas. 171 reads by hand before this.
-    const cloudAtlas = await only('title = "Cloud Atlas"');
+    const cloudAtlas = await only('({title: "Cloud Atlas"})');
 
     // Q9 — films released between 2010 and 2015, which is that same film.
-    assertEquals(await find("released > 2010 and released < 2015"), [cloudAtlas]);
+    assertEquals(
+      await where(
+        "(:Movie)",
+        (m) => Number(m.released) > 2010 && Number(m.released) < 2015,
+      ),
+      [cloudAtlas],
+    );
 
     // Q4, Q5 — people who directed, and acted in, a film released after 2010.
     // `find` chooses the films; the enriched entries carry the far end.
@@ -185,7 +198,7 @@ Deno.test({
       }
       return people.sort();
     };
-    const after2010 = await find("released > 2010");
+    const after2010 = await where("(:Movie)", (m) => Number(m.released) > 2010);
     assertEquals(after2010, [cloudAtlas]);
     assertEquals(await byRelation(after2010[0]!, "DIRECTED"), [
       "Lana Wachowski",
@@ -238,7 +251,7 @@ Deno.test({
     // his films carry the actors, so each hop is a read rather than a join.
     // Q13, three hops from Kevin Bacon, is the one this deliberately cannot
     // reach.
-    const tom = await only('name = "Tom Hanks"');
+    const tom = await only('({name: "Tom Hanks"})');
     const coactors = new Set<string>();
     for (const acted of await entries(dir, tom)) {
       if (acted.type !== "ACTED_IN" || acted.direction !== "out") continue;
