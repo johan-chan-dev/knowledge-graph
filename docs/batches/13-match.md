@@ -48,12 +48,18 @@ $ kg nodes match '(:Person)-[:DIRECTED]->(:Movie where title = "Cloud Atlas")'
 01a09f8b-54a0-7cb0-beec-5e78f58b4686
 
 $ kg nodes match '(:Person)-[:DIRECTED]->(:Movie where title = "Cloud Atlas")' \
-    | kg nodes --stdin --properties --json | jq -r '.[] | .name // .title'
+    | kg nodes --stdin --properties --json \
+    | jq -r '.[] | select(.labels | index("Person")) | .name'
 Lana Wachowski
 Lilly Wachowski
 Tom Tykwer
-Cloud Atlas
 ```
+
+**The four ids are the subgraph; the three names are a projection of it.** The
+anchor is in the match because a pattern returns both ends of what it names —
+that is the point of it — so asking for one side is the caller's `select`.
+**That `jq` is the `RETURN`**, and it is why the grammar does not need one: it
+says which side and which field, which is exactly what a `RETURN` says.
 
 And the refusals, which are half of what it decides:
 
@@ -130,16 +136,26 @@ the property that lets a pattern be pasted into a real engine unchanged.
 
 **Question 10 of the guide** — *who directed Cloud Atlas* — which
 [batch 11](11-resolution.md) closed in four processes and two `jq` expressions.
-Here it is one command and one `jq`, and the expected three names are already
-asserted against `movies.cypher` in
+Here it is one command and one `jq`, the `jq` above, and the expected three
+names are already asserted against `movies.cypher` in
 [`movies_test.ts`](../../tool/conformance/movies_test.ts).
 
 **Question 12** — *everyone connected to Cloud Atlas*, 10 nodes — exercises the
-untyped, undirected form in one pattern:
+untyped, undirected form:
 
 ```bash
-kg nodes match '(:Movie where title = "Cloud Atlas")-[]-()'
+CA=$(kg nodes match '(:Movie where title = "Cloud Atlas")')
+kg nodes match '(:Movie where title = "Cloud Atlas")-[]-()' \
+  | kg nodes --stdin --properties --json \
+  | jq -r --arg anchor "$CA" '.[] | select(.id != $anchor) | .name // .title'
 ```
+
+**Both guide answers are the match minus its anchor**, and that is arithmetic
+rather than a discrepancy: 4 ids for 3 directors, 11 for 10 neighbours. Every
+question in the guide asks for one side of a relation, while the command returns
+the relation. Naming the subtraction is the honest way to use them as
+validators — hiding it inside a `.name // .title` that happens to print whatever
+field exists is how this page first got the counts wrong.
 
 ## The sequence
 
@@ -147,7 +163,7 @@ kg nodes match '(:Movie where title = "Cloud Atlas")-[]-()'
 |---|---|---|
 | **1** | the pattern parser — grammar and refusals, no evaluation | every refusal above lands before a file is opened, which is batch 9's rule and is testable with no store |
 | **2** | a single node pattern evaluates | at this point `match` answers everything `find` does; nothing is removed yet |
-| **3** | the floor — an unknown label or type refuses and names its near neighbour | needs step 2 to have a lookup site; this is the site [batch 12](12-vocabulary.md) had nowhere to put |
+| **3** | the floor — an unknown label or type refuses and names its near neighbour | needs step 2 to have a lookup site; this is the site [batch 12](12-vocabulary.md) had nowhere to put. Both halves read a directory, because 12 gives a relation type the same store a label has — without it this step would scan every link record to learn the vocabulary, and only the label half would be free |
 | **4** | one relationship, in either direction, typed or not | the first thing `find` cannot do |
 | **5** | chaining, and a repeated variable as a join | needs step 4; the only step that needs a notion of binding at all |
 | **6** | `find` is removed, the conformance rewritten as patterns | last, so the guide's questions are rewritten **once** rather than at step 2 and again at step 5 |

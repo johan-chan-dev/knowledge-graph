@@ -39,8 +39,14 @@ $ kg labels list
 Movie
 Person
 
-$ ls .kg/labels/
+$ kg types list
+ACTED_IN
+DIRECTED
+PRODUCED
+
+$ ls .kg/labels/ .kg/types/
 movie.md  person.md
+acted-in.md  directed.md  produced.md
 
 $ kg node 01a0…7c2f label add person
 label exists as `Person` — its slug `person` is taken
@@ -73,7 +79,7 @@ Each step leaves the tool working and its tests passing.
 | **1** | one word rule for keys, labels and types | self-contained, and it *removes* a divergence: `isName` and `isLabel` stop disagreeing. Everything after is written against the final rule |
 | **2** | the slug, and the word into the label's frontmatter | needs step 1 to know what a word is. `label.ts` stops treating the filename as the word |
 | **3** | a collision refuses at creation | needs step 2 — there is no slug to collide in before it |
-| **4** | `link.ts` stops gating the type on `isLabel` | independent of 2 and 3; a type names no file, so it only ever needed step 1 |
+| **4** | a relation type becomes a record of its own, `types/<slug>.md` | the same mechanism as steps 2 and 3, applied to the second vocabulary; `link.ts` stops gating the type on `isLabel` and starts referring to the store |
 | **5** | the import stops translating | last, because it is the one place that rewrites stored data, and every reader it feeds is settled by then |
 
 **Step 5 is the one that touches stored data**, and there is no migration

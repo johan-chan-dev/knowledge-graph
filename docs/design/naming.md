@@ -17,15 +17,16 @@ backtick**, and that rule is openCypher's rather than ours.
 | a **key** | `validUntil`, `release_date` — same rule as a word; camelCase is the house form | the author; the tool when it writes | at the door |
 | a **label word**, a **relation type** | `Person`, `ACTED_IN` — openCypher's `UnescapedSymbolicName` | the author, **form included** | at the door |
 | a **value** | `Cloud Atlas`, `github-issue-412` | the author | one line, printable — nothing else |
-| a **label's file** | `person.md` — the slug of the word | the tool, derived | a collision refuses |
+| a **label's file**, a **type's file** | `person.md`, `acted-in.md` — the slug of the word | the tool, derived | a collision refuses |
 | a `.ts` file | `frontmatter_test.ts` | Deno | — |
 | a `.md` file | `query-language.md` | a URL | — |
 
 **Two levels of constraint, not three.** A key, a label word and a relation
 type share one rule, and within it the author picks the word *and its form* —
 camelCase and PascalCase are what the tool writes, never what it demands. A
-value has no separator rule at all. The label's filename is nobody's: it is
-computed, and it is the only name here that nobody types.
+value has no separator rule at all. The filenames under `labels/` and `types/`
+are nobody's: they are computed, and they are the only names here that nobody
+types.
 
 ### A key: the same rule as a word, and camelCase as a house form
 
@@ -124,8 +125,9 @@ one way.
 
 ### The slug: the filename is computed, never typed
 
-The word no longer names its file. It lives in the label's own frontmatter, and
-the file gets a derived name:
+The word no longer names its file. It lives in the record's own frontmatter —
+`labels/<slug>.md` for a label, `types/<slug>.md` for a relation type — and the
+file gets a derived name:
 
 ```js
 const slug = (s) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "")
@@ -136,8 +138,9 @@ const slug = (s) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "")
   .replace(/-+/g, "-").replace(/^-|-$/g, "");
 ```
 
-`Person` → `person.md`, `ACTED_IN` → `acted-in.md`, `Oauth2Token` →
-`oauth-2-token.md`, `Décision` → `decision.md`.
+`Person` → `labels/person.md`, `ACTED_IN` → `types/acted-in.md`, `Oauth2Token` →
+`oauth-2-token.md`, `Décision` → `decision.md`. The two directories are separate
+namespaces, so a label and a type may share a word without colliding.
 
 **Its job is not to be pretty, it is to collide.** Two words a reader cannot
 tell apart must land on one filename, where creating the second **refuses**.
@@ -247,8 +250,8 @@ into the vocabulary of another.
 | a key, at the argv door | `UnescapedSymbolicName` — the same rule as a word |
 | a key, at the reading door | the same rule — *a block is read only if the tool could have written it* |
 | a label word, a relation type, at the argv door | `UnescapedSymbolicName` — refuse anything a pattern would have to backtick |
-| a label word, at creation | its slug must be free; a collision names the word already holding it |
-| a label word, at match time | an unknown word **refuses and names its near neighbour** — `no such label: person — did you mean Person?` — never returns empty |
+| a label word or a relation type, at creation | its slug must be free **within its own directory**; a collision names the word already holding it |
+| a label word or a relation type, at match time | an unknown word **refuses and names its near neighbour** — `no such label: person — did you mean Person?` — never returns empty; both halves read a directory rather than scanning records |
 | a value | one line, printable — the rule it already had |
 
 **The match-time row is the floor.** It holds whatever else is decided, because
