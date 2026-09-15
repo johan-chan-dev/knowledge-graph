@@ -1,6 +1,7 @@
 # Batch 15 — one write
 
-**Done when** a unit of meaning is written in one act.
+**Done when** a unit of meaning is written in one act, and a property may hold a
+structure.
 
 ## What it has to fix
 
@@ -22,26 +23,49 @@ that reads as an answer.
 **An import feels the time too.** `conformance/import.sh` is 1 239 commands and
 about fifty seconds, almost all of it process startup on a 70 MB binary.
 
-**And argv cannot write a list at all.** `set sources '[a, b]'` stores the
-string `[a, b]`, because the shell removed the quoting before the tool saw
-anything. So `add` is the only way a list comes into being, even when the
-caller knows the whole of it from the start.
+**And argv cannot carry a shape at all.** `set sources '[a, b]'` stores the
+string `[a, b]` and `set config.port 8080` is refused, because the shell removed
+the quoting before the tool saw anything and a name is not a path. So a list
+exists only through `add`, and a structure does not exist.
+
+## The rule the whole batch follows
+
+> **A datum has a shape; an address has a path.**
+
+| | takes | because it |
+|---|---|---|
+| `node <id> --properties` | the stored shape, nested | **presents** a datum |
+| `node <id> set --stdin` | nested JSON | **writes** a datum, and a datum has a shape |
+| a pattern's map — `{config.port: "x"}` | a path and a scalar | **compares** a leaf |
+| `node <id> delete <path>...` | paths | **addresses** leaves |
+
+**So `set` never takes a path**, and there are not two ways to reach one leaf.
+Sending `{"config": {"port": "9090"}}` addresses it *by shape* — the merge is
+deep and touches only what is named. A path exists exactly where there is no
+shape to send: comparing, and removing.
 
 ## What it should look like
 
 ```console
 $ kg node 01a0…7c2f set --stdin <<'JSON'
-{ "title": "The vocabulary is openCypher's", "status": "settled",
-  "sources": ["batch-12", "rfc-7396"] }
+{ "title": "The vocabulary is openCypher's",
+  "config": { "port": "8080", "host": "api.example.com" },
+  "sources": ["batch-12", "batch-14"] }
 JSON
 set 3
 
+$ kg node 01a0…7c2f set --stdin <<< '{"config": {"port": "9090"}}'
+set 1
+
 $ kg node 01a0…7c2f --properties
 {
-  "sources": ["batch-12", "rfc-7396"],
-  "status": "settled",
+  "config": { "host": "api.example.com", "port": "9090" },
+  "sources": ["batch-12", "batch-14"],
   "title": "The vocabulary is openCypher's"
 }
+
+$ kg nodes match '(:Service {config.port: "9090"})'
+$ kg node 01a0…7c2f delete config.port sources
 ```
 
 And the refusals, which are half of what it decides:
@@ -50,8 +74,8 @@ And the refusals, which are half of what it decides:
 $ kg node 01a0…7c2f set --stdin <<< '{"released": 2000}'
 not a value: 2000 — a property is text, so write it quoted
 
-$ kg node 01a0…7c2f set --stdin <<< '{"status": null}'
-not a value: null — a property is removed with `unset`, which is a verb
+$ kg node 01a0…7c2f set --stdin <<< '{"config": {"port": null}}'
+not a value: null — a property is removed with `delete`, which is a verb
 
 $ kg node 01a0…7c2f set --stdin <<< '{"labels": ["Decision"]}'
 labels is reserved — it is how a node classifies, written with `label`
@@ -63,103 +87,165 @@ labels is reserved — it is how a node classifies, written with `label`
 
 `set <name> <value>` writes one key and leaves the others. `set --stdin` writes
 several and leaves the others. **Same verb, same semantics, a different number
-of keys** — which is the symmetry `nodes --properties <id>...` and
+of keys** — the symmetry `nodes --properties <id>...` and
 `nodes --stdin --properties` already have.
 
 **RFC 7396 was the obvious shape and is the wrong one.** Its merge-patch makes
 `null` mean *delete this key*, and inheriting that would reopen by the format a
 door the design closed: [absence](../design/absence.md) settled that **absence
-is a verb**, because argv cannot carry *no value* — every candidate arrives as
-a legal one. JSON can carry it, so the original argument no longer holds by
-itself and has to be retaken. It is retaken the same way: one path to a thing,
-and `unset` is that path.
+is a verb**, because argv cannot carry *no value* — every candidate arrives as a
+legal one. JSON can carry it, so the original argument no longer holds by itself
+and has to be retaken. It is retaken the same way: one path to a thing, and the
+verb is that path.
 
-So nothing is adopted. What the format buys is a list, and that is all.
+What is taken from the RFC is the **deep** merge, and only because it is what
+makes a shape an address.
 
-| | argv | `--stdin` |
+## `delete` replaces `unset`
+
+`unset <name>` removes one top-level property. `delete <path>...` removes
+several, at any depth. It is a rename and a widening, not two verbs: **one way
+to remove a thing**, which is the rule that refused `null` above.
+
+| | today | after |
 |---|---|---|
-| several keys in one write | no | **yes** |
-| a list written whole | no — `set sources '[a, b]'` is a string | **yes** |
-| removing a key | `unset` | `unset` |
-| growing a list without knowing it | `add` | `add` |
+| one property | `unset title` | `delete title` |
+| several | four commands | `delete title status score` |
+| a leaf | not expressible | `delete config.port` |
 
-`add` and `remove` keep their own job: they change a list **without the caller
-knowing what is in it**, which a write of the whole value cannot do.
+`add` and `remove` keep their own job — growing a list **without the caller
+knowing what is in it**, which no write of a whole value can do. They stay
+top-level: a list inside a structure is replaced whole, by sending the shape.
+Giving them paths as well is a widening nothing has asked for.
 
-## What it reopens in batch 3, and on batch 3's own reasoning
+## What it reopens, and on those batches' own reasoning
 
-[Batch 3](3-lists.md) divided the verbs: *the shape follows from the verb, not
-the argument count* — `set` and `unset` are about the property, `add` and
-`remove` about its contents, *so one value passed to `set` is a scalar and one
-passed to `add` is a single-element list, and neither has to be inferred*.
+**[Batch 3](3-lists.md) divided the verbs by shape.** *The shape follows from
+the verb, not the argument count* — `set` is a scalar, `add` is a list, *so
+neither has to be inferred*. A `set --stdin` that writes a list breaks that
+division and keeps its reason: the verb had to carry the shape because argv
+offered no other signal. JSON says it outright, so nothing is inferred.
 
-**A `set --stdin` that writes a list breaks that division.** It has to be said
-rather than glossed, because the division is a shipped rule with a test behind
-it.
+**And the reading door refused a structure outright** — *config has no value*,
+*sources holds something that is not a value*. That refusal was right while
+nothing could write one and nothing could address one. Both change here, so the
+door opens exactly as far as the writer goes: a value is a scalar, a list of
+scalars, **or a map of either**, recursively.
 
-It breaks the letter and keeps the reason. The rule exists so that **nothing is
-inferred**: in argv the only signal available was the verb, because `set x a b`
-would have made the tool count arguments and guess. JSON carries the shape
-itself — `["a", "b"]` is a list because the author wrote brackets, and a
-one-element list is `["a"]` rather than something to deduce. So the verb stops
-having to carry what the format now says out loud.
+What does not change is why a list is not a container. [Batch 9](9-find.md) put
+it as *a list is a dimension, not a container* — two values on one dimension,
+not a thing holding things. A map **is** a container, and that is the new
+capability rather than a reinterpretation of the old one.
 
-What does not change is `add`: it grows a list **without the caller knowing what
-is in it**, which no write of a whole value can do. The two verbs stop dividing
-by shape and start dividing by what the caller knows.
+Both pages get the note, the way [9](9-find.md) and [11](11-resolution.md) did.
 
-Batch 3 gets the note, the way [9](9-find.md) and [11](11-resolution.md) did.
+## Where the merge stops
 
-## What it refuses, and none of it is a new rule
+**Deep through maps, and not into a list.** `{"config": {"port": "x"}}` merges
+into `config`; `{"sources": ["a"]}` **replaces** `sources` whole.
 
-| in the object | what happens | already decided by |
+That is not an exception, it is [batch 9](9-find.md)'s rule applied: *a list is
+a dimension, not a container*. A map has sub-addresses to merge into because it
+holds things; a list holds nothing, it says several things at once, so there is
+nothing inside it for a path or a merge to reach. `add` and `remove` are how a
+dimension changes without being restated, and they are unaffected.
+
+The same line answers a path: `delete sources.0` is **refused**. An index is
+not an address here, because position is not what a list means.
+
+## `delete`, in full
+
+| | |
+|---|---|
+| several paths | `delete title config.port` — one act, one write |
+| an absent path | says so and succeeds, as `unset` does today: the end state asked for is the end state |
+| a reserved name | refused, naming the verb — `delete labels` points at `unlabel`, exactly as `unset labels` does |
+| an ill-formed path | refused before the node is opened — `config.`, `.port`, `a..b` |
+
+## What it refuses, and most of it is not new
+
+| in the object | what happens | decided by |
 |---|---|---|
-| `labels`, `links` | refused, naming the verb that writes them | they are reserved, and argv refuses them the same way |
-| `id` | refused — it is not a property | `nodes --properties` prints it; that does not make it one |
-| a nested object, a list of lists | refused | *nothing authored may nest*, `spec/storage.md`, and batch 3 refuses it at the reading door already |
+| `labels`, `links` | refused, naming the verb that writes them | reserved, and argv refuses them the same way |
+| `id` | refused — it is not a property | printing it does not make it one |
 | `2000`, `true` | refused | the tool does not decide that the number `2000` means the text `"2000"` — [batch 4](4-stops-guessing.md) |
-| `null` | refused, naming `unset` | above |
+| `null` | refused, naming `delete` | above |
+| a key containing `.` | refused | a name is not a path, and allowing it would make one string mean two things |
 
 The numeral row is the same refusal [batch 14](14-match.md) put in a pattern's
-map — *a property is text on disk, so a map compares against a quoted string*.
-Two places, one rule, and neither invented it.
+map. Two places, one rule, and neither invented it.
 
 **A refused key refuses the whole object.** The argument for this command is
 that a unit of meaning is written at once; writing half of it would be losing
 exactly what it came for.
 
+## What a path costs in a pattern
+
+[Batch 14](14-match.md)'s map takes a name. It has to take a path, and that is
+the one place this batch reaches into the pattern grammar.
+
+**It is a deliberate divergence, and it fails loudly.** openCypher has no nested
+property and therefore no property path — `{config.port: "x"}` is not valid
+there, because `.` is outside `ID_Continue`. **Backticks are not added**:
+`` `config.port` `` *is* valid Cypher and means a property literally named
+`config.port`, so a backticked pattern would parse elsewhere, run, and match
+nothing. A form that refuses at the other parser is better than one that
+silently means something else — and [naming](../design/naming.md) now says the
+relationship is inspiration rather than conformance, which is what makes this
+allowed.
+
+**A path never collides with a name.** A stored key cannot contain `.`, so the
+two vocabularies cannot overlap and there is no precedence to define.
+
+**A path to an absent leaf does not match**, exactly as an absent key does not —
+[absence](../design/absence.md)'s two-valued rule, with no third value invented
+for *the parent exists and the leaf does not*.
+
+**And a path landing on a map does not match either.** `{config: "x"}` compares
+a scalar against a structure and fails, which is the rule
+[batch 14](14-match.md) already applies to a list: *a map compares a value, so a
+property holding a list does not match one*.
+
 ## What validates it
 
 `conformance/import.sh`, regenerated to write each node's properties in one
-call. Counted: **171 `node new`, 374 `set`, 253 `link`** — so folding the
-properties into their node's creation removes 374 processes and leaves 545,
-a little over half. The node count, the relation count and all thirteen of the
-guide's answers must come out identical, which is what makes it a check rather
-than a rewrite.
+call. Counted: **171 `node new`, 374 `set`, 253 `link`** — folding the
+properties into their node removes 374 processes of 1 239. The node count, the
+relation count and all thirteen of the guide's answers must come out identical,
+which is what makes it a check rather than a rewrite.
 
-The rest is the relations, which this batch does not touch: one process each,
-and writing several nodes at once is what it leaves.
+The relations are untouched: one process each, and writing several nodes at once
+is what this leaves.
 
 ## The sequence
 
 | | | why here |
 |---|---|---|
-| **1** | reading a JSON object as properties — the refusals, no writing | every refusal lands before the node is opened, which is batch 9's rule, and it is testable with no store |
-| **2** | `set --stdin` writes, exclusive with a name and a value | needs step 1; one flush, so the unit of meaning is one write |
-| **3** | a list is written whole | the one capability argv does not have, and the only one that is new |
-| **4** | `convert.ts` emits one `set --stdin` per node | last, because it is the check and it should be run against a surface that stopped moving |
+| **1** | a value may be a map — the reading door, and `document.ts` writing one back | self-contained, and what everything else needs on disk. Nothing writes one yet |
+| **2** | reading a JSON object as properties — the refusals, no writing | needs step 1 to know what a value is. Every refusal lands before the node is opened, which is batch 9's rule |
+| **3** | `set --stdin` writes, deep-merging, exclusive with a name and a value | needs step 2; one flush, so the unit of meaning is one write |
+| **4** | `delete <path>...`, replacing `unset` | needs step 1 for a path to have somewhere to point |
+| **5** | a path in a pattern's map | the only step that touches [batch 14](14-match.md); it needs step 1 to have anything to reach |
+| **6** | `convert.ts` emits one `set --stdin` per node | last, because it is the check and should run against a surface that stopped moving |
 
 ## What it leaves
 
 **Writing several nodes at once.** One node is a unit of meaning; several are a
-transaction, and this tool has none — `git` is the versioning and
-[the tool never commits](11-resolution.md). A command that half-wrote a hundred
-nodes would need something to roll back to, and naming that is a different
-batch.
+transaction, and this tool has none — `git` is the versioning and the tool never
+commits. A command that half-wrote a hundred nodes would need something to roll
+back to, and naming that is a different batch.
+
+**A path in `add` and `remove`.** They stay top-level until someone wants a list
+inside a structure grown rather than replaced.
+
+**Exporting to a real engine.** A nested property is the first thing this store
+holds that openCypher's data model refuses outright — not its grammar, its
+types. Whoever writes an export decides whether to flatten, serialise or promote
+to nodes, and that decision belongs there rather than here.
 
 **Editing part of the body.** [partial-edits](../design/parked/partial-edits.md)
-holds it, with the hash that guards a positional write. It is the same subject
-one half of a node over, and it is parked rather than next.
+holds it, with the hash that guards a positional write. Same subject, the other
+half of a node.
 
 ---
 

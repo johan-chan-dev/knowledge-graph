@@ -155,6 +155,14 @@ neither has to be inferred.
 > object says it outright, so `set --stdin` writes a list without anything being
 > inferred. `add` keeps the job no whole-value write can do — growing a list
 > without knowing what is in it.
+>
+> The same batch reverses the row below on nesting: *a map or a list of lists
+> inside a property has no meaning here and cannot round-trip*. It could not
+> round-trip because nothing could write one and nothing could address one, and
+> 15 builds both — a nested JSON object to write, a path to compare and to
+> delete. What stands is why a **list** is not a container: two values on one
+> dimension is not a thing holding things, and a map being a container is the
+> new capability rather than a re-reading of the old one.
 
 **What `add` does to a scalar.** Refuses. Promoting `auth` to `[auth, pattern]`
 would be the tool deciding what was meant.

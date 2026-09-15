@@ -132,6 +132,12 @@ second word is **refused** naming the first instead of shadowing it.
 The two directories are separate namespaces, so a word may be a label and a
 relation type at once without either shadowing the other.
 
+> **[Batch 15](../batches/15-one-write.md) widens this.** A value becomes a
+> scalar, a list of scalars, **or a map of either**, recursively — because that
+> batch builds the two things whose absence made a structure unusable: a shape
+> to write it with, and a path to reach into it. The paragraph below is the rule
+> for a scalar and is unchanged.
+
 **A property's value is stored as a string, always.** The serialiser quotes
 only what would otherwise change type on the way back — `hello world` stays
 bare, `'42'` and `'2027-01-01'` keep their quotes. Those quotes are the tool
