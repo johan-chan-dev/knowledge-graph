@@ -152,11 +152,22 @@ kg node new --stdin                  …with content read from stdin
 kg node <id>                         the content
 kg node <id> --properties            the properties instead
 kg node <id> write --stdin           stdin replaces the content
-kg node <id> set    <name> <value>   write one property
-kg node <id> unset  <name>           remove one
+kg node <id> set    <path> <value>   write one property
+kg node <id> set    <path> --stdin   a JSON object, merged there
+kg node <id> set    --stdin          …merged at the root
+kg node <id> delete <path>...        remove them, at any depth
 kg node <id> add    <name> <value>...   values into a property's list
 kg node <id> remove <name> <value>...   values out of it
 ```
+
+**A place and a thing.** Every write names where and what, and `set title "x"`
+was always a path of length one. A path addresses with dots — `config.port` —
+which a stored key can never contain, so position decides which is meant and
+nothing guesses. [batch 15](../batches/15-one-write.md) has the argument.
+
+**A property may hold a map**, recursively, with the same rules at every depth.
+A JSON object is the shape to write it with; a path is how to compare it and how
+to remove part of it.
 
 **The prose is the node.** `kg node <id>` returns it and nothing else — no
 properties inline, no id header, no separator. It is the only command whose stdout is data rather
@@ -223,19 +234,25 @@ it and answering are the same act here. `labels` and `links` appear like any
 other property, being reserved against `set` rather than hidden from a read. A
 node with no properties prints nothing and exits `0`.
 
-**`set` and `unset` are about the property; the value is stored as given.** The
+**`set` and `delete` are about the property; the value is stored as given.** The
 tool writes back the text it was handed and compares text on the way out — it
 never decides that `42` is a number, for the same reason the reader is pinned to
 YAML 1.2 core.
 
 **`set` takes exactly one value** and refuses a second, naming quoting as the
 fix. Joining several would collide with `add`, where several values mean several
-elements.
+elements. A value **or** `--stdin`, never both: two sources for one thing is a
+question the command cannot answer for the caller.
 
-**`set`/`unset` are about the property; `add`/`remove` about its contents.** The
-shape follows from the verb rather than from how many arguments arrived, so `set
-x auth` is a scalar and `add x auth` is a one-element list, and neither has to
-be inferred.
+**`add` and `remove` change a list without the caller knowing what is in it**,
+which no write of a whole value can do. `set` replaces a list whole — a list is
+a dimension, not a container, so there is nothing inside it for a merge or a
+path to reach, and `delete tags.0` is refused because position is not what a
+list means.
+
+The verbs used to divide by *shape* — `set` a scalar, `add` a list — so that
+nothing was inferred from an argument count. A JSON object states the shape
+outright, so the reason survives and the division does not.
 
 **`add` and `remove` refuse a scalar** — `cannot add to title: not a list`.
 Promoting `auth` to `[auth, pattern]` would be the tool deciding what was meant.
@@ -276,7 +293,7 @@ name that will eventually be typed wrong and fail by silently matching nothing,
 and camelCase is what markdown frontmatter writes.
 [`design/naming.md`](../design/naming.md) has the measurements.
 
-**Some names are the tool's.** `set`, `unset`, `add` and `remove` refuse them:
+**Some names are the tool's.** `set`, `delete`, `add` and `remove` refuse them:
 
 | name | the fact it names | where that fact lives |
 |---|---|---|
@@ -310,8 +327,10 @@ live.
 Tab is refused for a different reason — it renders identically to spaces, so two
 values that look the same would not match a filter.
 
-**`unset` is idempotent.** Removing a property that is absent is the end state
-that was asked for.
+**`delete` is idempotent**, and takes several paths. Removing what is absent is
+the end state that was asked for, and a map a removal empties goes with it — a
+container holding nothing is not a fact about the node, which is what the tool
+already does to a list.
 
 **Everything else about a node is untouched.** `set` rewrites one key; the
 content and every other property survive it, and so does the reverse — `write`
@@ -320,7 +339,7 @@ replaces content and leaves properties alone.
 ## labels
 
 **Classification is a slot, not a property.** `labels` is reserved: `set`,
-`add`, `unset` and `remove` refuse it, and `label` / `unlabel` write it instead.
+`add`, `delete` and `remove` refuse it, and `label` / `unlabel` write it instead.
 That is what makes `kg labels list` possible: the tool knows which dimension
 classification is, so each word is materialised as a file and listing the
 vocabulary is a directory read. Over *whichever property somebody chose* the
@@ -368,14 +387,15 @@ parse of every node, and a description is served by `kg label <word>`.
 ## links
 
 **A relation is a record**, `.kg/links/<uuid>.yaml`, holding its type, both
-endpoints and its properties once. `links` is reserved: `set`, `add`, `unset`
+endpoints and its properties once. `links` is reserved: `set`, `add`, `delete`
 and `remove` refuse it, and `link` writes it.
 
 ```
 kg node <id> link --as <type> --with-nodes <id>...   relate it to those nodes
 kg link <id>                                         its fields and properties
 kg link <id> forget                                  end the relation
-kg link <id> set / unset / add / remove              its properties
+kg link <id> set / delete / add / remove            its properties, the same
+                                                   forms a node's take
 ```
 
 **Both ends carry an entry**, `{type, link, direction}`, so a node's relations
@@ -438,8 +458,8 @@ stop reading, which then costs you the lines that matter.
 | `node <id>` | the content, byte for byte | its properties, rendered |
 | `node <id> --properties` | the properties, as JSON | — |
 | `node <id> write` | — | `replaced 210 bytes` |
-| `node <id> set` | — | `set title`, or `replaced title` |
-| `node <id> unset` | — | `unset title`, or `title was not set` |
+| `node <id> set` | — | `set title` or `replaced config.port`; several leaves give `set 3, replaced 0` |
+| `node <id> delete` | — | `deleted title`, or `title was not set` |
 | `node <id> add` | — | `added 1 to labels`, or nothing if nothing changed |
 | `node <id> remove` | — | `removed 1 from labels`, or `…, labels is now unset` |
 | `node <id> label` | — | `labelled 1`, or nothing if nothing changed |
@@ -452,7 +472,7 @@ stop reading, which then costs you the lines that matter.
 | `node <id> link` | the new link ids, one per line | — |
 | `link <id>` | `type`, `from`, `to`, then one property per row | — |
 | `link <id> forget` | — | `forgot <id>` |
-| `link <id> set` / `unset` / `add` / `remove` | — | as `node <id>`'s |
+| `link <id> set` / `delete` / `add` / `remove` | — | as `node <id>`'s |
 
 **A closed set of names tabulates; an open one does not.** Columns work where
 the tool knows the names in advance and every row carries all of them — type,
@@ -539,7 +559,7 @@ removed, or this may be the wrong space. A caller acts differently on each.
 | two values to `set` | `node <id> set takes one value — quote it if it contains spaces` | `4` |
 | too few arguments | `node <id> set needs a name and a value` | `4` |
 | a reserved name | ``body is reserved — it is the node's content, written with `write` `` | `1` |
-| an unknown action | `node <id> takes one action: write, set, unset, add, remove` | `4` |
+| an unknown action | `node <id> takes one action: write, set, delete, add, remove` | `4` |
 | an unknown scope | `unknown scope: nodez` | `4` |
 
 **The absent message names the space**, because *wrong space* is one of the two

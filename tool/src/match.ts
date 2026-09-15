@@ -1,4 +1,4 @@
-import type { Entry, Label, Name, Properties, Text, Value } from "./frontmatter.ts";
+import type { Entry, Label, Name, Properties, Text } from "./frontmatter.ts";
 import { isLinks } from "./frontmatter.ts";
 import type { Map_, Node, Part, Pattern, Relationship } from "./pattern.ts";
 

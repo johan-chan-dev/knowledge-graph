@@ -104,7 +104,7 @@ neither a value nor a list does not read at all.
 **A block is read only if the tool could have written it.** A property name that
 is not camelCase beginning lowercase, or a value carrying a control character,
 refuses the node rather than loading — otherwise it would display a property no
-command could then unset. [`design/boundaries.md`](../design/boundaries.md)
+command could then remove. [`design/boundaries.md`](../design/boundaries.md)
 argues why, and names the one exception: a reserved name still reads.
 
 **A link is a record.** `.kg/links/<uuid>.yaml` — a document of properties, no
@@ -132,11 +132,11 @@ second word is **refused** naming the first instead of shadowing it.
 The two directories are separate namespaces, so a word may be a label and a
 relation type at once without either shadowing the other.
 
-> **[Batch 15](../batches/15-one-write.md) widens this.** A value becomes a
-> scalar, a list of scalars, **or a map of either**, recursively — because that
-> batch builds the two things whose absence made a structure unusable: a shape
-> to write it with, and a path to reach into it. The paragraph below is the rule
-> for a scalar and is unchanged.
+**A value is a scalar, a list of scalars, or a map of either**, recursively,
+since [batch 15](../batches/15-one-write.md) — which built the two things whose
+absence had made a structure unusable: a shape to write it with, and a path to
+reach into it. A nested key follows the word rule at every depth, which is also
+what keeps a path unambiguous: a `.` cannot occur in a key at any level.
 
 **A property's value is stored as a string, always.** The serialiser quotes
 only what would otherwise change type on the way back — `hello world` stays

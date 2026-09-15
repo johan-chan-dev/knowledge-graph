@@ -189,7 +189,7 @@ a record, and `direction` on an endpoint cannot go stale — the ends it names
 cannot change.
 
 **A link's properties obey the same rules a node's do.** `kg link <id> set /
-unset / add / remove`, over the record instead of frontmatter, reusing the
+delete / add / remove`, over the record instead of frontmatter, reusing the
 machinery that already exists — on the properties, never on the three fields. `--with-properties` is then a convenience at
 creation carrying one value per name, and a list is built with `add` — the shape
 follows from the verb, as [batch 3](3-lists.md) settled, rather than from a flag

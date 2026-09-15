@@ -99,7 +99,8 @@ $ kg node 01a0…7c2f set --stdin <<< '{"labels": ["Decision"]}'
 labels is reserved — it is how a node classifies, written with `label`
 ```
 
-**Named, not linked:** `tool/tests/batches/15_test.ts`.
+**Backed by** [`15_test.ts`](../../tool/tests/batches/15_test.ts), and by the
+conformance import below.
 
 ## It is `set`, generalised — not a standard adopted
 
@@ -288,10 +289,15 @@ property holding a list does not match one*.
 ## What validates it
 
 `conformance/import.sh`, regenerated to write each node's properties in one
-call. Counted: **171 `node new`, 374 `set`, 253 `link`** — folding the
-properties into their node removes 374 processes of 1 239. The node count, the
-relation count and all thirteen of the guide's answers must come out identical,
-which is what makes it a check rather than a rewrite.
+call. Counted before: **171 `node new`, 374 `set`, 253 `link`**. Measured after:
+**1 036 lines against 1 239**, and every answer identical — the node count, the
+relation count and all thirteen of the guide's, which is what makes it a check
+rather than a rewrite.
+
+The saving is smaller than the `set` count because a node with one property
+trades one command for one command. What it buys there is not speed but the
+thing the batch is for: the property arrives with the node rather than after
+it.
 
 The relations are untouched: one process each, and writing several nodes at once
 is what this leaves.

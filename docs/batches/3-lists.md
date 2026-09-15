@@ -145,7 +145,7 @@ can never carry a warning again.
 
 ## What it has to answer
 
-**How the shape follows from the verb, not the argument count.** `set`/`unset`
+**How the shape follows from the verb, not the argument count.** `set`/`delete`
 are about the property, `add`/`remove` about its contents — so one value passed
 to `set` is a scalar and one passed to `add` is a single-element list, and
 neither has to be inferred.

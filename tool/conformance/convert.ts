@@ -101,8 +101,24 @@ for (
       `printf '[%3d/__NODES__] %-6s %s\\n' ${nodes} ${sh(label!)} ${sh(shown)}`,
     );
     lines.push(`${variable}=$(kg node new --with-labels ${label!})`);
-    for (const [name, values] of all) {
-      lines.push(`kg node "$${variable}" set ${name} ${sh(values[0]!)} >/dev/null 2>&1`);
+    // One write per node rather than one per property — batch 15's whole
+    // argument, and what makes a node's properties a unit rather than a
+    // sequence that can stop half way. A list stays `add`'s: it is a dimension
+    // growing, not a value being replaced.
+    const scalars = all.filter(([, v]) => v.length === 1);
+    const lists = all.filter(([, v]) => v.length > 1);
+    if (scalars.length > 0) {
+      const object = JSON.stringify(
+        Object.fromEntries(scalars.map(([n, v]) => [n, v[0]!])),
+      );
+      lines.push(
+        `printf %s ${sh(object)} | kg node "$${variable}" set --stdin >/dev/null 2>&1`,
+      );
+    }
+    for (const [name, values] of lists) {
+      lines.push(
+        `kg node "$${variable}" add ${name} ${values.map(sh).join(" ")} >/dev/null 2>&1`,
+      );
     }
     continue;
   }

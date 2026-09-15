@@ -13,7 +13,7 @@ enforces, and it put the surface's shape somewhere a defect cannot hide.
 $ kg node "$a" set body something
 body is reserved — it is the node's content, written with `write`
 
-$ kg node "$a" unset body
+$ kg node "$a" delete body
 body is reserved — it is the node's content, written with `write`
 
 $ kg node "$a" set created 2026-01-01
@@ -23,7 +23,7 @@ $ kg nodes list --properties
 --properties belongs to `kg node <id>`
 
 $ kg node "$a" whatever x
-node <id> takes one action: write, set, unset, add, remove
+node <id> takes one action: write, set, delete, add, remove
 
 $ kg node "$a" set title
 node <id> set needs a name and a value
@@ -41,7 +41,7 @@ take none, rather than as a word the tool does not know.
 
 ## Reserved property names
 
-`body` and `created` are refused by `set`, `unset`, `add` and `remove`, and the
+`body` and `created` are refused by `set`, `delete`, `add` and `remove`, and the
 refusal says where the fact actually lives.
 
 They are reserved because the tool holds those facts itself — one is the node's
