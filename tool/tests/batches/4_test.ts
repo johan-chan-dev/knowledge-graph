@@ -14,8 +14,8 @@ Deno.test("batch 4 — the tool stops guessing", async () => {
   await kg(dir, ["node", id, "set", "ticket", "12345678901234567890"]);
   await kg(dir, ["node", id, "set", "octal", "007"]);
   assertEquals(
-    (await kg(dir, ["node", id, "--properties"])).out,
-    "octal: '007'\nticket: '12345678901234567890'\nversion: '1.10'\n",
+    JSON.parse((await kg(dir, ["node", id, "--properties"])).out),
+    { octal: "007", ticket: "12345678901234567890", version: "1.10" },
   );
 
   // 2. --properties is refused where it means nothing, not accepted and ignored.

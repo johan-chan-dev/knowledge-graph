@@ -32,7 +32,10 @@ Deno.test("batch 2 — nodes carry properties", async () => {
   );
 
   const asProperties = await kg(dir, ["node", b, "--properties"]);
-  assertEquals(asProperties.out, "kind: authority\nvalidUntil: '2027-01-01'\n");
+  assertEquals(JSON.parse(asProperties.out), {
+    kind: "authority",
+    validUntil: "2027-01-01",
+  });
   assertEquals(asProperties.err, "", "the lines are right there to count");
 
   // Reading the content renders the same lines, on the other channel.

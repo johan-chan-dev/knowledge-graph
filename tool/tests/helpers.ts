@@ -52,6 +52,15 @@ export const stdout = (outcome: Outcome) => outcome.kind === "ok" ? outcome.stdo
 export const message = (outcome: Outcome) => outcome.kind === "ok" ? "" : outcome.message;
 export const rows = (outcome: Outcome) => stdout(outcome).split("\n").filter(Boolean);
 
+/** Structured output, parsed. A test that means *these properties* should say
+ * so; the serialisation is pinned once, in `batches/13_test.ts`, so changing it
+ * touches one file rather than every assertion that ever printed a node. */
+// deno-lint-ignore no-explicit-any
+export const parsed = (outcome: Outcome): any => {
+  const text = stdout(outcome);
+  return text === "" ? undefined : JSON.parse(text);
+};
+
 /** Three nodes: two decisions, one of them dated; one note. The smallest
  * population a filter can be wrong about. */
 export async function seeded3() {

@@ -31,10 +31,10 @@ type Entry = { type: string; direction: string; neighbour: string };
  * plus the far end and the relation's own properties, resolved on the way out.
  * Batch 11 removed `links` and `backlinks`; this is what replaced them. */
 async function entries(dir: string, id: string): Promise<Entry[]> {
-  const parsed = parseYaml(await kg(dir, ["node", id, "--properties"])) as
-    | { links?: Entry[] }
-    | null;
-  return parsed?.links ?? [];
+  const parsed = JSON.parse(await kg(dir, ["node", id, "--properties"])) as {
+    links?: Entry[];
+  };
+  return parsed.links ?? [];
 }
 
 async function kg(dir: string, argv: string[]): Promise<string> {
@@ -106,9 +106,8 @@ Deno.test({
 
     let checked = 0;
     for (const id of (await kg(dir, ["nodes", "list"])).trim().split("\n")) {
-      const shown = (await kg(dir, ["node", id, "--properties"]))
-        .split("\n").find((l) => l.startsWith("name: ") || l.startsWith("title: "))
-        ?.replace(/^(?:name|title): /, "").replace(/^'|'$/g, "");
+      const properties = JSON.parse(await kg(dir, ["node", id, "--properties"]));
+      const shown: string | undefined = properties.name ?? properties.title;
       if (shown === undefined) continue;
       const carried = await entries(dir, id);
       assertEquals(
@@ -135,9 +134,8 @@ Deno.test({
       assertEquals(found.length, 1, expression);
       return found[0]!;
     };
-    const shown = async (id: string, name: string) =>
-      (await kg(dir, ["node", id, "--properties"]))
-        .split("\n").find((l) => l.startsWith(`${name}: `))?.slice(name.length + 2);
+    const shown = async (id: string, name: string): Promise<string | undefined> =>
+      JSON.parse(await kg(dir, ["node", id, "--properties"]))[name];
 
     // Q1, Q2 and Q3 are one selection asked for three ways, and the difference
     // between them is the whole of what `find` returns: the ids are the answer,
@@ -208,13 +206,13 @@ Deno.test({
     // batch 11's own validation, and what proves removing `backlinks` cost
     // nothing: the enriched entries, filtered, then resolved in one call.
     const carried = JSON.parse(
-      await kg(dir, ["node", cloudAtlas, "--properties", "--json"]),
+      await kg(dir, ["node", cloudAtlas, "--properties"]),
     ) as { links: { type: string; direction: string; neighbour: string }[] };
     const directors = carried.links
       .filter((e) => e.type === "DIRECTED" && e.direction === "in")
       .map((e) => e.neighbour);
     const resolvedNames = JSON.parse(
-      await kg(dir, ["nodes", "--properties", "--json", ...directors]),
+      await kg(dir, ["nodes", "--properties", ...directors]),
     ) as { name: string }[];
     assertEquals(resolvedNames.map((each) => each.name).sort(), [
       "Lana Wachowski",

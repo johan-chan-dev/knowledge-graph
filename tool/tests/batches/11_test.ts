@@ -45,12 +45,12 @@ Deno.test("batch 11 — resolution", async () => {
   for await (const entry of Deno.readDir(join(dir, ".kg", "links"))) {
     assertEquals(entry.name.endsWith(".tmp"), false, `${entry.name} left behind`);
   }
-  assertStringIncludes((await kg(dir, ["link", record])).out, "since: '2012'");
+  assertEquals(JSON.parse((await kg(dir, ["link", record])).out).since, "2012");
 
   // 4. The entry on disk points at the record; the command resolves it.
   const stored = await Deno.readTextFile(join(dir, ".kg", "nodes", `${film}.md`));
   assertEquals(stored.includes("neighbour"), false, "nothing is duplicated on disk");
-  const shown = JSON.parse((await kg(dir, ["node", film, "--properties", "--json"])).out);
+  const shown = JSON.parse((await kg(dir, ["node", film, "--properties"])).out);
   assertEquals(shown.links[0].neighbour, director);
   assertEquals(shown.links[0].direction, "in");
   assertEquals(shown.links[0].since, "2012", "the relation's own property, read in");
@@ -62,15 +62,11 @@ Deno.test("batch 11 — resolution", async () => {
   // 6. The plural is the singular with its ids handed over — argv or stdin,
   //    never both, and never neither.
   const fromArgv = JSON.parse(
-    (await kg(dir, ["nodes", "--properties", "--json", film, director])).out,
+    (await kg(dir, ["nodes", "--properties", film, director])).out,
   );
   assertEquals(fromArgv.length, 2);
   assertEquals(fromArgv[0].id, film, "each object carries its id");
-  const piped = await kg(
-    dir,
-    ["nodes", "--stdin", "--properties", "--json"],
-    `${film}\n`,
-  );
+  const piped = await kg(dir, ["nodes", "--stdin", "--properties"], `${film}\n`);
   assertEquals(JSON.parse(piped.out)[0].title, "Cloud Atlas");
   assertStringIncludes(
     (await kg(dir, ["nodes", "--stdin", "--properties", film])).err,
@@ -78,14 +74,14 @@ Deno.test("batch 11 — resolution", async () => {
   );
   assertStringIncludes((await kg(dir, ["nodes"])).err, "takes one action");
 
-  // 7. `--json` is a format, so the default stays the shape it is held in.
-  assertStringIncludes(
-    (await kg(dir, ["node", film, "--properties"])).out,
-    "title: Cloud Atlas",
+  // 7. Batch 13 took the format flag away: structured output is JSON, and a
+  //    list of ids is lines. Nothing chooses.
+  assertEquals(
+    JSON.parse((await kg(dir, ["node", film, "--properties"])).out).title,
+    "Cloud Atlas",
   );
-  assertEquals(JSON.parse((await kg(dir, ["nodes", "find", "title", "--json"])).out), [
-    film,
-  ]);
+  assertEquals((await kg(dir, ["node", film, "--properties", "--json"])).code, 4);
+  assertEquals((await kg(dir, ["nodes", "find", "title"])).out, `${film}\n`);
 
   // 8. `labels list` is one word per line, ordered by the slug rather than by
   //    the word — so `Auth` and `auth` stay adjacent instead of landing at

@@ -30,34 +30,40 @@ Deno.test("batch 7 — relations", async () => {
   // 2. Both ends carry an entry, so both directions are one node read. Batch 11
   //    removed the two commands that filtered it and resolves the far end in
   //    `--properties` instead, which is what `neighbour` is.
-  const out = (await kg(dir, ["node", a, "--properties"])).out;
-  assertEquals(out.split("\n").filter((l) => l.startsWith("  - ")).length, 3);
-  assertStringIncludes(out, `neighbour: ${b}`);
-  assertStringIncludes(out, "type: supersedes");
-  assertStringIncludes(
-    (await kg(dir, ["node", b, "--properties"])).out,
-    `direction: in`,
+  const entriesOf = async (id: string) =>
+    JSON.parse((await kg(dir, ["node", id, "--properties"])).out).links ?? [];
+  const aEntries = await entriesOf(a);
+  assertEquals(aEntries.length, 3);
+  assertEquals(
+    aEntries.some((e: { neighbour: string; type: string }) =>
+      e.neighbour === b && e.type === "supersedes"
+    ),
+    true,
+  );
+  assertEquals(
+    (await entriesOf(b)).some((e: { direction: string }) => e.direction === "in"),
+    true,
   );
   // c is only ever a target, so every entry it carries points inward.
-  assertEquals((await kg(dir, ["node", c, "--properties"])).out.includes("out"), false);
+  assertEquals(
+    (await entriesOf(c)).every((e: { direction: string }) => e.direction === "in"),
+    true,
+  );
 
   // 3. The record holds type, endpoints and properties; `--with-properties`
   //    applied to every link the command made.
-  const record = (await kg(dir, ["link", two[0]!])).out;
-  assertStringIncludes(record, "type: cites");
-  assertStringIncludes(record, `from: ${a}`);
-  assertStringIncludes(record, "since: '2026-09-10'");
-  assertStringIncludes((await kg(dir, ["link", two[1]!])).out, "why: drift");
+  const record = JSON.parse((await kg(dir, ["link", two[0]!])).out);
+  assertEquals(record.type, "cites");
+  assertEquals(record.from, a);
+  assertEquals(record.since, "2026-09-10");
+  assertEquals(JSON.parse((await kg(dir, ["link", two[1]!])).out).why, "drift");
 
   // 4. A link's properties obey a node's rules, so a list is built with a verb.
   assertStringIncludes(
     (await kg(dir, ["link", one, "add", "roles", "Neo", "Trinity"])).err,
     "added 2 to roles",
   );
-  assertStringIncludes(
-    (await kg(dir, ["link", one])).out,
-    "roles:\n  - Neo\n  - Trinity",
-  );
+  assertEquals(JSON.parse((await kg(dir, ["link", one])).out).roles, ["Neo", "Trinity"]);
   assertStringIncludes(
     (await kg(dir, ["link", one, "remove", "roles", "Neo"])).err,
     "removed 1",
@@ -121,8 +127,6 @@ Deno.test("batch 7 — relations", async () => {
   // 9. Forgetting ends the relation: the record goes and both ends drop it.
   assertStringIncludes((await kg(dir, ["link", one, "forget"])).err, `forgot ${one}`);
   assertEquals((await kg(dir, ["link", one])).code, 2);
-  const entries = (out: string) =>
-    out.split("\n").filter((l) => l.startsWith("  - ")).length;
-  assertEquals(entries((await kg(dir, ["node", a, "--properties"])).out), 2);
-  assertEquals(entries((await kg(dir, ["node", b, "--properties"])).out), 1);
+  assertEquals((await entriesOf(a)).length, 2);
+  assertEquals((await entriesOf(b)).length, 1);
 });

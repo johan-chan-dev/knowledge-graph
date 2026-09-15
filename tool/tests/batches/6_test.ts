@@ -13,8 +13,8 @@ Deno.test("batch 6 — the labels system", async () => {
   ))
     .out.trim();
   assertEquals(
-    (await kg(dir, ["node", a, "--properties"])).out,
-    "labels:\n  - auth\n  - decision\n",
+    JSON.parse((await kg(dir, ["node", a, "--properties"])).out),
+    { labels: ["auth", "decision"] },
   );
 
   // 2. Carrying a word is what creates it, so the vocabulary exists already.
@@ -31,8 +31,8 @@ Deno.test("batch 6 — the labels system", async () => {
     "unlabelled 1",
   );
   assertEquals(
-    (await kg(dir, ["node", a, "--properties"])).out,
-    "labels:\n  - auth\n  - pattern\n",
+    JSON.parse((await kg(dir, ["node", a, "--properties"])).out),
+    { labels: ["auth", "pattern"] },
   );
   // A word outlives its last use, so it is still listed with nothing carrying it.
   assertStringIncludes((await kg(dir, ["labels", "list"])).out, "decision");
@@ -60,8 +60,8 @@ Deno.test("batch 6 — the labels system", async () => {
     "forgot pattern",
   );
   assertEquals(
-    (await kg(dir, ["node", a, "--properties"])).out,
-    "labels:\n  - auth\n  - pattern\n",
+    JSON.parse((await kg(dir, ["node", a, "--properties"])).out),
+    { labels: ["auth", "pattern"] },
   );
 
   // 7. The slot is the tool's now, so the generic verbs refuse it.

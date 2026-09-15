@@ -5,12 +5,12 @@ it.
 
 ## What it has to fix
 
-**Seven `--json` flags** — on `nodes list`, `nodes --properties <id>...`,
-`nodes find <expression>`, `node <id>`, `labels list`, `types list` and
-`link <id>`. Each is the same question asked again — *which format do you
-want* — in a tool whose whole surface is otherwise built so the command already
-says what it returns. (`nodes find` loses its own in
-[batch 14](14-match.md), which removes the command.)
+**Six `--json` flags** — on `nodes list`, `nodes --properties <id>...`,
+`node <id>`, `labels list`, `types list` and `link <id>`. Each is the same
+question asked again — *which format do you want* — in a tool whose whole
+surface is otherwise built so the command already says what it returns.
+(`nodes find` carries a seventh and loses it here too, but it is not part of
+the argument: [batch 14](14-match.md) removes the command.)
 
 **And the answer was never really a preference.** Measured on the movies graph:
 

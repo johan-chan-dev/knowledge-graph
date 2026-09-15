@@ -20,10 +20,18 @@ export const ok = (stdout: string, ...notes: string[]): Outcome => ({
 export const lines = (lines: readonly string[], ...notes: string[]): Outcome =>
   ok(lines.length === 0 ? "" : lines.join("\n") + "\n", ...notes);
 
-/** JSON, one line, as a command's `--json` prints it. The tool is the only
- * writer of this too, so compactness costs nothing a reader needs — `jq`
- * pretty-prints when a person is looking. */
-export const asJson = (value: unknown): Outcome => ok(JSON.stringify(value) + "\n");
+/**
+ * **The one format for structured output**, and it takes no flag: the command's
+ * subject already says whether it returns identities or data.
+ *
+ * Indented, because the only reader the default has to please is a person —
+ * a program parses either, and `jq -c` is one pipe for a caller who wants it
+ * compact. It used to be one line on the reasoning that `jq` pretty-prints when
+ * someone is looking, which is true and is an argument for needing `jq` to read
+ * an answer. `docs/batches/13-output.md` has the measurements.
+ */
+export const asJson = (value: unknown): Outcome =>
+  ok(JSON.stringify(value, null, 2) + "\n");
 
 export const refused = (message: string): Outcome => ({ kind: "refused", message });
 export const absent = (message: string): Outcome => ({ kind: "absent", message });

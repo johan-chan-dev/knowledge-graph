@@ -155,29 +155,22 @@ export const COMMANDS: readonly Command[] = [
   }),
   command({
     form: "nodes list",
-    run: ({ cwd, flags }) => nodes(cwd, flags.json === true),
+    run: ({ cwd }) => nodes(cwd),
     summary: "every id, in creation order",
     scope: "nodes",
     action: "list",
-    flags: { json: { kind: "boolean" } },
+    flags: {},
   }),
   command({
     form: "nodes --properties <id>...",
     run: ({ cwd, args, flags, stdin }) =>
-      nodesProperties(
-        cwd,
-        args as Uuid[],
-        flags.stdin === true,
-        stdin,
-        flags.json === true,
-      ),
+      nodesProperties(cwd, args as Uuid[], flags.stdin === true, stdin),
     summary: "the properties of each, as an array",
     scope: "nodes",
     args: z.array(Id),
     flags: {
       properties: { kind: "boolean", required: true },
       stdin: { kind: "boolean" },
-      json: { kind: "boolean" },
     },
     variants: [{
       form: "nodes --stdin --properties",
@@ -186,7 +179,7 @@ export const COMMANDS: readonly Command[] = [
   }),
   command({
     form: "nodes find <expression>",
-    run: ({ cwd, args, flags }) => nodesFind(cwd, args[0], flags.json === true),
+    run: ({ cwd, args }) => nodesFind(cwd, args[0]),
     summary: "the ids of nodes matching a condition",
     scope: "nodes",
     action: "find",
@@ -195,7 +188,7 @@ export const COMMANDS: readonly Command[] = [
       few: "nodes find needs an expression — quote it",
       many: "nodes find takes one expression — quote the whole of it",
     },
-    flags: { json: { kind: "boolean" } },
+    flags: {},
   }),
   command({
     form: "node new",
@@ -214,15 +207,13 @@ export const COMMANDS: readonly Command[] = [
   }),
   command({
     form: "node <id>",
-    run: ({ cwd, id, flags }) =>
-      node(cwd, id, flags.properties === true, flags.json === true),
+    run: ({ cwd, id, flags }) => node(cwd, id, flags.properties === true),
     summary: "the content, properties on stderr",
     scope: "node",
     id: Id,
-    flags: { properties: { kind: "boolean" }, json: { kind: "boolean" } },
+    flags: { properties: { kind: "boolean" } },
     variants: [
       { form: "node <id> --properties", summary: "the properties instead" },
-      { form: "node <id> --properties --json", summary: "…as one object" },
     ],
   }),
   command({
@@ -312,16 +303,16 @@ export const COMMANDS: readonly Command[] = [
     summary: "every word the space knows",
     scope: "labels",
     action: "list",
-    flags: { json: { kind: "boolean" } },
-    run: ({ cwd, flags }) => wordsList(cwd, "label", flags.json === true),
+    flags: {},
+    run: ({ cwd }) => wordsList(cwd, "label"),
   }),
   command({
     form: "types list",
     summary: "every relation type the space knows",
     scope: "types",
     action: "list",
-    flags: { json: { kind: "boolean" } },
-    run: ({ cwd, flags }) => wordsList(cwd, "type", flags.json === true),
+    flags: {},
+    run: ({ cwd }) => wordsList(cwd, "type"),
   }),
   command({
     form: "label <word>",
@@ -386,11 +377,11 @@ export const COMMANDS: readonly Command[] = [
   }),
   command({
     form: "link <id>",
-    run: ({ cwd, id, flags }) => linkRead(cwd, id, flags.json === true),
+    run: ({ cwd, id }) => linkRead(cwd, id),
     summary: "its fields and properties",
     scope: "link",
     id: Id,
-    flags: { json: { kind: "boolean" } },
+    flags: {},
   }),
   command({
     form: "link <id> forget",

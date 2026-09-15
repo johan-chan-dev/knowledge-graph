@@ -33,7 +33,7 @@ Deno.test("batch 5 — the entry point", async () => {
   // A refusal is a refusal, not a repair: nothing was written, and the halves
   // the reserved names stand for are still there.
   assertEquals((await kg(dir, ["node", id])).out, "prose");
-  assertEquals((await kg(dir, ["node", id, "--properties"])).out, "");
+  assertEquals((await kg(dir, ["node", id, "--properties"])).out, "{}\n");
 
   // 2. Reserving a name refuses a write. It does not make a file already
   //    carrying that name unreadable — reading stays as robust as it was.
@@ -42,8 +42,8 @@ Deno.test("batch 5 — the entry point", async () => {
     "---\nbody: stale\n---\n\nprose\n",
   );
   const stale = await kg(dir, ["node", id, "--properties"]);
-  assertEquals(stale.code, 0);
-  assertEquals(stale.out, "body: stale\n");
+  assertEquals(stale.code, 0, stale.err);
+  assertEquals(JSON.parse(stale.out), { body: "stale" });
 
   // 3. An unknown action is an unknown action, not a property that happens to
   //    take none — which is what it read as before.

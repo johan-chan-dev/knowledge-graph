@@ -58,10 +58,9 @@ export async function spaceInit(cwd: string): Promise<Outcome> {
   }
 }
 
-export async function nodes(cwd: string, asJsonToo = false): Promise<Outcome> {
+export async function nodes(cwd: string): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  if (asJsonToo) return asJson(await ids(resolved.space));
   // The id is the filename, so this parses nothing. Filtering belonged to a
   // family whose vocabulary has not settled; see design/parked/search.md.
   return lines(await ids(resolved.space));
@@ -72,11 +71,7 @@ export async function nodes(cwd: string, asJsonToo = false): Promise<Outcome> {
  * refuses with no filesystem touched at all. *Validation precedes lookup* is
  * then a property of this function rather than a claim about a transcript.
  */
-export async function nodesFind(
-  cwd: string,
-  expression: string,
-  asJsonToo = false,
-): Promise<Outcome> {
+export async function nodesFind(cwd: string, expression: string): Promise<Outcome> {
   const parsed = parse(expression);
   if (parsed.kind === "refused") return refused(parsed.message);
 
@@ -106,9 +101,7 @@ export async function nodesFind(
   const note = damaged === 0
     ? []
     : [`${damaged} node${damaged === 1 ? "" : "s"} could not be read`];
-  return asJsonToo
-    ? ok(JSON.stringify(matched) + "\n", ...note)
-    : lines(matched, ...note);
+  return lines(matched, ...note);
 }
 
 /**
@@ -128,7 +121,6 @@ export async function nodesProperties(
   ids: readonly Uuid[],
   fromStdin: boolean,
   stdin: () => Promise<string>,
-  asJsonToo = false,
 ): Promise<Outcome> {
   if (ids.length > 0 && fromStdin) {
     return usage("nodes --properties takes ids, or --stdin, and not both");
@@ -165,7 +157,7 @@ export async function nodesProperties(
   // A node the caller named and that is not here shortens the answer, so the
   // count goes to stderr — what they could not have worked out, where stdout
   // stays the answer.
-  const body = asJsonToo ? JSON.stringify(out) + "\n" : frontmatter.writeEach(out);
+  const body = JSON.stringify(out, null, 2) + "\n";
   return missing === 0
     ? ok(body)
     : ok(body, `${missing} id${missing === 1 ? "" : "s"} did not read`);
@@ -184,19 +176,26 @@ function unreadable(
   );
 }
 
-/** Properties are rendered as YAML, which is what distinguishes a list from a
- * scalar that merely looks like one: the serialiser quotes exactly what would
- * otherwise change meaning coming back. */
-const render = (properties: Properties): string[] => {
-  const text = frontmatter.write(properties);
-  return text === "" ? [] : text.trimEnd().split("\n");
-};
+/**
+ * Properties as lines of JSON — for the advisory that accompanies content on
+ * stderr, which has to be **the same rendering** as `--properties` puts on
+ * stdout, or the same data would read two ways depending on which half was
+ * asked for. A test pins that.
+ *
+ * A node carrying nothing says nothing **here**, and prints `{}` on stdout.
+ * The two differ because their readers do: stdout is JSON and an output that is
+ * JSON except when empty is not JSON, while this is an advisory for a person,
+ * and an advisory with nothing to advise is noise.
+ */
+const render = (properties: Properties): string[] =>
+  Object.keys(properties).length === 0
+    ? []
+    : JSON.stringify(properties, null, 2).split("\n");
 
 export async function node(
   cwd: string,
   id: Uuid,
   asProperties: boolean,
-  asJsonToo = false,
 ): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
@@ -212,9 +211,8 @@ export async function node(
 
   // stdout is one half of a node or the other, never both.
   const properties = await resolveLinks(resolved.space, found.properties);
-  if (asProperties && asJsonToo) return asJson(properties);
-  const rendered = render(properties);
-  return asProperties ? lines(rendered) : ok(found.content, ...rendered);
+  if (asProperties) return asJson(properties);
+  return ok(found.content, ...render(properties));
 }
 
 /**
@@ -568,12 +566,10 @@ export async function wordForget(
 export async function wordsList(
   cwd: string,
   store: Store,
-  asJsonToo = false,
 ): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const words = await vocabulary.words(storeOf(resolved.space, store));
-  return asJsonToo ? asJson(words) : lines(words);
+  return lines(await vocabulary.words(storeOf(resolved.space, store)));
 }
 
 /** The reserved slot relations live in. */
@@ -642,11 +638,7 @@ async function carry(space: Space, id: Uuid, entry: Entry): Promise<Outcome | un
   );
 }
 
-export async function linkRead(
-  cwd: string,
-  id: Uuid,
-  asJsonToo = false,
-): Promise<Outcome> {
+export async function linkRead(cwd: string, id: Uuid): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
   const found = await link.read(resolved.space, id);
@@ -662,7 +654,7 @@ export async function linkRead(
   // writing that the output shape has no reason to show.
   const r = found.record;
   const all = { ...r.properties, type: r.type, from: r.from, to: r.to } as Properties;
-  return asJsonToo ? asJson(all) : lines(render(all));
+  return asJson(all);
 }
 
 /** Ending a link ends the record. A label outlives its last use because

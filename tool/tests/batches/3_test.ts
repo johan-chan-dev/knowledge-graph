@@ -25,14 +25,17 @@ Deno.test("batch 3 — a property can hold a list", async () => {
   // Idempotent, and nothing changed is worth no words.
   assertEquals((await kg(dir, ["node", id, "add", "sources", "rfc-7396"])).err, "");
 
-  // YAML, so a list and a scalar that looks like one are distinguishable.
+  // A list and a scalar that merely looks like one stay distinguishable: one
+  // is an array, the other a string, and no quoting rule is needed to say so.
   await kg(dir, ["node", id, "set", "looks", "[auth, pattern]"]);
-  assertEquals(
-    (await kg(dir, ["node", id, "--properties"])).out,
-    "looks: '[auth, pattern]'\nsources:\n  - github-issue-412\n  - rfc-7396\ntitle: a decision\n",
-  );
+  assertEquals(JSON.parse((await kg(dir, ["node", id, "--properties"])).out), {
+    looks: "[auth, pattern]",
+    sources: ["github-issue-412", "rfc-7396"],
+    title: "a decision",
+  });
 
-  // The content is untouched by all of it, and carries the same YAML on stderr.
+  // The content is untouched by all of it, and carries the same rendering on
+  // stderr.
   const read = await kg(dir, ["node", id]);
   assertEquals(read.out, "Modules own their schema.\n");
   assertEquals(read.err, (await kg(dir, ["node", id, "--properties"])).out);
@@ -46,10 +49,10 @@ Deno.test("batch 3 — a property can hold a list", async () => {
     "removed 1 from sources, sources is now unset",
   );
   // A property emptied is indistinguishable from one never set.
-  assertEquals(
-    (await kg(dir, ["node", id, "--properties"])).out,
-    "looks: '[auth, pattern]'\ntitle: a decision\n",
-  );
+  assertEquals(JSON.parse((await kg(dir, ["node", id, "--properties"])).out), {
+    looks: "[auth, pattern]",
+    title: "a decision",
+  });
 
   // The refusals, which are half of what this batch decides.
   const scalar = await kg(dir, ["node", id, "add", "title", "authority"]);
