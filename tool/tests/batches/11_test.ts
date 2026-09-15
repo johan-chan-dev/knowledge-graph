@@ -87,6 +87,8 @@ Deno.test("batch 11 — resolution", async () => {
     film,
   ]);
 
-  // 8. `labels list` is a directory read: one word per line, nothing else.
-  assertEquals((await kg(dir, ["labels", "list"])).out, "SciFi\nmovie\nperson\n");
+  // 8. `labels list` is one word per line, ordered by the slug rather than by
+  //    the word — so `Auth` and `auth` stay adjacent instead of landing at
+  //    opposite ends of a code-unit sort.
+  assertEquals((await kg(dir, ["labels", "list"])).out, "movie\nperson\nSciFi\n");
 });

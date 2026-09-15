@@ -3,7 +3,7 @@ import { NO_GIT } from "./git.ts";
 import { find, ids, init as initSpace, readout, type Space } from "./space.ts";
 import * as frontmatter from "./frontmatter.ts";
 import type { Label, Name, Properties, Text, Value } from "./frontmatter.ts";
-import * as label from "./label.ts";
+import * as vocabulary from "./vocabulary.ts";
 import * as link from "./link.ts";
 import type { Entry } from "./frontmatter.ts";
 import { amend, create, isId, read, replace, type Uuid } from "./node.ts";
@@ -263,10 +263,8 @@ export async function nodeNew(
   if (resolved.kind === "stop") return resolved.outcome;
 
   for (const word of words) {
-    const made = await label.ensure(resolved.space, word);
-    if (made.kind === "unwritable") {
-      return refused(`cannot create a label: ${made.reason}`);
-    }
+    const made = await vocabulary.ensure(resolved.space.labels, word);
+    if (made.kind !== "written") return refused(notStored("label", word, made));
   }
   const born: Properties = words.length === 0 ? {} : { [LABELS]: words.map(asText) };
   const result = await create(resolved.space, content, born);
@@ -427,6 +425,18 @@ const LABELS = "labels" as Name;
  * value; the brands differ because the things do. */
 const asText = (word: Label): Text => word as unknown as Text;
 
+/** Why a word could not be brought into a vocabulary. The slug is lossy on
+ * purpose, so the collision it reports is the thing to explain: two words that
+ * fold to one file, and which one is already there. */
+function notStored(kind: string, word: Label, made: vocabulary.Written): string {
+  if (made.kind === "unwritable") return `cannot create the ${kind} ${word}: ${made.reason}`;
+  if (made.kind === "taken" && made.by !== undefined) {
+    return `cannot create the ${kind} ${word}: it folds to ${made.slug}.md, which holds ${made.by}`;
+  }
+  const slug = made.kind === "taken" ? made.slug : "";
+  return `cannot create the ${kind} ${word}: it folds to ${slug}.md, which cannot be read`;
+}
+
 /** Carrying a word is what brings it into the vocabulary, so each one is
  * ensured before the node records it. Idempotent, and the count reported is
  * the effective one. */
@@ -434,10 +444,8 @@ export async function nodeLabel(cwd: string, id: Uuid, words: Label[]): Promise<
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
   for (const word of words) {
-    const made = await label.ensure(resolved.space, word);
-    if (made.kind === "unwritable") {
-      return refused(`cannot create a label: ${made.reason}`);
-    }
+    const made = await vocabulary.ensure(resolved.space.labels, word);
+    if (made.kind !== "written") return refused(notStored("label", word, made));
   }
   return await change(cwd, id, (properties) => {
     const existing = properties[LABELS];
@@ -477,7 +485,7 @@ export async function nodeUnlabel(
 export async function labelRead(cwd: string, word: Label): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const found = await label.read(resolved.space, word);
+  const found = await vocabulary.read(resolved.space.labels, word);
   switch (found.kind) {
     case "absent":
       return absent(`no such label: ${word} in ${resolved.space.name}`);
@@ -498,17 +506,15 @@ export async function labelWrite(
   }
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const wrote = await label.write(resolved.space, word, description);
-  if (wrote.kind === "unwritable") {
-    return refused(`cannot write label ${word}: ${wrote.reason}`);
-  }
+  const wrote = await vocabulary.write(resolved.space.labels, word, description);
+  if (wrote.kind !== "written") return refused(notStored("label", word, wrote));
   return ok("", `wrote ${new TextEncoder().encode(description).length} bytes`);
 }
 
 export async function labelForget(cwd: string, word: Label): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const gone = await label.forget(resolved.space, word);
+  const gone = await vocabulary.forget(resolved.space.labels, word);
   switch (gone.kind) {
     case "absent":
       return absent(`no such label: ${word} in ${resolved.space.name}`);
@@ -544,7 +550,7 @@ export async function labelForget(cwd: string, word: Label): Promise<Outcome> {
 export async function labelsList(cwd: string, asJsonToo = false): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
-  const words = await label.words(resolved.space);
+  const words = await vocabulary.words(resolved.space.labels);
   return asJsonToo ? asJson(words) : lines(words);
 }
 
