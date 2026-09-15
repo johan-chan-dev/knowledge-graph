@@ -17,9 +17,14 @@ done
 
 Measured on the imported movies graph: **8.0 s for 133 nodes, against 0.49 s in
 two calls.** Sixteen times, and it is not file reads — a file read is about
-69 µs. It is processes: a bare `kg` costs about **13 ms** to start, the loop
-pays that twice a turn plus the pipe and the shell's own fork, and 133 turns
-come to eight seconds.
+69 µs. It is processes: starting `kg` costs about **28 ms** and a read command
+about **45 ms** — a 70 MB binary carrying its own runtime — so 133 turns of one
+`kg` plus a `sed` and the shell's own fork come to eight seconds.
+
+*Re-measured 2026-09-15 on an idle machine, 30 runs each, with the harness's own
+1.9 ms subtracted. An earlier figure of 13 ms stood here and was wrong by half:
+it left six of the eight seconds unexplained, where 133 × 45 ms accounts for
+them.*
 
 The `sed` is the other half. `--properties` prints YAML that a caller then
 re-derives with a line-matching expression, which is not parsing a format so
@@ -223,7 +228,7 @@ in the entry on disk, and duplication has to be kept true; resolving has
 nothing to keep. There is no migration either, since nothing stored moves.
 
 **Its cost is the one already measured.** A file read is about 69 µs, so ten
-relations add well under a millisecond inside one process — against about 13 ms
+relations add well under a millisecond inside one process — against about 28 ms
 to start another. A node with ten thousand relations pays 0.7 s, which is the same price
 `backlinks` paid and the reason the read happens once per command rather than
 once per relation.
