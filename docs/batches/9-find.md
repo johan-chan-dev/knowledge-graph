@@ -271,14 +271,17 @@ is between nodes, which is a different subject and belongs to a different
 command, for the same reason `list` and `find` split rather than `list` growing
 a flag.
 
-> **[Batch 13](13-match.md) grows it, and replaces `find` doing so.** The two
-> commands it names here were already removed by
+> **[Batch 13](13-match.md) grows it, and removes `find` doing so — the command
+> and this grammar both.** The two commands named here had already gone in
 > [batch 11](11-resolution.md), which resolved the entries instead. What
-> survives is this page's question — *which nodes match a condition over their
-> properties* — answered by `match '(m) where m.released > 2000'` rather than by
-> `find`. The command changes; the loop still closes, and
-> [`9_test.ts`](../../tool/tests/batches/9_test.ts) is rewritten rather than
-> retired.
+> survives is this page's *question*, not its language: equality and the label
+> test become a pattern — `({title: "Cloud Atlas"})`, `(:Person)` — and the
+> comparisons return in batch 14 as openCypher's `Expression` rather than as
+> this one extended. Grafting qualified names onto a home-grown expression would
+> have built a hybrid that is neither.
+>
+> So [`9_test.ts`](../../tool/tests/batches/9_test.ts) is rewritten rather than
+> retired, and the thirteen questions stay the acceptance criteria they were.
 
 ---
 
