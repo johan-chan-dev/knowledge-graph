@@ -59,3 +59,17 @@ settled were carried across rather than left there:
 [raw](docs/design/parked/raw.md) — material nobody has judged yet, and why
 capture must cost nothing — and [sharing](docs/design/parked/sharing.md) —
 knowledge travels, and edges run toward the more-shared space.
+
+## Installing
+
+This repository is a marketplace, and the plugin in it is `kg`.
+
+```bash
+deno task --cwd tool compile     # about 7 s the first time; Deno is the only dependency
+```
+
+The binary is built rather than downloaded, because the marketplace **is** the
+tool's repository — whoever installs the plugin already has the source, and
+running from source instead would cost 158 ms an invocation against 53 ms
+compiled. [`kg/README.md`](kg/README.md) has the measurements and the three
+layers the plugin is made of.

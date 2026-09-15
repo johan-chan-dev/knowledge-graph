@@ -3,5 +3,12 @@
   "owner": {
     "name": "Johan Chan"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "kg",
+      "source": "./kg",
+      "description": "Work with a kg knowledge graph: write through verbs, select with patterns, compute with jq.",
+      "version": "0.1.0"
+    }
+  ]
 }

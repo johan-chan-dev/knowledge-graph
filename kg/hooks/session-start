@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# SessionStart hook for the `kg` plugin.
+#
+# It carries the two things a refusal cannot, and nothing else.
+#
+#   1. A binary that is not built refuses nothing at all — there is no process
+#      to refuse. So the absence has to be reported by something that runs
+#      before the first command does.
+#
+#   2. Nobody is refused for not having explored. The measured gap between a
+#      request that matches the schema and one that has to guess it is 89%
+#      against 17% (Jackal, 2026), so putting the vocabulary in context before
+#      the first question is asked is the whole of this hook's value.
+#
+# Everything else — what a pattern may say, where `jq` takes over, why a word
+# is refused — belongs to the refusals, which arrive when the caller needs
+# them rather than at the top of a session. `spec/api.md` puts the rule for
+# stderr and it holds here: a channel that repeats what you already know is one
+# you learn to stop reading.
+#
+# So: silent unless there is a space here, and short when there is.
+
+set -uo pipefail
+
+ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+REPO=$(cd "${ROOT}/.." && pwd)
+BINARY="${REPO}/tool/build/kg"
+SOURCE="${REPO}/tool/src"
+
+# No space under the working directory means this session is not about a graph,
+# and a plugin that announces itself anyway is one you learn to skip.
+repo=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+[ -d "${repo}/.kg/nodes" ] || exit 0
+
+lines=""
+
+if [ ! -x "$BINARY" ]; then
+  lines="kg is not built — run \`deno task --cwd tool compile\` in the plugin's repository (7 s the first time, Deno is the only dependency)"
+else
+  # Stale is worth saying too: a source newer than the binary is a `git pull`
+  # away, and the symptom would otherwise be a command behaving like an older
+  # version of itself.
+  newest=$(find "$SOURCE" -name '*.ts' -newer "$BINARY" -print -quit 2>/dev/null)
+  if [ -n "$newest" ]; then
+    lines="kg is older than its source — \`deno task --cwd tool compile\` to rebuild"
+  fi
+  path_line="kg → ${BINARY}"
+  labels=$("$BINARY" -C "$repo" labels list 2>/dev/null | tr '\n' ' ' | sed 's/ $//')
+  types=$("$BINARY" -C "$repo" types list 2>/dev/null | tr '\n' ' ' | sed 's/ $//')
+  count=$("$BINARY" -C "$repo" nodes list 2>/dev/null | grep -c . || true)
+  vocab="${count} nodes | labels: ${labels:-none} | types: ${types:-none}"
+  lines="${lines:+${lines}$'\n'}${path_line}"$'\n'"${vocab}"
+fi
+
+[ -n "$lines" ] || exit 0
+
+full_text="<kg-space>
+${lines}
+
+The vocabulary above is what a pattern spells, case included. What a pattern
+cannot say — comparison, presence, negation, aggregation — is a \`jq\` filter
+over what it returns; the tool says so when you reach for it.
+</kg-space>"
+
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+session_context=$(escape_for_json "$full_text")
+
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+  printf '{\n  "additional_context": "%s"\n}\n' "$session_context"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+  printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$session_context"
+else
+  printf '{\n  "additionalContext": "%s"\n}\n' "$session_context"
+fi

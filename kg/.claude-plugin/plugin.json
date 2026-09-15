@@ -1,0 +1,7 @@
+{
+  "name": "kg",
+  "description": "Work with a kg knowledge graph — a repository's decisions, notes and the relations between them, held as markdown with typed frontmatter. Writes through verbs that keep the rules by construction, selects with openCypher-shaped patterns, and hands the computing half to `jq`. Carries what no refusal can: the vocabulary, before the first question is asked.",
+  "version": "0.1.0",
+  "author": { "name": "Johan Chan" },
+  "keywords": ["knowledge-graph", "opencypher", "jq", "markdown", "frontmatter"]
+}
