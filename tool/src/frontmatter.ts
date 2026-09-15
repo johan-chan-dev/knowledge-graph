@@ -22,22 +22,33 @@ import { validate as isUuid } from "@std/uuid";
 const OPEN = /^---[ \t]*\n([\s\S]*?)---[ \t]*(?:\n([\s\S]*))?$/;
 
 /**
- * A key: `validUntil`, camelCase, and **the same string typed and stored**.
+ * A word — a key, a label, a relation type. One rule for all three:
+ * openCypher's `UnescapedSymbolicName`, `ID_Start` or `_` then `ID_Continue`.
  *
- * Nothing needing quoting or escaping, which is what rules out spaces and
- * punctuation. camelCase because that is what markdown frontmatter writes
- * (Hugo, Astro) and because kebab cannot be a key at all — `o.valid-until` is a
- * subtraction in JavaScript, which is why no API ships one.
+ * **No name this tool stores ever needs a backtick in a pattern.** That is what
+ * the rule buys, and it is what lets a pattern paste into a real engine
+ * unchanged. A hyphen is the case that matters: `acted-in` is spellable only as
+ * `` [:`acted-in`] `` in Cypher, and `o.valid-until` is a subtraction in
+ * JavaScript — the same character refused for two independent reasons.
  *
- * It begins lowercase so that the first character is never a case decision;
- * after that a capital is a word boundary and nothing else.
+ * Stored as written, **case included**. Cypher is explicit that `:PERSON`,
+ * `:Person` and `:person` are three different labels; folding them here would
+ * answer a Cypher-shaped query with zero nodes and exit 0.
+ *
+ * camelCase for a key and PascalCase for a label are what the tool *writes* and
+ * suggests, never what it demands — a house form, not a door.
  * `docs/design/naming.md` has the measurements.
  */
-const NAME = /^[a-z][a-zA-Z0-9]*$/;
+const WORD = /^[\p{ID_Start}_][\p{ID_Continue}]*$/u;
 
-/** A label word, a relation type: kebab, because the word names a file, and a
- * case-insensitive filesystem would merge `actedIn.md` with `actedin.md`. */
-const WORD = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+/**
+ * A filename under `labels/` or `types/`, computed from a word and never typed.
+ *
+ * Its job is not to be readable, it is to **collide**: two words a reader
+ * cannot tell apart must land on one file, where the second refuses. So the
+ * lossiness that would be a bug in a translation is the whole point here.
+ */
+const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /**
  * A value is a single line of printable text. The reason is what a property is
@@ -65,7 +76,7 @@ const noncharacter = (s: string): boolean => {
   return false;
 };
 
-export const isName = (s: string): s is Name => NAME.test(s);
+export const isName = (s: string): s is Name => WORD.test(s);
 
 /**
  * Names the tool holds facts under, which a property may not shadow. `body` is
@@ -99,11 +110,11 @@ export const reservedReason = (name: string): string | undefined => RESERVED[nam
 declare const brand: unique symbol;
 export type Branded<T extends string> = string & { readonly [brand]: T };
 
-/** A key: camelCase, beginning lowercase, the same typed and stored. */
+/** A key, stored exactly as typed. */
 export type Name = Branded<"Name">;
-/** A word a node carries: kebab, because the word names a file. A different
- * namespace from a key too — a label may be called `body` without shadowing
- * anything. */
+/** A label word or a relation type. Same rule as a key, **different
+ * namespace** — a label may be called `body` without shadowing the reserved
+ * key, and `labels/` and `types/` do not collide with each other either. */
 export type Label = Branded<"Label">;
 /** One value: a single line of printable text. */
 export type Text = Branded<"Text">;
@@ -121,6 +132,31 @@ export function notAValue(s: string): string | undefined {
 
 export const isValue = (s: string): s is Text => !CONTROL.test(s) && !noncharacter(s);
 export const isLabel = (s: string): s is Label => WORD.test(s);
+
+/** A computed filename, checked on the way back in — `words` reads a directory
+ * and must not mistake something else's file for a slug. */
+export const isSlug = (s: string): boolean => SLUG.test(s);
+
+/**
+ * The word, folded to a filename. Measured against the confusable pairs in
+ * `docs/design/naming.md`: it splits on camel and on **both** edges of a digit,
+ * because a clause may be case-sensitive only where the boundary it detects has
+ * a second spelling that is not. `VehicleOwner`/`VEHICLE_OWNER` has one — the
+ * underscore — and `Sha256`/`SHA256` has none, so the digit clauses are blind
+ * to case on each side.
+ *
+ * Diacritics are stripped rather than kept: an accented filename is exactly the
+ * soft ground the slug exists to avoid, and the collision it creates between
+ * `Decision` and `Décision` is a pair that should be refused rather than filed
+ * twice under names an `ls` does not separate.
+ */
+export const slug = (word: string): string =>
+  word.normalize("NFD").replace(/\p{Diacritic}/gu, "")
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
+    .replace(/([A-Za-z])([0-9])/g, "$1-$2")
+    .replace(/([0-9])([A-Za-z])/g, "$1-$2")
+    .replace(/_/g, "-").toLowerCase()
+    .replace(/-+/g, "-").replace(/^-|-$/g, "");
 /** Any uuid is well formed, not only the v7 this tool mints — a v4 is a
  * plausible id it never issued, which makes it honestly absent rather than
  * refused. */
@@ -283,7 +319,7 @@ function readLinks(value: unknown): Entry[] | string {
     if (typeof type !== "string" || !isLabel(type)) {
       return `not a relation type: ${
         String(type)
-      } — expected a lowercase hyphenated token`;
+      } — a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote`;
     }
     if (typeof link !== "string" || !isId(link)) {
       return `not a link id: ${String(link)} — expected a uuid`;

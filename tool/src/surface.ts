@@ -47,13 +47,13 @@ const Id = z.string().refine(isId, {
 });
 
 const Word = z.string().refine(isLabel, {
-  error: (issue) => `not a label: ${issue.input} — expected a lowercase hyphenated token`,
+  error: (issue) => `not a label: ${issue.input} — a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote`,
 });
 
 const Name = z.string()
   .refine(isName, {
     error: (issue) =>
-      `not a property name: ${issue.input} — expected camelCase, beginning lowercase`,
+      `not a property name: ${issue.input} — a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote`,
   })
   .refine((name) => reservedReason(name) === undefined, {
     error: (issue) =>

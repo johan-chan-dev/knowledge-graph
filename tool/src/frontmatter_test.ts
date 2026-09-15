@@ -100,34 +100,57 @@ Deno.test("what is neither a value nor a list does not read at all", () => {
   }
 });
 
-Deno.test("a label word is kebab, because the word names a file", () => {
-  for (const ok of ["movie", "acted-in", "a-1-b", "2fa"]) {
-    assertEquals(frontmatter.isLabel(ok), true, ok);
+Deno.test("a key, a label and a relation type share one rule", () => {
+  // openCypher's UnescapedSymbolicName, so nothing stored would need a
+  // backtick in a pattern — `docs/design/naming.md`.
+  const ok = [
+    "title",
+    "validUntil",
+    "release_date",
+    "Person",
+    "ACTED_IN",
+    "Oauth2Token",
+    "_private",
+    "Décision",
+  ];
+  const bad = ["acted-in", "valid-until", "2fa", "3DModel", "-lead", "with.dot", "", "with space"];
+  for (const word of ok) {
+    assertEquals(frontmatter.isName(word), true, word);
+    assertEquals(frontmatter.isLabel(word), true, word);
   }
-  for (const bad of ["actedIn", "Movie", "acted_in", "with space"]) {
-    assertEquals(frontmatter.isLabel(bad), false, bad);
+  for (const word of bad) {
+    assertEquals(frontmatter.isName(word), false, word);
+    assertEquals(frontmatter.isLabel(word), false, word);
   }
 });
 
-Deno.test("a key is camelCase, beginning lowercase", () => {
-  for (const ok of ["title", "validUntil", "a1", "v2Index", "headSha"]) {
-    assertEquals(frontmatter.isName(ok), true, ok);
-  }
-  // It begins lowercase so the first character is never a case decision, and a
-  // hyphen belongs to a label word rather than to a key.
+Deno.test("the slug folds a word to a filename, and collides on purpose", () => {
+  assertEquals(frontmatter.slug("Person"), "person");
+  assertEquals(frontmatter.slug("ACTED_IN"), "acted-in");
+  assertEquals(frontmatter.slug("Oauth2Token"), "oauth-2-token");
+  assertEquals(frontmatter.slug("Décision"), "decision");
+
+  // Two words a reader cannot tell apart land on one file, where the second
+  // refuses. Each group is one slug.
   for (
-    const bad of [
-      "Title",
-      "valid-until",
-      "valid_until",
-      "2fa",
-      "-lead",
-      "with.dot",
-      "",
-      "with space",
+    const group of [
+      ["Person", "PERSON", "person"],
+      ["VehicleOwner", "VEHICLE_OWNER", "vehicleOwner"],
+      ["ACTED_IN", "actedIn", "ActedIn"],
+      ["Oauth2Token", "OAUTH2_TOKEN", "OAuth2Token"],
+      ["X509Cert", "X509_Cert", "x509Cert"],
+      ["P2P", "P2p"],
+      ["Sha256", "SHA256"],
+      ["Decision", "Décision"],
+      ["_private", "private"],
     ]
   ) {
-    assertEquals(frontmatter.isName(bad), false, bad);
+    assertEquals(new Set(group.map(frontmatter.slug)).size, 1, group.join("/"));
+  }
+
+  // And words that are genuinely different stay apart.
+  for (const pair of [["Person", "People"], ["Tier1", "Tier2"], ["Http2", "Http3"]]) {
+    assertEquals(new Set(pair.map(frontmatter.slug)).size, 2, pair.join("/"));
   }
 });
 
@@ -169,13 +192,14 @@ Deno.test("an empty list is an absence, not a value", () => {
 // `docs/design/boundaries.md`: what the tool cannot write, it must not read —
 // otherwise a hand-written name loads, displays, and can never be unset.
 Deno.test("the reading door enforces the writing door's vocabulary", () => {
-  assertStringIncludes(why("Title: x\n") ?? "", "Title is not a property name");
-  // A key is camelCase, so kebab is not what the tool could have written —
-  // `docs/design/naming.md`.
+  // A hyphen is what the tool could not have written — it would need a backtick
+  // in a pattern, and `o.valid-until` is a subtraction in JavaScript.
   assertStringIncludes(
     why("valid-until: x\n") ?? "",
     "valid-until is not a property name",
   );
+  // A capital is now the author's to choose, so it passes the reading door.
+  assertEquals(props("Title: x\n"), like({ Title: "x" }));
   assertEquals(props("validUntil: x\n"), like({ validUntil: "x" }));
 
   // A control character reaches a value only as a YAML escape. Written raw it

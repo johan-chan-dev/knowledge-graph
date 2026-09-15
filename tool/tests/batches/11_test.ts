@@ -23,17 +23,18 @@ Deno.test("batch 11 — resolution", async () => {
     "since=2012",
   ])).out.trim();
 
-  // 1. A key is camelCase, typed and stored alike — nothing is translated.
+  // 1. A key is typed and stored alike — nothing is translated.
   assertStringIncludes(
     await Deno.readTextFile(join(dir, ".kg", "nodes", `${film}.md`)),
     "validUntil: '2027-01-01'",
   );
   assertStringIncludes(
     (await kg(dir, ["node", film, "set", "valid-until", "x"])).err,
-    "expected camelCase, beginning lowercase",
+    "never a hyphen, which a pattern would have to quote",
   );
-  // A label word is not a key, and keeps its hyphen.
-  assertEquals((await kg(dir, ["node", film, "label", "sci-fi"])).code, 0);
+  // Batch 12 put a label under the same rule, so it loses its hyphen too.
+  assertEquals((await kg(dir, ["node", film, "label", "sci-fi"])).code, 1);
+  assertEquals((await kg(dir, ["node", film, "label", "SciFi"])).code, 0);
 
   // 2, 3. A record is a YAML document, written through the one writer — so
   //       nothing is left half-written behind it.
@@ -87,5 +88,5 @@ Deno.test("batch 11 — resolution", async () => {
   ]);
 
   // 8. `labels list` is a directory read: one word per line, nothing else.
-  assertEquals((await kg(dir, ["labels", "list"])).out, "movie\nperson\nsci-fi\n");
+  assertEquals((await kg(dir, ["labels", "list"])).out, "SciFi\nmovie\nperson\n");
 });

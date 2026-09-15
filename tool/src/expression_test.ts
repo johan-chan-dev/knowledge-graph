@@ -134,5 +134,8 @@ Deno.test("a trailing token is not silently ignored", () => {
 });
 
 Deno.test("a name that could not be written is refused", () => {
-  assertStringIncludes(why("Title"), "not a name: Title");
+  // A capital is the author's to choose now; a hyphen is not, because a pattern
+  // would have to quote it — `docs/design/naming.md`.
+  assertStringIncludes(why("valid-until"), "not a name: valid-until");
+  assertStringIncludes(why("with.dot"), "not a name: with.dot");
 });

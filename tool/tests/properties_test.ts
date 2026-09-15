@@ -71,12 +71,18 @@ Deno.test("a node with no properties prints nothing", async () => {
   assertEquals(stdout(outcome), "");
 });
 
-Deno.test("a property name is camelCase, beginning lowercase", async () => {
+Deno.test("a property name is a word, and a hyphen is what it may not be", async () => {
   const { kg, id } = await seeded();
-  for (const name of ["Valid_Until", "valid until", "valid-until", "with.dot"]) {
+  for (const name of ["valid until", "valid-until", "with.dot", "2fa"]) {
     const outcome = await kg("node", id, "set", name, "x");
     assertEquals(exitCode(outcome), 1, name);
-    assertStringIncludes(message(outcome), "expected camelCase, beginning lowercase");
+    assertStringIncludes(message(outcome), "never a hyphen, which a pattern would have to quote");
+  }
+  // A capital and an underscore are the author's to choose: one rule for keys,
+  // labels and relation types, and it is openCypher's.
+  for (const name of ["Valid_Until", "release_date", "Title"]) {
+    assertEquals(exitCode(await kg("node", id, "set", name, "x")), 0, name);
+    assertEquals(exitCode(await kg("node", id, "unset", name)), 0, name);
   }
   // A single dash is not a flag here: the tool's only one is `-C`, which is
   // global and taken before a command is matched. So `-leading` reaches

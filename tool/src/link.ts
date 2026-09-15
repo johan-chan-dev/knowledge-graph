@@ -109,7 +109,7 @@ export async function forget(space: Space, id: Uuid): Promise<Read | Written> {
 function fields(all: Properties): Record_ | string {
   const { type, from, to, ...properties } = all as Record<string, unknown>;
   if (typeof type !== "string" || !isLabel(type)) {
-    return `not a relation type: ${String(type)} — expected a lowercase hyphenated token`;
+    return `not a relation type: ${String(type)} — a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote`;
   }
   if (typeof from !== "string" || !isId(from)) return `not an id: ${String(from)}`;
   if (typeof to !== "string" || !isId(to)) return `not an id: ${String(to)}`;
