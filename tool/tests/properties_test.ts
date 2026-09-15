@@ -76,7 +76,10 @@ Deno.test("a property name is a word, and a hyphen is what it may not be", async
   for (const name of ["valid until", "valid-until", "with.dot", "2fa"]) {
     const outcome = await kg("node", id, "set", name, "x");
     assertEquals(exitCode(outcome), 1, name);
-    assertStringIncludes(message(outcome), "never a hyphen, which a pattern would have to quote");
+    assertStringIncludes(
+      message(outcome),
+      "never a hyphen, which a pattern would have to quote",
+    );
   }
   // A capital and an underscore are the author's to choose: one rule for keys,
   // labels and relation types, and it is openCypher's.

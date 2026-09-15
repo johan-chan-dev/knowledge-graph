@@ -61,8 +61,8 @@ Deno.test({
     // Neo4j's own figures for this dataset.
     assertEquals((await kg(dir, ["nodes", "list"])).trim().split("\n").length, 171);
     assertEquals((await kg(dir, ["labels", "list"])).trim().split("\n").sort(), [
-      "movie",
-      "person",
+      "Movie",
+      "Person",
     ]);
     // The counts the listing used to carry are asserted below, through `find` —
     // a question of its own, at the cost that command's name declares.
@@ -76,12 +76,12 @@ Deno.test({
       types.set(record.type, (types.get(record.type) ?? 0) + 1);
     }
     assertEquals([...types.entries()].sort(), [
-      ["acted-in", 172],
-      ["directed", 44],
-      ["follows", 3],
-      ["produced", 15],
-      ["reviewed", 9],
-      ["wrote", 10],
+      ["ACTED_IN", 172],
+      ["DIRECTED", 44],
+      ["FOLLOWS", 3],
+      ["PRODUCED", 15],
+      ["REVIEWED", 9],
+      ["WROTE", 10],
     ]);
 
     // Traversal, asked of the tool and computed from the source. Counting
@@ -163,8 +163,8 @@ Deno.test({
 
     // Q6, Q7 — every person, and every film with its title and released year.
     // The projection is the caller's loop; `find` selects and stops there.
-    assertEquals((await find('"person" in labels')).length, 133);
-    const films = await find('"movie" in labels');
+    assertEquals((await find('"Person" in labels')).length, 133);
+    const films = await find('"Movie" in labels');
     assertEquals(films.length, 38);
     for (const film of films) {
       assertEquals(typeof await shown(film, "title"), "string", `title for ${film}`);
@@ -189,16 +189,16 @@ Deno.test({
     };
     const after2010 = await find("released > 2010");
     assertEquals(after2010, [cloudAtlas]);
-    assertEquals(await byRelation(after2010[0]!, "directed"), [
+    assertEquals(await byRelation(after2010[0]!, "DIRECTED"), [
       "Lana Wachowski",
       "Lilly Wachowski",
       "Tom Tykwer",
     ]);
-    assertEquals((await byRelation(after2010[0]!, "acted-in")).length, 4);
+    assertEquals((await byRelation(after2010[0]!, "ACTED_IN")).length, 4);
 
     // Q10 — directors of Cloud Atlas, which is this batch's own validation:
     // one `--properties`, a filter on type and direction, then the names.
-    assertEquals(await byRelation(cloudAtlas, "directed"), [
+    assertEquals(await byRelation(cloudAtlas, "DIRECTED"), [
       "Lana Wachowski",
       "Lilly Wachowski",
       "Tom Tykwer",
@@ -211,7 +211,7 @@ Deno.test({
       await kg(dir, ["node", cloudAtlas, "--properties", "--json"]),
     ) as { links: { type: string; direction: string; neighbour: string }[] };
     const directors = carried.links
-      .filter((e) => e.type === "directed" && e.direction === "in")
+      .filter((e) => e.type === "DIRECTED" && e.direction === "in")
       .map((e) => e.neighbour);
     const resolvedNames = JSON.parse(
       await kg(dir, ["nodes", "--properties", "--json", ...directors]),
@@ -229,11 +229,11 @@ Deno.test({
       byType.set(entry.type, (byType.get(entry.type) ?? 0) + 1);
     }
     assertEquals([...byType.entries()].sort(), [
-      ["acted-in", 4],
-      ["directed", 3],
-      ["produced", 1],
-      ["reviewed", 1],
-      ["wrote", 1],
+      ["ACTED_IN", 4],
+      ["DIRECTED", 3],
+      ["PRODUCED", 1],
+      ["REVIEWED", 1],
+      ["WROTE", 1],
     ]);
 
     // Q11 — Tom Hanks' co-actors. Two hops, one call per node: the entries of
@@ -243,9 +243,9 @@ Deno.test({
     const tom = await only('name = "Tom Hanks"');
     const coactors = new Set<string>();
     for (const acted of await entries(dir, tom)) {
-      if (acted.type !== "acted-in" || acted.direction !== "out") continue;
+      if (acted.type !== "ACTED_IN" || acted.direction !== "out") continue;
       for (const other of await entries(dir, acted.neighbour)) {
-        if (other.type === "acted-in" && other.neighbour !== tom) {
+        if (other.type === "ACTED_IN" && other.neighbour !== tom) {
           coactors.add(other.neighbour);
         }
       }

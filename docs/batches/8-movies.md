@@ -51,9 +51,9 @@ that.
 The converter emits `kg` commands rather than driving the tool's internals:
 
 ```bash
-Keanu=$(kg node new --with-labels person)
+Keanu=$(kg node new --with-labels Person)
 kg node "$Keanu" set name 'Keanu Reeves'
-l=$(kg node "$Keanu" link --as acted-in --with-nodes "$TheMatrix" --with-properties 'roles=Neo')
+l=$(kg node "$Keanu" link --as ACTED_IN --with-nodes "$TheMatrix" --with-properties 'roles=Neo')
 ```
 
 Three reasons. It can be **read before it runs**, which is what a conformance
@@ -86,7 +86,7 @@ out.
 | `:Person`, `:Movie` | `person`, `movie` — **case is folded**, so a graph holding both `Person` and `person` could not be held |
 | node properties | properties, as text |
 | `born=1964` | `'1964'` |
-| `[:ACTED_IN {roles:[…]}]` | a link of type `acted-in`, `roles` built with `add` |
+| `[:ACTED_IN {roles:[…]}]` | a link of type `ACTED_IN`, `roles` built with `add` |
 | `tagline` | a property, not a body |
 
 **Numbers are not lost.** Storage is text because the shell removes quoting

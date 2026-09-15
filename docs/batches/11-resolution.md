@@ -163,6 +163,12 @@ because the file is the word and a case-insensitive filesystem merges
 `actedIn.md` with `actedin.md`. Values do not move either: they are stored as
 given.
 
+> **[Batch 12](12-vocabulary.md) moved it.** The filesystem argument was right
+> and answered *how should a filename be shaped*; it had been applied to *how
+> should a word be spelled*. The word now follows openCypher and the filename is
+> a fold of it, so the collision the kebab was avoiding is refused rather than
+> avoided.
+
 ## 2 · `document.ts` takes a second shape
 
 It becomes the custodian of two on-disk forms rather than one:
@@ -305,7 +311,7 @@ Five of the movies graph's 133 people carry no `born`. They are objects with one
 key fewer, and no reader has to know which absence a blank meant.
 
 **Two-valued absence is what makes that safe.** The set that was quiet is still
-addressable — `find '"person" in labels and not born'` returns exactly those
+addressable — `find '"Person" in labels and not born'` returns exactly those
 five. Under three-valued logic they would fall out of both the query and its
 negation, and be genuinely lost.
 

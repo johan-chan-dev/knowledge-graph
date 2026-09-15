@@ -30,7 +30,7 @@ understates it.** That is the whole test, and it decides every name here:
 | `nodes` | the collection — membership changes here |
 | `node <id>` | that node |
 | `labels` | the vocabulary |
-| `label <word>` | that word |
+| `label <word>`, `type <word>` | that word |
 | `link <id>` | that relation |
 
 So `nodes list` rather than `node list`: enumerating touches the collection, and
@@ -326,7 +326,7 @@ tool knows nothing to materialise, and a caller would have to name the property
 and pay a read of every node.
 
 ```
-kg node new --with-labels auth decision   born carrying those words
+kg node new --with-labels Auth Decision   born carrying those words
 kg node <id> label <word>...              carry these too
 kg node <id> unlabel <word>...            stop carrying them
 kg labels list                            every word the space knows
@@ -335,10 +335,15 @@ kg label <word> write --stdin             set that description
 kg label <word> forget                    drop the word from the vocabulary
 ```
 
-**A word is a lowercase hyphenated token** — `[a-z0-9]+(-[a-z0-9]+)*`, and not
-the rule a key follows. A word two people must arrive at independently cannot be
-one that needs quoting, and it **names a file**: no capitals, because a
-case-insensitive filesystem would merge `actedIn.md` with `actedin.md`.
+**And the same seven for a relation type**, `kg types list`, `kg type <word>`
+and the rest — one mechanism, two namespaces. A type is materialised by being
+used, as a label is: `kg node <id> link --as DIRECTED` creates `DIRECTED`.
+
+**A word follows the same rule as a key** — openCypher's
+`UnescapedSymbolicName`, a letter or underscore then letters, digits and
+underscores. It is **not** a filename: the file is named by a fold of the word,
+and a second word folding to the same file is refused rather than shadowing the
+first. [naming](../design/naming.md) has the measurements.
 
 **Using a word creates it.** `label auth` ensures the vocabulary holds `auth`,
 so nothing has to be declared before it can be used. Listing the words is a
@@ -352,8 +357,9 @@ every node still carrying it.
 **`label` is both a scope and a verb**, told apart by position, as `new`,
 `list` and `init` already are.
 
-**`labels list` is one word per line**, sorted alphabetically — which is what
-puts `auth` beside `authn`, where drift is visible. A directory read of
+**`labels list` is one word per line**, ordered by the fold — which is what
+puts `Auth` beside `auth`, where drift is visible, and what a code-unit sort
+would separate. A directory read of
 `labels/`, which is what the name says: the count it used to carry forced a
 parse of every node, and a description is served by `kg label <word>`.
 

@@ -82,7 +82,7 @@ the function road answers differently, by not reading as English at all.
 ```
 has(tagline)
 not has(tagline)
-"movie" in labels and not has(tagline)
+"Movie" in labels and not has(tagline)
 ```
 
 **The awkwardness disappears rather than being worked around.** `not retired`

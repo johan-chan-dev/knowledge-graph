@@ -5,10 +5,6 @@ import { isId } from "./node.ts";
 import type { Flags } from "./argv.ts";
 import type { Outcome } from "./outcome.ts";
 import {
-  wordForget,
-  wordRead,
-  wordsList,
-  wordWrite,
   linkChange,
   linkForget,
   linkRead,
@@ -27,6 +23,10 @@ import {
   nodeWrite,
   space,
   spaceInit,
+  wordForget,
+  wordRead,
+  wordsList,
+  wordWrite,
 } from "./commands.ts";
 
 /**
@@ -47,7 +47,8 @@ const Id = z.string().refine(isId, {
 });
 
 const Word = z.string().refine(isLabel, {
-  error: (issue) => `not a label: ${issue.input} — a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote`,
+  error: (issue) =>
+    `not a label: ${issue.input} — a letter or underscore, then letters, digits and underscores — never a hyphen, which a pattern would have to quote`,
 });
 
 const Name = z.string()

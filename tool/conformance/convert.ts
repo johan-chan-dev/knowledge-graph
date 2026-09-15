@@ -17,9 +17,17 @@ const BIND = /^MATCH \((\w+):(\w+) \{.*\}\)$/;
 const unescape = (s: string) => s.replace(/\\'/g, "'").replace(/\\\\/g, "\\");
 /** Single-quoted for the shell, which is the only quoting that survives. */
 const sh = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
-/** A Neo4j label is capitalised and case-sensitive; a kg label is not. */
-const word = (s: string) =>
-  s.replace(/([a-z0-9])([A-Z])/g, "$1-$2").replace(/_/g, "-").toLowerCase();
+/**
+ * **Nothing translates a name any more.** A function stood here that folded
+ * `ACTED_IN` to `acted-in` and `Person` to `person`, and it was one-way: the
+ * result could have come from `ACTED_IN`, `acted_in` or `actedIn` with nothing
+ * on disk saying which. What read as the store's own vocabulary was Neo4j's,
+ * hashed — `docs/batches/12-vocabulary.md`.
+ *
+ * Since batch 12 the word is stored as written, so the import copies what
+ * `movies.cypher` says and the filename is folded by the tool, once, where the
+ * collision it creates can be refused.
+ */
 
 /** `name:'x', born:1964, roles:['a','b']` — values stay as written; the tool
  * stores text either way, since the shell removes quoting before it is seen. */
@@ -34,11 +42,11 @@ function properties(text: string): [string, string[]][] {
       const items = [...value.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((m) =>
         unescape(m[1]!)
       );
-      if (items.length > 0) out.push([word(name!), items]);
+      if (items.length > 0) out.push([name!, items]);
     } else if (value.startsWith("'") || value.startsWith('"')) {
-      out.push([word(name!), [unescape(value.slice(1, -1))]]);
+      out.push([name!, [unescape(value.slice(1, -1))]]);
     } else {
-      out.push([word(name!), [value]]);
+      out.push([name!, [value]]);
     }
   }
   return out;
@@ -90,9 +98,9 @@ for (
     names.set(variable!, shown);
     nodes++;
     lines.push(
-      `printf '[%3d/__NODES__] %-6s %s\\n' ${nodes} ${sh(word(label!))} ${sh(shown)}`,
+      `printf '[%3d/__NODES__] %-6s %s\\n' ${nodes} ${sh(label!)} ${sh(shown)}`,
     );
-    lines.push(`${variable}=$(kg node new --with-labels ${word(label!)})`);
+    lines.push(`${variable}=$(kg node new --with-labels ${label!})`);
     for (const [name, values] of all) {
       lines.push(`kg node "$${variable}" set ${name} ${sh(values[0]!)} >/dev/null 2>&1`);
     }
@@ -109,13 +117,11 @@ for (
       : "";
     links++;
     lines.push(
-      `printf '[%3d/__LINKS__] %-10s %s -> %s\\n' ${links} ${sh(word(type!))} ` +
+      `printf '[%3d/__LINKS__] %-10s %s -> %s\\n' ${links} ${sh(type!)} ` +
         `${sh(names.get(from!) ?? from!)} ${sh(names.get(to!) ?? to!)}`,
     );
     lines.push(
-      `l=$(kg node "$${from}" link --as ${
-        word(type!)
-      } --with-nodes "$${to}"${withProps})`,
+      `l=$(kg node "$${from}" link --as ${type!} --with-nodes "$${to}"${withProps})`,
     );
     for (const [name, values] of pairs.filter(([, v]) => v.length > 1)) {
       lines.push(`kg link "$l" add ${name} ${values.map(sh).join(" ")} >/dev/null 2>&1`);

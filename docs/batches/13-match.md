@@ -29,7 +29,7 @@ graph:
 
 | selection | nodes | edges | internal |
 |---|---|---|---|
-| `find '"movie" in labels'` | 38 | 250 | **0** |
+| `find '"Movie" in labels'` | 38 | 250 | **0** |
 | the pattern `(:Person)-[:DIRECTED]->(:Movie where title = "Cloud Atlas")` | 4 | 29 | 6 |
 
 A predicate selects nodes that happen to have edges; a pattern selects **both

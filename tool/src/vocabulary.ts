@@ -62,7 +62,9 @@ export async function ensure(dir: string, word: Label): Promise<Written> {
     // Anything already there stays: the word exists, and refusing to create it
     // again is the whole of `ensure`.
     if (held === word) return { kind: "written" };
-    if (held !== undefined) return { kind: "taken", by: held, slug: frontmatter.slug(word) };
+    if (held !== undefined) {
+      return { kind: "taken", by: held, slug: frontmatter.slug(word) };
+    }
     // A file naming no word contradicts no word, so this adopts rather than
     // refuses — which is what keeps a hand-written label file usable. Nothing
     // is inferred from the filename: the caller supplied the word, and the

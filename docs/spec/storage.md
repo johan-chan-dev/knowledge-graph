@@ -8,7 +8,10 @@ surface; this is what sits underneath it.
 ```
 <repo>/.kg/
 ├── .gitattributes
-└── nodes/{id}.md
+├── nodes/{id}.md
+├── labels/{slug}.md
+├── types/{slug}.md
+└── links/{uuid}.yaml
 ```
 
 **`.gitattributes` says `* -text`**, written by `space init`. The tool writes LF
@@ -113,9 +116,21 @@ read-modify-write. Each endpoint holds an entry under the reserved `links`
 property; that is the one nested shape in the format, validated against exactly
 `{type, link, direction}`, and nothing authored may nest.
 
-**A label is a file, and the file is the word.** `.kg/labels/<word>.md`, with
-the description as its body — the same format a node has. Created the first time
-the word is used, so the vocabulary is materialised rather than derived.
+**A word is a file, and the file is named by a slug of it.** `.kg/labels/<slug>.md`
+for a label and `.kg/types/<slug>.md` for a relation type — the same mechanism
+twice, the same format a node has, the description as the body. Created the
+first time the word is used, so each vocabulary is materialised rather than
+derived from the corpus.
+
+**The word itself is in the frontmatter**, under `word`, because the slug is
+lossy on purpose and cannot be turned back into it. A case-insensitive
+filesystem merges `actedIn.md` into `actedin.md` silently, keeping whichever was
+written last; folding first makes that collision land on one path, where the
+second word is **refused** naming the first instead of shadowing it.
+[naming](../design/naming.md) has the fold and the pairs it is measured against.
+
+The two directories are separate namespaces, so a word may be a label and a
+relation type at once without either shadowing the other.
 
 **A property's value is stored as a string, always.** The serialiser quotes
 only what would otherwise change type on the way back — `hello world` stays

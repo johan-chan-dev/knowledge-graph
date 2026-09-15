@@ -429,7 +429,9 @@ const asText = (word: Label): Text => word as unknown as Text;
  * purpose, so the collision it reports is the thing to explain: two words that
  * fold to one file, and which one is already there. */
 function notStored(kind: Store, word: Label, made: vocabulary.Written): string {
-  if (made.kind === "unwritable") return `cannot create the ${kind} ${word}: ${made.reason}`;
+  if (made.kind === "unwritable") {
+    return `cannot create the ${kind} ${word}: ${made.reason}`;
+  }
   if (made.kind === "taken" && made.by !== undefined) {
     return `cannot create the ${kind} ${word}: it folds to ${made.slug}.md, which holds ${made.by}`;
   }
@@ -523,7 +525,11 @@ export async function wordWrite(
   return ok("", `wrote ${new TextEncoder().encode(description).length} bytes`);
 }
 
-export async function wordForget(cwd: string, store: Store, word: Label): Promise<Outcome> {
+export async function wordForget(
+  cwd: string,
+  store: Store,
+  word: Label,
+): Promise<Outcome> {
   const resolved = await resolve(cwd);
   if (resolved.kind === "stop") return resolved.outcome;
   const gone = await vocabulary.forget(storeOf(resolved.space, store), word);

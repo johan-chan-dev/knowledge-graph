@@ -113,7 +113,16 @@ Deno.test("a key, a label and a relation type share one rule", () => {
     "_private",
     "Décision",
   ];
-  const bad = ["acted-in", "valid-until", "2fa", "3DModel", "-lead", "with.dot", "", "with space"];
+  const bad = [
+    "acted-in",
+    "valid-until",
+    "2fa",
+    "3DModel",
+    "-lead",
+    "with.dot",
+    "",
+    "with space",
+  ];
   for (const word of ok) {
     assertEquals(frontmatter.isName(word), true, word);
     assertEquals(frontmatter.isLabel(word), true, word);

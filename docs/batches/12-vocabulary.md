@@ -45,28 +45,34 @@ DIRECTED
 PRODUCED
 
 $ ls .kg/labels/ .kg/types/
-movie.md  person.md
-acted-in.md  directed.md  produced.md
+.kg/labels/:  movie.md  person.md
+.kg/types/:   acted-in.md  directed.md  produced.md
 
-$ kg node 01a0…7c2f label add person
-label exists as `Person` — its slug `person` is taken
+$ cat .kg/labels/movie.md
+---
+word: Movie
+---
+
+$ kg node 01a0…7c2f label MOVIE
+cannot create the label MOVIE: it folds to movie.md, which holds Movie
 
 $ kg node 01a0…7c2f set release_date "2000-03-31"
 $ kg node 01a0…7c2f --properties
 release_date: 2000-03-31
 ```
 
-The word is stored as written; the file is named by a slug of it; a second word
-landing on the same slug refuses and names the one holding it.
+The word is stored as written and lives in the file's frontmatter, because the
+fold is lossy and cannot be read back out. A second word landing on the same
+file refuses and names the one holding it.
 
-**Named, not linked:** `tool/tests/batches/12_test.ts`.
+**Backed by** [`12_test.ts`](../../tool/tests/batches/12_test.ts), and by the
+import below.
 
 ## What validates it
 
-The conformance import, re-run. It currently reaches `person` and `acted-in`
-through the translation above; afterwards it writes `Person` and `ACTED_IN`
-because that is what `movies.cypher` says, and `convert.ts` loses its name
-function entirely. The 133 people, 38 films and 253 relations are unchanged —
+The conformance import, re-run. It reached `person` and `acted-in` through the
+translation above; it now writes `Person` and `ACTED_IN` because that is what
+`movies.cypher` says, and `convert.ts` has lost its name function entirely. The 133 people, 38 films and 253 relations are unchanged —
 only their vocabulary is, which makes the import the one test that covers every
 site at once.
 
