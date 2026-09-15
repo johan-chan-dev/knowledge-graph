@@ -76,7 +76,22 @@ no such relation type: directed — did you mean DIRECTED?
 
 $ kg nodes match '(:Movie) {released: 2000'
 unclosed map — `{` needs a matching `}`
+
+$ kg nodes match '(m:Movie) where m.released > 2000'
+a pattern takes no condition — comparison, presence and negation are a `jq`
+filter over what this returns, and `design/parked/condition.md` is why
+
+$ kg nodes match 'MATCH (m:Movie) RETURN m'
+MATCH is a clause, and this argument is the pattern alone — the command is the
+MATCH, and `jq` is the RETURN
 ```
+
+**The boundary refuses by naming itself.** A reader who knows Cypher writes
+`where`, writes `MATCH`, asks for `*1..3` — and each used to answer with the
+lexical symptom, *unexpected character: `>`*, or the hyphen rule to someone
+asking about traversal. A refusal arrives exactly when the caller needs it,
+which is what makes it the right place to hold the line between this tool and
+`jq`: a page arrives at the start of a session, before they know they will.
 
 **Backed by** [`14_test.ts`](../../tool/tests/batches/14_test.ts), and by the guide's
 questions in [`movies_test.ts`](../../tool/conformance/movies_test.ts).

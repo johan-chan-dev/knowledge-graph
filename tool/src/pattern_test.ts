@@ -68,6 +68,29 @@ Deno.test("a map's key is a path, which a stored key can never be", () => {
   );
 });
 
+Deno.test("the boundary refuses by naming itself, not the character that stopped", () => {
+  // What a reader who knows Cypher writes. Each of these used to answer with
+  // the lexical symptom — `unexpected character: >`, or the hyphen rule to
+  // someone asking about traversal — which names the wrong side to fix.
+  assertStringIncludes(
+    why("(m:Movie) where m.released > 2000"),
+    "a pattern takes no condition",
+  );
+  assertStringIncludes(
+    why("(m:Movie) WHERE m.released > 2000"),
+    "`jq` filter over what this returns",
+  );
+  assertStringIncludes(why("MATCH (m:Movie) RETURN m"), "the command is the MATCH");
+  assertStringIncludes(why("(m:Movie) RETURN m"), "`jq` is the RETURN");
+  assertStringIncludes(
+    why("(m)-[:DIRECTED*1..3]->(p)"),
+    "a variable-length path is not built",
+  );
+
+  // And a word that merely contains the letters is not a clause.
+  assertStringIncludes(why("(:Wherever"), "unclosed node");
+});
+
 Deno.test("every refusal names its cause, and none opens a file", () => {
   assertStringIncludes(why("(:Person)-[:DIRECTED]->"), "an arrow needs a node after it");
   assertStringIncludes(why("(:Person"), "unclosed node");

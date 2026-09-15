@@ -127,6 +127,23 @@ function tokenize(source: string): Token[] {
     // A hyphen may not *start* a word — that position is an arrow — but it may
     // continue one, so `acted-in` lexes whole and is refused by the naming rule
     // rather than by a bracket error three tokens later.
+    // Three things a reader who knows Cypher writes, each refused by naming the
+    // boundary rather than the character that happened to stop the tokenizer.
+    // A refusal arrives when the caller needs it; a page arrives at the start
+    // of a session, before they know they will.
+    const ahead = source.slice(i);
+    if (/^where\b/i.test(ahead)) {
+      refuse(
+        "a pattern takes no condition — comparison, presence and negation are a `jq` filter over what this returns, and `design/parked/condition.md` is why",
+      );
+    }
+    if (/^(match|return|with|order|limit|skip|unwind|optional)\b/i.test(ahead)) {
+      const word = /^\w+/.exec(ahead)![0];
+      refuse(
+        `${word} is a clause, and this argument is the pattern alone — the command is the MATCH, and \`jq\` is the RETURN`,
+      );
+    }
+
     const rest = source.slice(i);
     const word = /^[^\s()[\]{}:,|<>-][^\s()[\]{}:,|<>]*/.exec(rest)?.[0];
     if (word === undefined || word === "") refuse(`unexpected character: ${c}`);
@@ -165,6 +182,13 @@ function parser(tokens: Token[]): Pattern {
     const token = peek();
     if (token?.kind !== "word") refuse(`expected a ${what}, and the pattern ended`);
     const text = (token as Token & { kind: "word" }).text;
+    // `*1..3` lexes into the word beside it, so the hyphen rule would be
+    // answered to someone who asked about traversal. Name what they asked for.
+    if (text.includes("*")) {
+      refuse(
+        `a variable-length path is not built — \`${text}\` asks for one, and a fixed pattern plus one call per hop is the way today`,
+      );
+    }
     if (!isLabel(text)) refuse(`not a ${what}: ${text} — ${WORD}`);
     i++;
     return text;
