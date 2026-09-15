@@ -32,17 +32,35 @@ exists only through `add`, and a structure does not exist.
 
 > **A datum has a shape; an address has a path.**
 
+**The two are orthogonal, not alternatives.** Every write is a place and a
+thing, and `set` has always taken both — `set title "x"` is a path of length one
+and a scalar.
+
+```
+kg node <id> set <path> <value>      a scalar, there
+kg node <id> set <path> --stdin      an object, merged there
+kg node <id> set --stdin             an object, merged at the root
+kg node <id> delete <path>...        removed, there
+kg nodes match '(… {<path>: "x"})'   compared, there
+```
+
 | | takes | because it |
 |---|---|---|
 | `node <id> --properties` | the stored shape, nested | **presents** a datum |
-| `node <id> set --stdin` | nested JSON | **writes** a datum, and a datum has a shape |
+| `node <id> set [<path>] --stdin` | nested JSON, at a place | **writes** a datum |
 | a pattern's map — `{config.port: "x"}` | a path and a scalar | **compares** a leaf |
 | `node <id> delete <path>...` | paths | **addresses** leaves |
 
-**So `set` never takes a path**, and there are not two ways to reach one leaf.
-Sending `{"config": {"port": "9090"}}` addresses it *by shape* — the merge is
-deep and touches only what is named. A path exists exactly where there is no
-shape to send: comparing, and removing.
+**The path is what keeps a pipe from transforming.** Data arrives unwrapped — a
+configuration object, a response body, a fragment of a file — and without a path
+it would have to be wrapped on the way in:
+
+```bash
+curl -s … | kg node "$S" set config --stdin        # and not: | jq '{config: .}' | …
+```
+
+A `jq` whose only job is to nest one level is a transformation step in a
+pipeline where nothing else transforms anything.
 
 ## What it should look like
 
@@ -54,7 +72,7 @@ $ kg node 01a0…7c2f set --stdin <<'JSON'
 JSON
 set 3
 
-$ kg node 01a0…7c2f set --stdin <<< '{"config": {"port": "9090"}}'
+$ kg node 01a0…7c2f set config --stdin <<< '{"port": "9090"}'
 set 1
 
 $ kg node 01a0…7c2f --properties
@@ -153,6 +171,17 @@ dimension changes without being restated, and they are unaffected.
 The same line answers a path: `delete sources.0` is **refused**. An index is
 not an address here, because position is not what a list means.
 
+## Two things a path forces
+
+**A path may not pass through a scalar.** `set config.port "x"` where `config`
+holds `"abc"` is **refused**: replacing a value with a structure because a path
+needed one to exist is the tool deciding what was meant, which
+[batch 4](4-stops-guessing.md) removed it for.
+
+**An object may land on a scalar.** `set title --stdin` with an object replaces
+what is at `title`, because that is what `set` does to the place it is given —
+the path names it, and naming it is the whole of the instruction.
+
 ## `delete`, in full
 
 | | |
@@ -170,7 +199,7 @@ not an address here, because position is not what a list means.
 | `id` | refused — it is not a property | printing it does not make it one |
 | `2000`, `true` | refused | the tool does not decide that the number `2000` means the text `"2000"` — [batch 4](4-stops-guessing.md) |
 | `null` | refused, naming `delete` | above |
-| a key containing `.` | refused | a name is not a path, and allowing it would make one string mean two things |
+| a key containing `.` **inside the object** | refused | there it is a name, and a name is not a path |
 
 The numeral row is the same refusal [batch 14](14-match.md) put in a pattern's
 map. Two places, one rule, and neither invented it.
@@ -194,8 +223,17 @@ silently means something else — and [naming](../design/naming.md) now says the
 relationship is inspiration rather than conformance, which is what makes this
 allowed.
 
-**A path never collides with a name.** A stored key cannot contain `.`, so the
-two vocabularies cannot overlap and there is no precedence to define.
+**A path never collides with a name**, and the dot's meaning is decided by
+position rather than by guessing:
+
+| where a `.` appears | what it is |
+|---|---|
+| a key inside the JSON object | a **name**, and refused |
+| an argument to `set` or `delete` | a **path** |
+| a key in a pattern's map | a **path** |
+
+A stored key cannot contain one, so the two vocabularies cannot overlap and
+there is no precedence to define.
 
 **A path to an absent leaf does not match**, exactly as an absent key does not —
 [absence](../design/absence.md)'s two-valued rule, with no third value invented
@@ -223,7 +261,7 @@ is what this leaves.
 |---|---|---|
 | **1** | a value may be a map — the reading door, and `document.ts` writing one back | self-contained, and what everything else needs on disk. Nothing writes one yet |
 | **2** | reading a JSON object as properties — the refusals, no writing | needs step 1 to know what a value is. Every refusal lands before the node is opened, which is batch 9's rule |
-| **3** | `set --stdin` writes, deep-merging, exclusive with a name and a value | needs step 2; one flush, so the unit of meaning is one write |
+| **3** | `set [<path>] --stdin` writes, deep-merging at the place named | needs step 2; one flush, so the unit of meaning is one write. A path with a scalar is the shape `set` already has |
 | **4** | `delete <path>...`, replacing `unset` | needs step 1 for a path to have somewhere to point |
 | **5** | a path in a pattern's map | the only step that touches [batch 14](14-match.md); it needs step 1 to have anything to reach |
 | **6** | `convert.ts` emits one `set --stdin` per node | last, because it is the check and should run against a surface that stopped moving |
