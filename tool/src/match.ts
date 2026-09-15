@@ -22,12 +22,32 @@ const entriesOf = (properties: Properties): Resolved[] => {
   return isLinks(carried) ? (carried as unknown as Resolved[]) : [];
 };
 
-/** A map compares a value, so a property holding a list does not match one —
- * the same rule `find` followed, where `=` and `in` ask different questions and
- * meeting the other's operand is no match rather than an inferred one. */
+/**
+ * What a path reaches, or nothing. A path that runs off a scalar finds nothing
+ * rather than complaining: comparing is a question.
+ */
+function leaf(holder: unknown, at: string): unknown {
+  let here: unknown = holder;
+  for (const segment of at.split(".")) {
+    if (here === null || typeof here !== "object" || Array.isArray(here)) {
+      return undefined;
+    }
+    here = (here as Record<string, unknown>)[segment];
+  }
+  return here;
+}
+
+/**
+ * A map compares a value, so a property holding a list **or a map** does not
+ * match one — the same rule `find` followed, where `=` and `in` ask different
+ * questions and meeting the other's operand is no match rather than an inferred
+ * one. An absent leaf does not match either, which is
+ * `docs/design/absence.md`'s two-valued rule with no third value invented for
+ * *the parent exists and the leaf does not*.
+ */
 function carries(properties: Properties, wanted: Map_): boolean {
-  for (const [name, value] of Object.entries(wanted)) {
-    const held = properties[name as Name] as Value | undefined;
+  for (const [at, value] of Object.entries(wanted)) {
+    const held = leaf(properties, at);
     if (typeof held !== "string" || held !== (value as string)) return false;
   }
   return true;
@@ -51,8 +71,8 @@ function follows(pattern: Relationship, entry: Resolved): boolean {
     return false;
   }
   if (pattern.types.length > 0 && !pattern.types.includes(entry.type)) return false;
-  for (const [name, value] of Object.entries(pattern.properties)) {
-    if (entry[name] !== (value as string)) return false;
+  for (const [at, value] of Object.entries(pattern.properties)) {
+    if (leaf(entry, at) !== (value as string)) return false;
   }
   return true;
 }

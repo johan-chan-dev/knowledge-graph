@@ -20,9 +20,18 @@ import type { Label, Name, Text } from "./frontmatter.ts";
  * says why, and both are a traversal rather than a shape.
  */
 
-/** Values are text because the store holds text. A map is equality, so what it
- * compares against has to be a value the store could hold. */
-export type Map_ = Record<Name, Text>;
+/**
+ * Values are text because the store holds text. A map is equality, so what it
+ * compares against has to be a value the store could hold.
+ *
+ * **Its keys are paths**, written with dots — `{config.port: "x"}`. A stored
+ * key cannot contain a dot, so the two vocabularies cannot overlap and position
+ * decides which is meant. It is the one place this grammar leaves openCypher,
+ * which has no nested property and so no path into one; the divergence fails at
+ * their parser rather than meaning something else there —
+ * `docs/batches/15-one-write.md`.
+ */
+export type Map_ = Record<string, Text>;
 
 export type Node = {
   readonly variable?: Name;
@@ -152,12 +161,33 @@ function parser(tokens: Token[]): Pattern {
     i++;
   };
 
-  const word = (what: "label" | "relation type" | "variable" | "key"): string => {
+  const word = (what: "label" | "relation type" | "variable"): string => {
     const token = peek();
     if (token?.kind !== "word") refuse(`expected a ${what}, and the pattern ended`);
     const text = (token as Token & { kind: "word" }).text;
-    const ok = what === "key" ? isName(text) : isLabel(text);
-    if (!ok) refuse(`not a ${what}: ${text} — ${WORD}`);
+    if (!isLabel(text)) refuse(`not a ${what}: ${text} — ${WORD}`);
+    i++;
+    return text;
+  };
+
+  /** A map's key is a path: one name, or several joined by dots. The tokenizer
+   * keeps a dot inside a word, so what arrives here is the whole of it. */
+  const key = (): string => {
+    const token = peek();
+    if (token?.kind !== "word") refuse("expected a key, and the pattern ended");
+    const text = (token as Token & { kind: "word" }).text;
+    for (const segment of text.split(".")) {
+      if (segment === "") {
+        refuse(`not a path: ${text} — a segment between two dots is missing`);
+      }
+      if (!isName(segment)) {
+        refuse(
+          text.includes(".")
+            ? `not a property name: ${segment} in ${text} — ${WORD}`
+            : `not a key: ${text} — ${WORD}`,
+        );
+      }
+    }
     i++;
     return text;
   };
@@ -173,16 +203,16 @@ function parser(tokens: Token[]): Pattern {
       return out as Map_;
     }
     for (;;) {
-      const key = word("key");
-      take(":", `expected \`:\` after ${key}`);
+      const at = key();
+      take(":", `expected \`:\` after ${at}`);
       const token = peek();
       if (token?.kind === "number") {
         refuse(
           `not a value: ${token.text} — a property is text on disk, so a map compares against a quoted string`,
         );
       }
-      if (token?.kind !== "string") refuse(`expected a quoted value for ${key}`);
-      out[key] = (token as Token & { kind: "string" }).value as Text;
+      if (token?.kind !== "string") refuse(`expected a quoted value for ${at}`);
+      out[at] = (token as Token & { kind: "string" }).value as Text;
       i++;
       if (isPunct(",")) {
         i++;

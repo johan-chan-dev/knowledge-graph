@@ -58,6 +58,16 @@ Deno.test("a chain hops, and a comma starts another part", () => {
   assertEquals(parts[1]!.first.variable, "a");
 });
 
+Deno.test("a map's key is a path, which a stored key can never be", () => {
+  const [one] = parsed('(:Service {config.port: "8080", title: "x"})');
+  assertEquals(plain(one!.first.properties), { "config.port": "8080", title: "x" });
+  // On a relationship too, since a record is a document of properties.
+  assertEquals(
+    plain(parsed('()-[:X {provenance.tool: "fj"}]->()')[0]!.steps[0]!.via.properties),
+    { "provenance.tool": "fj" },
+  );
+});
+
 Deno.test("every refusal names its cause, and none opens a file", () => {
   assertStringIncludes(why("(:Person)-[:DIRECTED]->"), "an arrow needs a node after it");
   assertStringIncludes(why("(:Person"), "unclosed node");
