@@ -33,7 +33,8 @@ tokenisation rather than the I/O.)
 ## Ranking — passes, and is *more* capable recomputed
 
 The ranking argument and its trigger belong to [search](search.md) and are not
-repeated. What that page does not say is what recomputation buys beyond cost.
+repeated, and how anyone would know an implementation is correct belongs to
+[benchmark](benchmark.md). What that page does not say is what recomputation buys beyond cost.
 
 **The corpus is chosen at query time.** Restricting to a label recomputes the
 document frequencies over that label's nodes — so a term common across the whole
