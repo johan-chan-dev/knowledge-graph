@@ -64,6 +64,32 @@ work they came with. So capture first, into a scratch document where nothing
 has a shape yet, and design the subgraph afterwards, once the whole of what was
 agreed is in front of you.
 
+**How far to model: a body is a remainder, not a verdict.** What stays in a
+node's prose is what nobody has lifted out *yet*. So the question is never
+*does this deserve to be structure* — that is a prediction about questions
+nobody has asked — but *what has this conversation actually needed*. Lift that
+much and leave the rest.
+
+**What you lift is an exhibit, not a thesis.** A passage is produced *in
+support of* something: it carries where it came from — the quote, the offsets,
+the digest of the source it was taken from — and it points at the claim it is
+adduced for. Those are two nodes, and keeping them apart is what makes the
+graph answerable. One passage is adduced for several claims, sometimes opposing
+ones, and it stays neutral between them — **the relation carries the side, the
+exhibit does not**. Weld the two and the same passage has to be copied for
+every argument it serves, two sources saying one thing never meet anywhere, and
+no verb undoes it afterwards.
+
+**So a pass begins with a look, not with a write.** Read the anchors already
+pointing at that source — their quotes are what earlier passes took — and check
+the claim before minting a second spelling of one that exists. The first pass
+then stays true of what it claimed and of nothing more. The exception worth
+checking is a re-grain: two anchors overlapping inside one body are two
+readings of a single sentence, and no digest will catch it, because the body
+never moved. Calling content body-grade would close that door and buys nothing:
+capture has to stay free, because the scarce input is the judgement, never the
+material.
+
 That is also what the review in step 3 is *about*. The facts were settled in
 step 2 and are not on trial again; what the user is checking, piece by piece,
 is whether the shape you chose is one they will be able to ask questions of in
@@ -195,6 +221,14 @@ kg nodes match '(:Person)-[:ACTED_IN]->(:Movie)' \
   | jq '[.[] | select(.labels|index("Person"))
         | select((.links//[]) | any(.type=="DIRECTED" and .direction=="out") | not)]'
 ```
+
+**A negative answer is about what was lifted, not about the world.**
+`select(.born == null)` finds nodes where nothing was ever extracted into
+`born`, which is not the same set as people with no birth year. The graph is
+closed over what someone chose to write and open over the prose nobody has
+mined yet, so say which one you are reporting: *of the nodes carrying this
+property*, never *of the people*. The distinction costs a clause and is the
+difference between a gap in the record and a fact about the world.
 
 **Where `jq` alone stops.** The recipes above work because a resolved node
 carries its own entries, with `type`, `direction` and `neighbour`. As soon as a
