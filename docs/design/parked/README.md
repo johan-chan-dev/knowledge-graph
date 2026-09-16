@@ -33,6 +33,7 @@ trigger that empties a page is a batch; so is the moment to read it.
 | [presence](presence.md) | how a presence test is spelled — two roads, one prototyped and reverted |
 | [neighbours](neighbours.md) | reaching a node's neighbours in one call — shipped, then parked |
 | [raw](raw.md) | material nobody has judged yet, and why capture must cost nothing |
+| [extraction](extraction.md) | lifting parts out of a body, the anchor that traces them, and what rots |
 | [partial-edits](partial-edits.md) | reading and writing part of a node, and the token that guards it |
 | [structured-output](structured-output.md) | shipped in [13](../../batches/13-output.md), and not as a flag |
 | [condition](condition.md) | the `where` clause — openCypher's `Expression`, and the pattern predicate |
