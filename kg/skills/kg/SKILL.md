@@ -86,14 +86,21 @@ places, one of which the user never chose.
 Check it once, the first time the graph is used in a session:
 
 ```bash
-jq -r '.autoMemoryEnabled // "unset"' ~/.claude/settings.json
+jq -r '.autoMemoryEnabled // empty' .claude/settings.json ~/.claude/settings.json | head -1
 ls ~/.claude/projects/*/memory/*.md 2>/dev/null | head
 ```
 
-**`unset` means on** — it is the default, and the second command shows what it
-has already written. Say so, and recommend `"autoMemoryEnabled": false` in
-`~/.claude/settings.json`: measured, that removes the memory instructions from
-the session entirely rather than merely quieting them.
+**Nothing printed means on** — it is the default, and the second command shows
+what it has already written. Project settings win over the user's, so the first
+file to answer is the effective one.
+
+Recommend `"autoMemoryEnabled": false` **in this repository's
+`.claude/settings.json`**, not the user's. Measured twice: it removes the memory
+instructions from the session entirely rather than merely quieting them, and a
+repository file overrides a user default left on. The scope is the point — the
+conflict exists only where a space exists, a user-level switch would also
+silence every project that has no graph, and a committed one travels with the
+repository.
 
 Files already under `memory/` stay where they are. They are markdown and worth
 reading once before being abandoned — whatever is still true belongs in the

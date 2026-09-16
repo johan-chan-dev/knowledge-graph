@@ -60,10 +60,17 @@ fi
 #
 #    Measured: `autoMemoryEnabled: false` removes the memory instructions from
 #    the session rather than merely quieting them. Unset is on, being default.
+#
+#    The repository's own settings file is the place to put it, not the user's:
+#    the conflict exists only where a space exists, a user-level switch would
+#    also silence every project that has no graph, and a committed one travels
+#    with the repository. Project settings override user settings — measured on
+#    a repository with the user default left on.
 if command -v jq >/dev/null 2>&1; then
-  auto=$(jq -r '.autoMemoryEnabled // "unset"' "${HOME}/.claude/settings.json" 2>/dev/null || echo unset)
-  if [ "$auto" != "false" ]; then
-    lines="${lines:+${lines}$'\n'}Claude Code's own auto-memory is on and writes unasked — \`\"autoMemoryEnabled\": false\` in ~/.claude/settings.json leaves this graph the only memory"
+  auto=$(jq -r '.autoMemoryEnabled // empty' \
+    "${repo}/.claude/settings.json" "${HOME}/.claude/settings.json" 2>/dev/null | head -1)
+  if [ "${auto:-unset}" != "false" ]; then
+    lines="${lines:+${lines}$'\n'}Claude Code's own auto-memory is on and writes unasked — \`\"autoMemoryEnabled\": false\` in this repository's .claude/settings.json leaves this graph the only memory"
   fi
 fi
 
