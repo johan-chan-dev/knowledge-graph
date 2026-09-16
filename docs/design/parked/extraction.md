@@ -16,6 +16,52 @@ after — not *what is this node*, but *what has been lifted out of it yet*.
 So a body is not content whose grain is the node. **It is the remainder nobody
 has extracted yet**, and the question it answers is temporal.
 
+## An exhibit is not a thesis
+
+The three nodes in the pattern above are a courtroom, and the analogy settles
+what would otherwise be arbitrary:
+
+| in court | here |
+|---|---|
+| the document entered into the record | the source node |
+| **the exhibit** — one passage, produced at the hearing | what a pass lifts |
+| the chain of custody | the anchor: quote, offsets, digest |
+| what counsel argues from it | the claim it points at |
+
+**Exhibits must not merge.** Two documents saying the same thing stay two
+exhibits — that is exactly what makes them two witnesses, and merging them
+would destroy the count. What is needed is not a merge but **a place where they
+converge**, and that place is the claim. So the instruction is always *make
+them point at the same claim*, never *combine them when they agree*.
+
+**One exhibit is adduced for several claims, sometimes opposing ones.** Ordinary
+in a trial, and the reason the two cannot be one node: welded, a passage has to
+be copied for every argument it serves. Kept apart it carries as many relations
+as it is used for and stays neutral between them — **the relation carries the
+side, the exhibit does not.**
+
+That is what gives the contradiction problem below an answer rather than only a
+name. A file in which nothing contradicts anything is not a complete graph, it
+is a one-sided pleading; *would this hold against an opposing party* is a
+completeness test the graph can be read against. It is also the operative form
+of Luhmann's criterion for a slip box worth communicating with — a partner that
+cannot contradict you cannot surprise you either.
+
+**An exhibit does not have to be true, it has to be faithfully lifted.** Truth
+is the claim's question, and leaving it there is what keeps capture free:
+nobody is asked to adjudicate at the moment of lifting.
+
+**A broken chain of custody makes an exhibit inadmissible as it stands, not
+false** — the orphaned state named above, with the word the analogy supplies.
+Re-anchor it; do not discard it.
+
+**And the record is what the sparring leaves behind.** Knowledge here is
+produced adversarially — argued, corrected, narrowed — so the graph is the
+record of those proceedings rather than a filing of conclusions. That is why
+exhibits are kept with their provenance and not only their findings: a record
+holding just what was concluded cannot be reopened, and reopening is the reason
+to keep one.
+
 ## It needs nothing built — measured
 
 Two sources, two extracts, one concept. The pattern above returns all five, and
