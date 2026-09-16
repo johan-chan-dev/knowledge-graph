@@ -62,6 +62,58 @@ per query* — under real tension instead of asserting it at 171 nodes.
 That is the second reason to wire a benchmark, and it is independent of
 ranking: it tests the architecture.
 
+## Judging without qrels — three systems, and a live dispute
+
+The paragraph above says a home-grown corpus proves nothing because it has no
+relevance judgements. **That is too strong**, and the qualification is worth
+carrying: judgements can be generated rather than written.
+
+| | what it evaluates |
+|---|---|
+| **Open RAG Eval** (Vectara) | a whole RAG system, **without predefined answers**, on automated metrics — UMBRELA for relevance, plus hallucination |
+| **Open RAG Benchmark** (`vectara/open-rag-bench`) | a dataset with tooling to run it against LangChain and LlamaIndex |
+| **BenchmarkQED** (Microsoft) | query generation, scoring and dataset prep — **AutoQ** synthesises queries across a *local↔global* spectrum, **AutoE** scores against assertions, **AutoD** samples and summarises. Ships the Behind the Tech transcripts and 1 397 AP News health articles |
+
+**UMBRELA is what carries the claim.** *UMbrela is the (Open-Source
+Reproduction of the) Bing RELevance Assessor* — a model assigning four-level
+relevance (0–3) to query-document pairs, reproducing Microsoft's Bing work and
+reported to correlate highly with human annotations and with system rankings
+across the TREC Deep Learning Tracks 2019–2023. TREC 2024's RAG track released
+UMBRELA-produced qrels.
+
+**And it is contested, in the same literature.** *LLM-based Relevance Assessment
+Still Can't Replace Human Relevance Assessment* (2025) argues the opposite, and
+a companion line of work measures how far these judgements move with the prompt
+alone. So this is a live dispute rather than a settled substitution, and a page
+that cited only the affirmative half would be doing what
+[extraction](extraction.md) warns about: a file where nothing contradicts
+anything is a one-sided pleading.
+
+**What it would change here.** Generated judgements over this repository's own
+`docs/` would remove the only reason that corpus was rejected. Two cautions
+before that is treated as free:
+
+- **These evaluate a system's answers; BEIR evaluates a retrieval function.**
+  Different objects. There is no generation pipeline in this tool — there is a
+  tool an agent drives — so the first thing needed is still whether the ranking
+  is *correct*, not whether the answers read well.
+- **A judge shares common sense, not your intent.** On TREC, *is this passage
+  relevant to this query* is a judgement anyone can make. On *what did we decide
+  about the output format*, relevance depends on what was decided, which is the
+  thing under test. The circularity is sharper on a personal store than on a
+  public corpus, and it is not removed by a better judge.
+
+**One piece is worth taking regardless of the scoring.** AutoQ's *local↔global*
+spectrum is a diagnostic this design would fail informatively: a pattern answers
+local questions exactly and global ones not at all, since aggregation is `jq`'s
+and summarisation is nobody's. Running the spectrum would draw the tool's
+boundary as a measurement instead of a claim — no judge required.
+
+Assertion scoring, as in AutoE, is also the cheap shape that fits: assertions
+about what an answer must contain, written by the person who wrote the pages.
+That is the same instrument already used for the skill's triggering eval, where
+each query carried an expected verdict rather than a gold answer.
+
 ## What it cannot do
 
 **BEIR measures documents, not graphs.** It would evaluate the textual half and
@@ -96,6 +148,9 @@ longer any way to tell the two apart.
   implementation, it does not choose the configuration.
 - **Whether any of this belongs in the repository at all**, or stays a procedure
   run once against a scratch checkout. Six minutes is not a unit test.
+- **Whether generated judgements are trusted here**, which the field itself has
+  not settled — and which is harder on a personal store, where the judge can
+  share common sense but not the author's intent.
 
 ---
 
