@@ -1,14 +1,19 @@
 ---
 name: kg
 description: >-
-  Work with a kg knowledge graph — a repository's decisions, notes, tools and
-  the relations between them, held as markdown with typed frontmatter. Use when
-  a repository contains a `.kg/` directory, when a task is about recording or
-  retrieving what a project has decided and why, or whenever work involves
-  atomic notes with typed frontmatter, decision records, or a graph of typed
-  relations. Carries the recipes that combine `kg` with `jq`: the tool selects
-  by structure, `jq` computes. Reach for it before hand-editing any frontmatter
-  — every rule has a verb that writes it correctly by construction.
+  This project's memory — a graph of markdown notes with typed frontmatter and
+  typed relations, holding what the project decided, learned, measured and why.
+  Use it whenever the user asks to keep, remember, record, note down or file
+  something the conversation has just established, in any language: "garde ça",
+  "retiens ça pour la prochaine fois", "note ça quelque part", "remember this",
+  "add that to your knowledge base". Use it too whenever they ask what was
+  decided and why, what cites or supersedes what, or what is still open. The
+  user decides what enters: nothing is written unasked, and an agreed batch goes
+  in piece by piece so each write can be reviewed. It replaces Claude Code's own
+  auto-memory, which should be off. Reach for it before hand-editing any
+  frontmatter — every field has a verb that writes it correctly. Not for ADR or
+  documentation files at a path the user names, outside note vaults, generic
+  JSON wrangling, or plotting graphs of metrics.
 ---
 
 # kg
@@ -21,6 +26,78 @@ the boundary when you reach it, and `docs/` in the plugin's repository argues
 why everything is the way it is. What neither can carry is the habit nobody is
 refused for skipping, and the `jq` a question needs once the pattern has done
 its half.
+
+## The habit this serves
+
+The graph is this project's memory, and it fills through conversation rather
+than through an import. A session has a shape:
+
+1. **Sparring.** Something gets established while working — a decision, a
+   constraint, a measured number, a road not taken and the reason. Name it as
+   it settles, in one line, and keep it in your own scratch notes. Nothing
+   reaches the graph yet.
+2. **Consolidation.** It gets argued, corrected, narrowed. Most of what passes
+   through step 1 does not survive step 2, which is the whole reason step 3 is
+   a separate act rather than a consequence.
+3. **Integration, when asked.** The user says to keep it. Only then does
+   anything reach the disk.
+
+**Writing needs a word from the user. Proposing is yours to do, and expected.**
+Two acts, and only the first is gated. A graph that fills itself is one its
+owner stops trusting to read back, because they never chose what is in it — so
+never write on your own judgement. But silence is not the safe side of that
+rule: it costs twice over. What nobody named is gone when the session closes,
+and what you quietly save up instead arrives as a heap too large to read
+honestly. **A review of forty facts is not forty reviews; it is a rubber
+stamp** — which hands the user the illusion of having chosen, the one thing the
+rule exists to protect.
+
+So say it as it settles: one line, no ceremony, no pause in the work. And if a
+long session has gone by with nothing landing, say that too — the backlog is
+itself worth naming before it grows into the thing nobody can check.
+
+**The modelling is yours; the user should never have to think in nodes.** They
+say what is worth keeping, in their own words and at their own grain. Which of
+it becomes a node, which a property, which a relation and under which type, is
+the expertise they are delegating — asking them to supply it hands back the
+work they came with. So capture first, into a scratch document where nothing
+has a shape yet, and design the subgraph afterwards, once the whole of what was
+agreed is in front of you.
+
+That is also what the review in step 3 is *about*. The facts were settled in
+step 2 and are not on trial again; what the user is checking, piece by piece,
+is whether the shape you chose is one they will be able to ask questions of in
+six months.
+
+**An agreed batch goes in piece by piece.** Integration is a review, not an
+import — one node, one property, one relation at a time, each small enough to
+be read and corrected before the next one is written. Ten writes the user
+watched are worth more than one bulk write they have to audit afterwards, and
+the verbs are atomic precisely so that costs nothing. Pieces stay small because
+they were named as they appeared — not because a heap was cut up afterwards.
+
+## Two memories is one too many
+
+Claude Code carries an auto-memory of its own: a `memory/` directory it writes
+to on its own judgement, with an index loaded into every session. That is the
+opposite policy to the one above, and running both puts the same fact in two
+places, one of which the user never chose.
+
+Check it once, the first time the graph is used in a session:
+
+```bash
+jq -r '.autoMemoryEnabled // "unset"' ~/.claude/settings.json
+ls ~/.claude/projects/*/memory/*.md 2>/dev/null | head
+```
+
+**`unset` means on** — it is the default, and the second command shows what it
+has already written. Say so, and recommend `"autoMemoryEnabled": false` in
+`~/.claude/settings.json`: measured, that removes the memory instructions from
+the session entirely rather than merely quieting them.
+
+Files already under `memory/` stay where they are. They are markdown and worth
+reading once before being abandoned — whatever is still true belongs in the
+graph, and gets there like everything else: on request, piece by piece.
 
 ## First, three commands
 
