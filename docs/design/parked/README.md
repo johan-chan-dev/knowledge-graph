@@ -30,6 +30,7 @@ trigger that empties a page is a batch; so is the moment to read it.
 | | |
 |---|---|
 | [search](search.md) | the body, and presence tests over properties |
+| [corpus-statistics](corpus-statistics.md) | what recomputes from the corpus alone, measured — and what needs a model |
 | [presence](presence.md) | how a presence test is spelled — two roads, one prototyped and reverted |
 | [neighbours](neighbours.md) | reaching a node's neighbours in one call — shipped, then parked |
 | [raw](raw.md) | material nobody has judged yet, and why capture must cost nothing |

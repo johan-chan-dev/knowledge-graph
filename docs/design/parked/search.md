@@ -194,6 +194,11 @@ stale index it never needed.
 **What would trigger it:** a query routinely returning more nodes than the
 caller reads. Not a corpus size, and not a feeling that search should rank.
 
+[corpus-statistics](corpus-statistics.md) carries the economics under this — the
+read/tokenise split measured separately, why recomputation picks the corpus per
+query and an index cannot, where the recompute horizon is, and the two other
+things the same arithmetic buys.
+
 ## What it replaced
 
 Four flags, designed four times: `--where`, `--contains` with `-any` and `-all`
