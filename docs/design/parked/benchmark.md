@@ -103,11 +103,47 @@ before that is treated as free:
   thing under test. The circularity is sharper on a personal store than on a
   public corpus, and it is not removed by a better judge.
 
-**One piece is worth taking regardless of the scoring.** AutoQ's *local↔global*
-spectrum is a diagnostic this design would fail informatively: a pattern answers
-local questions exactly and global ones not at all, since aggregation is `jq`'s
-and summarisation is nobody's. Running the spectrum would draw the tool's
-boundary as a measurement instead of a claim — no judge required.
+**One piece needs no judge at all**, and it has been run. AutoQ's *local↔global*
+spectrum is a diagnostic, and `tool/conformance/spectrum.sh` is it — eleven
+questions from one node to the whole corpus, against the movies space that
+`import.sh` builds beside it, so the numbers can be produced again and compared.
+Best of three, 2026-09-16:
+
+| | question | mechanism | cost | |
+|---|---|---|---|---|
+| L1 | one property of one node | pattern | 113 ms | ✔ |
+| L2 | one hop | pattern | 113 ms | ✔ |
+| L3 | two hops with a join | pattern | 114 ms | ✔ |
+| M1 | count in one neighbourhood | pattern + `jq` | 124 ms | ✔ |
+| M2 | co-actors of one actor | pattern + `jq` | 112 ms | ✔ 34 |
+| M3 | corpus-wide threshold | whole graph + `jq` | 148 + 8 ms | ✔ |
+| M4 | negation on the far node | whole graph + `jq` | 148 + 8 ms | ✔ |
+| G1 | the three most connected | whole graph + `jq` | 148 + 8 ms | ✔ |
+| G2 | films by decade | whole graph + `jq` | 148 + 8 ms | ✔ |
+| G3 | main themes of the corpus | — | — | **none** |
+| G4 | summarise it, and its shifts | — | — | **none** |
+
+**It refutes what this page claimed.** The sentence here said a pattern answers
+local questions and global ones not at all. It does not: every global question
+that is *structural* — a ranking, a distribution, a threshold over the corpus —
+answers in about 156 ms, because the whole graph loads in 148. **The break is
+not local against global, it is structural against semantic**, and G3 and G4
+fail for a reason that has nothing to do with reach: there is no text here and
+no summarisation anywhere.
+
+**And the cost is flat.** 112 to 124 ms across the whole spectrum, because every
+`match` builds the full snapshot regardless — [corpus-statistics](corpus-statistics.md)
+measured selectivity changing nothing. So the spectrum produces no cost
+gradient, which is the finding rather than a disappointment: *local↔global* is a
+**cost** distinction in GraphRAG, where community summaries exist because the
+corpus cannot be read per query. Here it can, so the machinery that motivates
+the global path answers a problem this design does not have.
+
+**What it does not justify.** No decision today turns on it, and nothing is
+blocked behind it. Its worth is as a **dated marker**: the same script after a
+label index, or after ranking, says whether either moved anything. A baseline is
+only that if it can be re-run, which is why the script is committed beside the
+corpus it needs rather than written up here as a result.
 
 Assertion scoring, as in AutoE, is also the cheap shape that fits: assertions
 about what an answer must contain, written by the person who wrote the pages.
