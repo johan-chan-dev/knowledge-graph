@@ -150,16 +150,56 @@ about what an answer must contain, written by the person who wrote the pages.
 That is the same instrument already used for the skill's triggering eval, where
 each query carried an expected verdict rather than a gold answer.
 
+## The same corpus carries a better task
+
+BEIR uses SciFact as a **retrieval** set: find the abstracts relevant to a
+claim. That is not what SciFact was built as. It is a **verification** dataset —
+1 409 expert-written scientific claims over 5 183 abstracts, where every
+*(claim, abstract)* pair is labelled **SUPPORTS**, **REFUTES** or **NOINFO**,
+and the first two carry hand-annotated **rationale sentences** taken from the
+abstract.
+
+BEIR throws the labels and the rationales away. They are the half that measures
+what this design is actually about:
+
+| SciFact | here |
+|---|---|
+| the abstract | the source node |
+| the **rationale sentence** | the exhibit, with its quote and its offsets |
+| the claim | the thesis it is adduced for |
+| **SUPPORTS / REFUTES** | the relation type — and `REFUTES` is precisely the contradiction [extraction](extraction.md) says has to be modelled on purpose |
+| **NOINFO** | the honest empty answer — closed over what was written, open over what was not |
+
+**`NOINFO` is the quiet find.** A retrieval benchmark cannot express *the
+evidence is not there* except as an empty list, which is indistinguishable from
+a bad search. SciFact makes it a third verdict, which is the distinction this
+repository needed three attempts to state correctly.
+
+And it scores the thing a chain of custody is *for*: not whether an answer reads
+well, but **whether the evidence was found and whether the verdict on it was
+right**. The rationale sentences are a published etalon for the anchor.
+
+What it does not reach: the claims are **supplied**, so this measures retrieval
+and verification and says nothing about ingestion. The abstracts carry no
+curated relations either, so the floor-and-delta above remains the only way to
+put a number on curation.
+
 ## What it cannot do
 
-**BEIR measures documents, not graphs.** It would evaluate the textual half and
-say nothing about patterns, relations, provenance or extraction. The knowledge
-graph field has its own benchmarks — link prediction, question answering over a
-graph — and none of them measures what this tool does, which is a personal
+**A ranking benchmark measures documents, not graphs.** BEIR would evaluate the
+textual half and say nothing about patterns, relations or extraction. The
+knowledge graph field's own benchmarks — link prediction, question answering
+over a graph — do not measure what this tool does either, which is a personal
 store curated by hand with typed relations someone chose.
 
-So: **the ranking becomes comparable; the tool does not.** Worth stating plainly
-before a good number on one half gets read as a verdict on the whole.
+SciFact's verification task reaches further than either: evidence and verdict
+are scored, which is most of what provenance is for. **What no shared benchmark
+can contain is the curation**, because a corpus everyone shares is a corpus
+nobody organised.
+
+So: **the ranking is comparable, the evidence and the verdict are comparable,
+and the curation is not.** Worth stating plainly before a good number on two
+halves gets read as a verdict on the whole.
 
 ## What it is blocked on
 
