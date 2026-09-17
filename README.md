@@ -3,10 +3,10 @@
 `kg` keeps a knowledge graph as files in a repository: one node per file, a uuid
 for a name, properties in frontmatter and prose in the body.
 
-**Being designed and built, in the open.** There is no plugin to install and
-nothing here is stable. What exists is a design tree and a binary that closes
-eleven loops: a space, nodes, properties, lists, labels, relations, `find`,
-one writer for the frontmatter, and resolution.
+**Built in the open, and not stable.** Fifteen batches have shipped — a space,
+nodes, properties, lists, labels, relations, resolution, a vocabulary, one
+output format, patterns, one write — and this repository is the marketplace
+carrying the plugin that drives them.
 
 ## What it is for
 
@@ -38,15 +38,16 @@ front of you and of nothing else.
 |---|---|
 | batches 1–5 | shipped — a space, properties, lists, no guessing, a declared entry point |
 | batches 6–10 | shipped — labels, relations, someone else's graph as a conformance check, [`find`](docs/batches/9-find.md), and one writer for the frontmatter |
-| batch 11 | shipped — [resolution](docs/batches/11-resolution.md) |
-| plugin | **none published.** The tool comes first |
+| batches 11–15 | shipped — [resolution](docs/batches/11-resolution.md), [the vocabulary](docs/batches/12-vocabulary.md), [one output format](docs/batches/13-output.md), [match](docs/batches/14-match.md) — which deleted `find` — and [one write](docs/batches/15-one-write.md) |
+| plugin | shipped — [`kg/`](kg/): a skill, and a session hook that is silent outside a space |
 
-## There is no plugin, deliberately
+## The plugin that was deleted
 
-An earlier implementation shipped as one: a Python toolbelt, a skill and an
-agent, in daily use in a private repository where it managed 73 nodes. It is
-deleted rather than migrated — every command name changed, the layout on disk
-changed, and a rename would have left more dead code than it saved.
+Not this one. An earlier implementation shipped as a plugin — a Python toolbelt,
+a skill and an agent, in daily use in a private repository where it managed 73
+nodes. It is deleted rather than migrated: every command name changed, the
+layout on disk changed, and a rename would have left more dead code than it
+saved.
 
 **It stayed too long after the rewrite started**, and the cost was not disk. It
 described a second, different model — two scopes resolved by directory, a
@@ -65,6 +66,9 @@ knowledge travels, and edges run toward the more-shared space.
 This repository is a marketplace, and the plugin in it is `kg`.
 
 ```bash
+/plugin marketplace add https://github.com/johan-chan-dev/knowledge-graph.git
+/plugin install kg@knowledge-graph
+
 deno task --cwd tool compile     # about 7 s the first time; Deno is the only dependency
 ```
 
