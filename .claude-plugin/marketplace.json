@@ -7,7 +7,7 @@
     {
       "name": "kg",
       "source": "./kg",
-      "description": "Work with a kg knowledge graph: write through verbs, select with patterns, compute with jq.",
+      "description": "This project's memory: what it decided, learned and why, as markdown nodes with typed relations. Write through verbs, select with patterns, compute with jq.",
       "version": "0.1.0"
     }
   ]
