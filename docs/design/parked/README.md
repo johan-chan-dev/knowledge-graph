@@ -43,6 +43,7 @@ trigger that empties a page is a batch; so is the moment to read it.
 | [comparison](comparison.md) | ordering; comparison itself is batch 9's, and settled here |
 | [query-language](query-language.md) | openCypher — its cost, and the store objection that batch 11 removed |
 | [validation](validation.md) | declared schemas — immature, and blocked on a practice existing |
+| [relation-shapes](relation-shapes.md) | what a relation type may connect — SHACL's reading, not RDFS's |
 | [lifecycle](lifecycle.md) | withdrawing a node — unblocked since batch 7, undecided |
 | [derived-document](derived-document.md) | a document that declares its own pattern, and knows when its premises moved |
 | [sharing](sharing.md) | knowledge travels, and edges run toward the more-shared space |
