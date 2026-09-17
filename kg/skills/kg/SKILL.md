@@ -102,6 +102,70 @@ watched are worth more than one bulk write they have to audit afterwards, and
 the verbs are atomic precisely so that costs nothing. Pieces stay small because
 they were named as they appeared — not because a heap was cut up afterwards.
 
+## Finding it again
+
+The same loop read backwards, and it runs in a fixed order because each step
+costs more than the one before it.
+
+1. **Spell.** `labels list`, `types list`, one node read as an example. The
+   failure is almost never *it is not there* — the user knows it is, they put it
+   there — it is *I cannot spell it*. Two hundred milliseconds settles that, and
+   the session hook has usually done it before you were asked.
+2. **Anchor, then expand.** A pattern on the label you now have, then the
+   relations out of what it returned. A typed relation is a **declared**
+   proximity, chosen and reviewed by someone; nothing estimated beats it for
+   *what is connected to this*.
+3. **Compute.** `jq` over what came back. When the question is about the whole
+   corpus — a ranking, a distribution, a threshold — load the whole thing:
+   `kg nodes list | kg nodes --stdin --properties`, two calls, 148 ms at 171
+   nodes against 113 ms for a single anchored pattern. **A corpus-wide question
+   is within a third of a local one**, so there is no reason to approximate one
+   into a sample.
+4. **Come back with what you found — never with a blank question.** *Around
+   which discussion?* hands the user back the work they arrived with. *There are
+   `Decision` and `Note`, and three decisions mention the format — which?* hands
+   them a choice. Same interruption, opposite value.
+5. **Sweep the bodies last.** A filename is an id, so a phrase becomes resolved
+   nodes in one pipe — 0.2 s over a few hundred files:
+
+   ```bash
+   grep -ril '<phrase>' .kg/nodes/ | sed 's|.*/||;s|\.md$||' \
+     | kg nodes --stdin --properties
+   ```
+
+   The structure holds what someone chose to lift, and is therefore shaped by
+   what has been asked before; the prose is not. That makes it the only unbiased
+   reserve here, and the only one no pattern reaches.
+
+**An empty result is a question, not an answer.** `[]` and exit `0` mean either
+*the graph does not say it* or *nobody has lifted it yet*, and only step 5 tells
+those apart. If the prose has it, say so and offer to lift it: a demand that has
+just proved itself against the record is the honest moment to extract, and it is
+not the same thing as a topic that merely came up.
+
+## The answer is a document
+
+A subgraph is not an answer. It is the material an answer is made of — the graph
+carries no order, and an answer does. So what comes back from a search is a
+**projection**: short, aimed at the question, and carrying three things that
+stop it from being believed more than it should be.
+
+**What it was projected from** — which patterns, which fallbacks, and what was
+not consulted. A projection that loses the link to what it projected is the
+failure the whole provenance apparatus exists to prevent, arriving one level up.
+
+**What it dropped.** Being concise is a judgement, and what gets cut is where
+bias enters. Saying *these three, and four more I judged off-topic* costs a
+clause and restores the reader's ability to disagree.
+
+**Which part is the graph's and which part is yours.** Flattening is where an
+argument gets added — that is what a document is for, and it is also how a
+reading gets laundered into a fact. Keep the line visible, the same way an
+exhibit is kept separate from the thesis it supports.
+
+And it is **not a node**. It reaches the graph only if the user says to keep it,
+like everything else.
+
 ## Two memories is one too many
 
 Claude Code carries an auto-memory of its own: a `memory/` directory it writes
