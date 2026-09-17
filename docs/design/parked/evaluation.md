@@ -62,9 +62,12 @@ build first rather than merely waiting behind it.
 
 - **A corpus with prose.** Measured 2026-09-16: 0 non-empty bodies out of 171
   nodes in the only space that exists. There is nothing to retrieve.
-- **A subagent.** Layer (c) is undefined without one, and (b) is only half
-  meaningful — a single reader can record which rung it used, but nothing
-  prevents it from shortcutting the ladder it is measuring itself against.
+- ~~**A subagent.**~~ Written — the retrieval half is
+  [`kg/agents/mechanics.md`](../../../kg/agents/mechanics.md), and it records
+  the rung because the definition tells it to. What layer (c) still needs is a
+  **second model**: one agent run twice proves nothing, and a single reader can
+  record the rung it used while nothing stops it shortcutting the ladder it is
+  measuring itself against.
 
 ## What it does not settle
 

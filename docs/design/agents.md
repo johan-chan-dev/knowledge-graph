@@ -1,10 +1,12 @@
 # The loop
 
-> **Under construction, and marked throughout.** The ingestion arc is written
-> into the plugin's skill and in use; the retrieval arc, the two roles and the
-> projected answer are not. This is here rather than in
-> [`parked/`](parked/) because it has a caller — the plugin ships, the hook
-> runs, and half of this is what an agent is doing while reading it.
+> **Under construction, and marked throughout.** Both arcs and the projection
+> are written into the plugin's skill; the mechanics has an agent definition of
+> its own. What is not written is the external entry — reading a document and
+> explaining it before anything is kept — and the choice between holding a
+> source by reference or by copy. This is here rather than in
+> [`parked/`](parked/) because it has a caller: the plugin ships, the hook runs,
+> and most of this is what an agent is doing while reading it.
 
 **One argument: this is a cycle, not two pipelines that happen to share a
 store** — and what makes its boundary crossable is a shared ontology rather than
@@ -22,8 +24,9 @@ a message format.
 | 6 | **Projection** | the answer is a *document*, carrying what it projected from and what it left out |
 | 7 | **Back in** | a projection worth keeping is a [derived document](parked/derived-document.md): it declares its patterns, so it announces when its premises move |
 
-Steps 1–4 are in [`kg/skills/kg/SKILL.md`](../../kg/skills/kg/SKILL.md).
-Steps 5–7 are not written anywhere.
+All seven are in [`kg/skills/kg/SKILL.md`](../../kg/skills/kg/SKILL.md) — 1–4
+under *the habit this serves*, 5 and 6 under *finding it again* and *the answer
+is a document*, and 7 as the note that a kept projection declares its patterns.
 
 **Seven closes onto four**, which is the reason to call it a cycle. The output
 of retrieval and the input of ingestion are the same object: a document, being a
@@ -119,20 +122,31 @@ Written, in the skill:
 - **An exhibit is not a thesis.** The relation carries the side; the exhibit does
   not.
 - **A negative answer is about what was lifted, not about the world.**
-
-Not written anywhere:
-
-- **A question to the user must carry what has already been found.** *Around
-  which discussion?* hands back the work they came with; *there are `Decision`
-  and `Note`, and three mention the format — which?* hands back a choice.
+- **A question to the user carries what has already been found**, and says what
+  was found rather than how it was classified — the graph is masked when reading
+  and visible when writing.
 - **A projection says what it dropped**, not only what it kept. Concision is a
   judgement, and what is cut is where the bias enters.
 - **A projected answer separates what came from the graph from what was
-  concluded.** The exhibit/thesis line, applied to the answer itself: flattening
-  is where an argument gets added, which is what a document is for and what
-  makes it able to launder.
-- **The projection is not a node.** It reaches the base only if the user says
-  so, or the retrieval agent writes unasked.
+  concluded** — the exhibit/thesis line applied to the answer itself.
+- **The projection is not a node.** It reaches the base only if the user says so.
+
+Written in [`kg/agents/mechanics.md`](../../kg/agents/mechanics.md):
+
+- **A contest carries a finding, never a request for clarification**, which is
+  the same rule pointing the other way.
+- **The rung is recorded**, because it cannot be reconstructed from an answer
+  afterwards and is what tells a retrieval failure from an under-extracted graph.
+
+Not written anywhere:
+
+- **The external entry** — a document arrives, the agent reads it and explains
+  it, the user points at the piece that matters, and the extraction grows around
+  that seed until the subgraph holds together. The loop above starts at sparring
+  and has no inlet for material from outside.
+- **Reference or copy.** A durable source is held by reference; a volatile one
+  by a snapshot, which carries a label of its own so nothing mistakes the copy
+  for the original.
 
 ## Why a subagent, and why it is the exception
 
@@ -152,9 +166,15 @@ than doing it.
 space on this machine. Steps 5 and 6 have never run against prose, and step 2
 has nothing to capture into.
 
-**An agent to be the mechanics.** None exists. Until one does, the two columns
-above are one reader wearing both hats, which works and hides whether the
-separation is real.
+**~~An agent to be the mechanics.~~** Written — [`kg/agents/mechanics.md`](../../kg/agents/mechanics.md),
+scoped to the retrieval half. Integration stays in the conversation on purpose:
+a subagent can only return a result, and integration is a sequence of writes
+reviewed one at a time with the person whose memory it is.
+
+**A second model.** One agent does not make the separation observable. Running
+both roles on the same model leaves the two columns as one reader wearing two
+hats, which works and hides whether the separation is real — see
+[evaluation](parked/evaluation.md).
 
 ## What it does not settle
 
