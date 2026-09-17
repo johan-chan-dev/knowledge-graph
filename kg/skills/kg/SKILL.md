@@ -102,6 +102,50 @@ watched are worth more than one bulk write they have to audit afterwards, and
 the verbs are atomic precisely so that costs nothing. Pieces stay small because
 they were named as they appeared — not because a heap was cut up afterwards.
 
+## When it comes from outside
+
+The loop above starts in conversation. Material also arrives already written — a
+page, a spec, a transcript, a thread — and it does not enter the same way.
+
+1. **Read it and say what it says**, before anything is kept. The explanation is
+   what gets corrected, and correcting an explanation costs a sentence where
+   correcting a graph costs a rewrite.
+2. **They point at the piece.** One part is why the document was brought; the
+   rest may never matter. **Do not decompose the whole thing** — that is a
+   prediction about questions nobody has asked, which is the same move *a body
+   is a remainder* already refuses.
+3. **That piece goes in first, on its own.**
+4. **Then extract around it** until the subgraph stands up: what it rests on,
+   what it supersedes, what it cites. **The stopping condition is coherence, not
+   exhaustion.** A claim nobody could read back in six months without the
+   document open beside it is not finished; everything past that point is.
+
+Step 4 is the one that is easy to skip and expensive to skip. A set of pieces
+each pointing only at its own source is a document store with citations — the
+connections come from extracting *around* a seed, never from extracting more
+seeds.
+
+## Reference or copy
+
+The source itself is kept only if asked, and the form turns on one question:
+**will it still be there, unchanged, when someone follows it?**
+
+| | |
+|---|---|
+| **durable** — a file under version control, a stable URL, anything with a commitment behind it | a **reference**. Always current, nothing to keep in sync |
+| **volatile** — a web page, a thread, a scratch note, anything that can be edited or disappear | a **copy**, held as a snapshot |
+
+**A copy says that it is one**, by carrying a label of its own. That is not
+bookkeeping: it is what makes divergence answerable. *Which copies has the
+original moved under?* is a pattern anyone can write; without the label it is
+invisible, and a snapshot quietly reads as the thing itself.
+
+Neither form escapes the problem — they choose which half of it to take. **A
+reference can go stale without anyone noticing**, because the target changes
+underneath it. **A copy never goes stale and silently stops matching.** So both
+want a digest of what was seen; what differs is which failure you would rather
+be able to see.
+
 ## Finding it again
 
 The same loop read backwards, and it runs in a fixed order because each step

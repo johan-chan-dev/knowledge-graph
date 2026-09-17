@@ -2,9 +2,9 @@
 
 > **Under construction, and marked throughout.** Both arcs and the projection
 > are written into the plugin's skill; the mechanics has an agent definition of
-> its own. What is not written is the external entry — reading a document and
-> explaining it before anything is kept — and the choice between holding a
-> source by reference or by copy. This is here rather than in
+> its own, and the external entry is written beside the rest. What the page
+> still carries ahead of the code is the second model — one agent run twice
+> shows nothing. This is here rather than in
 > [`parked/`](parked/) because it has a caller: the plugin ships, the hook runs,
 > and most of this is what an agent is doing while reading it.
 
@@ -138,15 +138,19 @@ Written in [`kg/agents/mechanics.md`](../../kg/agents/mechanics.md):
 - **The rung is recorded**, because it cannot be reconstructed from an answer
   afterwards and is what tells a retrieval failure from an under-extracted graph.
 
-Not written anywhere:
+And since the loop above starts at sparring, the skill carries its **second
+inlet** too — material that arrives already written:
 
-- **The external entry** — a document arrives, the agent reads it and explains
-  it, the user points at the piece that matters, and the extraction grows around
-  that seed until the subgraph holds together. The loop above starts at sparring
-  and has no inlet for material from outside.
-- **Reference or copy.** A durable source is held by reference; a volatile one
-  by a snapshot, which carries a label of its own so nothing mistakes the copy
-  for the original.
+- **Read it and explain it before anything is kept.** An explanation is corrected
+  with a sentence; a graph is corrected with a rewrite.
+- **Grow from a seed.** The piece the user points at goes in alone, and the
+  extraction grows *around* it until the subgraph stands up. **Coherence is the
+  stopping condition, not exhaustion** — and extracting around a seed is the only
+  thing that produces connections, since more seeds only produce more stars.
+- **Reference or copy**, decided by whether the source will still be there
+  unchanged: durable is held by reference, volatile by a snapshot. **A copy
+  carries a label of its own**, which is what makes *which copies has the
+  original moved under* a pattern rather than an invisible question.
 
 ## Why a subagent, and why it is the exception
 
