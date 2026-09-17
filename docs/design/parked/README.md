@@ -34,7 +34,6 @@ trigger that empties a page is a batch; so is the moment to read it.
 | [benchmark](benchmark.md) | how anyone would know a ranking is correct — BEIR, and the analyser that decides the number |
 | [presence](presence.md) | how a presence test is spelled — two roads, one prototyped and reverted |
 | [neighbours](neighbours.md) | reaching a node's neighbours in one call — shipped, then parked |
-| [agents](agents.md) | the loop — sparring to projection, and the ontology that crosses the boundary |
 | [raw](raw.md) | material nobody has judged yet, and why capture must cost nothing |
 | [extraction](extraction.md) | lifting parts out of a body, the anchor that traces them, and what rots |
 | [partial-edits](partial-edits.md) | reading and writing part of a node, and the token that guards it |

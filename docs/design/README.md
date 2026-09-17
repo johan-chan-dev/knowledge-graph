@@ -10,6 +10,7 @@ argument.
 - [absence](absence.md) — a property is absent, and that is all it means
 - [boundaries](boundaries.md) — data is checked where it enters, and once
 - [material](material.md) — a node is a stage, not a record
+- [agents](agents.md) — the loop, and the ontology that crosses the boundary between two roles
 - [parked/](parked/) — argued, and not settled enough to build
 
 ## The line between here and the spec

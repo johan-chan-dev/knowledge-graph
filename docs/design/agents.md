@@ -1,8 +1,10 @@
 # The loop
 
-> **Partly shipped.** The ingestion arc is written into the plugin's skill and
-> in use. The retrieval arc, the two roles and the projected answer are argued
-> here and built nowhere. Marked throughout.
+> **Under construction, and marked throughout.** The ingestion arc is written
+> into the plugin's skill and in use; the retrieval arc, the two roles and the
+> projected answer are not. This is here rather than in
+> [`parked/`](parked/) because it has a caller — the plugin ships, the hook
+> runs, and half of this is what an agent is doing while reading it.
 
 **One argument: this is a cycle, not two pipelines that happen to share a
 store** — and what makes its boundary crossable is a shared ontology rather than
@@ -13,14 +15,14 @@ a message format.
 | | | |
 |---|---|---|
 | 1 | **Sparring** | knowledge is produced adversarially, in conversation. Nothing reaches disk |
-| 2 | **Capture** | free, and refusable by nothing — [raw](raw.md) |
+| 2 | **Capture** | free, and refusable by nothing — [raw](parked/raw.md) |
 | 3 | **Consolidation** | argued, corrected, narrowed. Most of step 1 does not survive |
 | 4 | **Integration, on request** | piece by piece, reviewed. The modelling is the agent's, the decision to write is the user's |
 | 5 | **Retrieval** | spell, anchor, expand, compute, sweep — in that order |
 | 6 | **Projection** | the answer is a *document*, carrying what it projected from and what it left out |
-| 7 | **Back in** | a projection worth keeping is a [derived document](derived-document.md): it declares its patterns, so it announces when its premises move |
+| 7 | **Back in** | a projection worth keeping is a [derived document](parked/derived-document.md): it declares its patterns, so it announces when its premises move |
 
-Steps 1–4 are in [`kg/skills/kg/SKILL.md`](../../../kg/skills/kg/SKILL.md).
+Steps 1–4 are in [`kg/skills/kg/SKILL.md`](../../kg/skills/kg/SKILL.md).
 Steps 5–7 are not written anywhere.
 
 **Seven closes onto four**, which is the reason to call it a cycle. The output
@@ -115,9 +117,10 @@ separation is real.
   what nobody thought to ask for.
 - **Whether step 7 is automatic.** A kept answer that declares its patterns is a
   derived document; whether declaring them is a separate act or part of keeping
-  it is undecided, and [derived-document](derived-document.md) does not answer
+  it is undecided, and [derived-document](parked/derived-document.md) does not answer
   it either.
 
 ---
 
-[docs](../../README.md) · [design](../) · [parked](README.md) · [spec](../../spec/)
+[docs](../README.md) · [design](README.md) · agents · [absence](absence.md) · [material](material.md) · [vocabulary](vocabulary.md) · [parked](parked/)
+
