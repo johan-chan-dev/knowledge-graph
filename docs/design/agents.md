@@ -43,6 +43,39 @@ meet at a store — one loop that passes through it twice.
 | restitutes partially when ambiguous: the candidates found, never a blind question | — |
 | judges whether it is enough; asks again, or stops | returns the answer **and its method** |
 | carries a proposal to lift, if the sweep found prose no structure points at | flags it |
+| **pushes back** with what the conversation gave it that the graph contradicts | **pushes back** with what the graph shows that the question did not account for |
+
+## Neither is the other's tool
+
+The mechanics is **the expert**, not a service. The conversation understands the
+graph and its principles; the mechanics knows them at depth and may say so — it
+proposes, and it contests.
+
+What makes contesting productive rather than noise is that **each side holds
+what the other structurally cannot**:
+
+| | sees | cannot see |
+|---|---|---|
+| the mechanics | the whole graph | the conversation |
+| the conversation | the conversation | anything it did not ask for |
+
+So each can raise what the other is unable to: *two decisions here, and one
+supersedes the other — the current one or the history?*, *those three nodes came
+from one source, which is one witness and not three*, against *that decision was
+reversed this morning and is not in the graph yet*, *they mean the CLI's output,
+not the API's*.
+
+**And a contest carries a finding, never a request for clarification.** *What do
+you mean exactly?* pushes the work back up; *here is what I see that makes the
+question ambiguous* moves it on. That is the same rule as restitution one level
+down — **toward the user, a question carries what was found; toward the
+conversation, a contest carries what the graph shows** — and it is what keeps
+two experts from trading turns instead of working.
+
+The harness supports the exchange without anything being built for it: a
+subagent's report is what returns, and it can be resumed by name with its
+context intact, so a contest simply travels as a result. A background one may
+address the main conversation unprompted.
 
 **The ontology is the interface, not the message format.** A question goes down
 and an answer comes up, and both are intelligible only because each end means
@@ -56,6 +89,21 @@ extension of the shared ontology, never a replacement for it.** Levels, not
 parts. The line that sorts a sentence into one or the other: *a rule that
 changes what you understand is shared; a rule that changes what you type is
 mechanical.*
+
+**Two properties assumed above are the harness's defaults rather than work.** A
+subagent's report is what reaches the caller and its tool output does not, and
+that report is not shown to the user either — so *the projection is the only
+thing that crosses* and *the conversation never reads a `jq`* hold without being
+enforced. A subagent also cannot see the conversation, which is why the
+asymmetry in the table is structural and not a discipline. The cost lands where
+it should: **the question has to carry its own context**, because nothing else
+travels down.
+
+An agent definition pins its own model and declares the skills it loads, so the
+mechanics can inherit the shared ontology by declaration — and two different
+models can run the two roles, which is what
+[evaluation](parked/evaluation.md) needs to tell a real separation from a
+hidden one.
 
 ## What holds it
 

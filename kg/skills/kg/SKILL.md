@@ -122,9 +122,17 @@ costs more than the one before it.
    is within a third of a local one**, so there is no reason to approximate one
    into a sample.
 4. **Come back with what you found — never with a blank question.** *Around
-   which discussion?* hands the user back the work they arrived with. *There are
-   `Decision` and `Note`, and three decisions mention the format — which?* hands
-   them a choice. Same interruption, opposite value.
+   which discussion?* hands the user back the work they arrived with. *I find
+   three things on the output format — one in the batch that shipped it, two in
+   the design pages. Which?* hands them a choice. Same interruption, opposite
+   value.
+
+   And **say what was found, not how it was classified.** The vocabulary is how
+   you searched; it is not what someone has to know to answer you. A label
+   reaches them only when it happens to be the clearest word, never because it
+   is the one you used. The graph is **masked when reading and visible when
+   writing** — nobody should need to spell `Decision` to get an answer, and
+   everybody needs to see the shape of what is being put into their memory.
 5. **Sweep the bodies last.** A filename is an id, so a phrase becomes resolved
    nodes in one pipe — 0.2 s over a few hundred files:
 
