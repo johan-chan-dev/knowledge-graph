@@ -33,7 +33,7 @@ trigger that empties a page is a batch; so is the moment to read it.
 | [corpus-statistics](corpus-statistics.md) | what recomputes from the corpus alone, measured — and what needs a model |
 | [benchmark](benchmark.md) | how anyone would know a ranking is correct — BEIR, and the analyser that decides the number |
 | [evaluation](evaluation.md) | evaluating the pair — the rung a question was answered at, and whether the boundary is real |
-| [scifact](scifact.md) | a protocol scored without a judge — and why the agent must model the corpus itself |
+| [scifact](scifact.md) | their annotations as ground truth, our measure — can an agent restitute what it ingested |
 | [presence](presence.md) | how a presence test is spelled — two roads, one prototyped and reverted |
 | [neighbours](neighbours.md) | reaching a node's neighbours in one call — shipped, then parked |
 | [raw](raw.md) | material nobody has judged yet, and why capture must cost nothing |

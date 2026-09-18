@@ -1,21 +1,22 @@
-# SciFact
+# SciFact, repurposed
 
 ```
-corpus      5 183 abstracts, sentence-split, 45 952 sentences, ~204 words each
-train       809 claims — 957 expert-annotated relations, 616 SUPPORT / 341 CONTRADICT
-            1 025 rationale sentences, 565 documents cited
-dev         300 claims — 124 SUPPORT / 64 CONTRADICT / 112 NOINFO, 283 documents cited
-            181 of those 283 are already cited by a train claim
-import      6.2 s for 50 nodes, measured → ~11 min for the corpus
+corpus   5 183 abstracts, sentence-split, 45 952 sentences, ~204 words each
+train    809 claims — 957 expert annotations, 616 SUPPORT / 341 CONTRADICT
+         1 025 rationale sentences, 565 documents cited
+dev      300 claims — 124 SUPPORT / 64 CONTRADICT / 112 NOINFO
+         283 documents cover all 300 — the other 4 900 are distractors, 17:1
+measured import 6.2 s / 50 nodes · whole-graph load 148 ms at 171 nodes
 ```
 
-**One argument: the annotation is what makes this scorable without a judge — and
-the agent has to build the graph itself, or the score is of our schema rather
-than its modelling.**
+**We take their corpus and their verification annotations as ground truth. We do
+not take their metric.** What is measured here is not whether a ranking beats a
+published baseline — it is **whether an agent can restitute what it ingested,
+through a structure it chose itself.**
 
-[benchmark](benchmark.md) names SciFact as a BM25 target and notes that BEIR
-throws away its labels and rationales. This page is the protocol for using the
-half BEIR discards.
+Which carries an obligation: a figure produced this way is *a restitution measure
+using SciFact's annotations*, never "our SciFact score". Different subset,
+different distractor ratio, different metric.
 
 ## What an annotation is
 
@@ -25,129 +26,203 @@ Three layers, and only the third is knowledge:
 |---|---|---|
 | the **corpus** | 5 183 abstracts, raw | the papers' authors |
 | the **claims** | 1 409 sentences, some true and some deliberately falsified | the dataset's experts |
-| the **annotation** | for each *(claim, abstract)* pair: a verdict, **and the sentences that justify it** | expert annotators |
+| the **annotation** | a verdict for each *(claim, abstract)* pair, **and the sentences that justify it** | expert annotators |
 
-Unfolded, from `claims_train.jsonl` #2 against document `13734012`:
+Train claim #2 against document `13734012`:
 
 ```
 claim     "1 in 5 million in UK have abnormal PrP positivity."
 verdict   CONTRADICT, justified by sentence [4]
-[4]       "Of the 32,441 appendix samples 16 were positive for abnormal PrP,
-           indicating an overall prevalence of 493 per million population"
+[4]       "…16 were positive for abnormal PrP, indicating an overall
+           prevalence of 493 per million population"
 ```
 
-493 per million is roughly one in two thousand, so the abstract refutes the
-claim, and the annotator points at the sentence that does it.
-
 **And dev claim #5 says *"1/2000 in UK have abnormal PrP positivity"* — same
-document, same sentence `[4]`, verdict `SUPPORT`.** The dataset was built by
-taking a real finding and writing both a true and a falsified claim against it.
+document, same sentence `[4]`, verdict `SUPPORT`.** The same sentence supports
+one thesis and refutes another: **the evidence is neutral and the relation
+carries the side**, which is [extraction](extraction.md)'s rule arriving verified
+from a corpus built without us. It settles the merge question left open there —
+one exhibit, two relations. Merging would destroy a verdict; duplicating would
+fabricate a witness.
 
-So the same sentence supports one thesis and refutes another. **The evidence is
-neutral and the relation carries the side** — [extraction](extraction.md)'s rule,
-arriving verified from a corpus built without us and for something else. It also
-settles a question left open there: two identical extracts are not merged.
-Sentence `[4]` is one exhibit cited twice, and merging would destroy one verdict
-while duplicating would fabricate a second witness.
+## The measure
 
-## Two configurations, and the dataset supplies both
+The finest unit that goes in is a **sentence**. So the finest question about
+restitution is whether that sentence comes back:
 
-| | ingested | worth |
-|---|---|---|
-| **A — the floor** | the corpus alone | a purely textual task, **comparable** to published baselines |
-| **B — the delta** | A, plus the 809 train claims and their 957 annotated relations | the graph has structure; **no longer comparable**, and that is the thesis |
+| | |
+|---|---|
+| **primary** | **recall of the annotated rationale sentences** — of what the annotator marked, how much did the agent surface |
+| **beside it** | **at which rung** — rung 2 means the structure carried it, rung 5 means the sweep did |
+| secondary | the verdict. That measures reasoning, which is a different question |
+| ignored | precision on sentences. Surfacing extras is imprecision, not a failure to restitute |
 
-The 181-document overlap is what makes B more than decoration: **64% of the
-documents a dev claim needs are already attached to a train claim**, so
-traversal is a real strategy rather than a hope.
+## No human reviews, and that is the experiment
 
-**The moment B is used, the published baseline is left behind.** A train split
-exists to be used, but a score obtained by traversing 957 hand-annotated
-relations does not go in the same column as a BM25 number. Say so when reporting.
+At this scale nobody approves each write, and that is not a compromise the
+benchmark forces — **it is the variable**. The question is whether an agent left
+to organise autonomously can answer from its own organisation, and a reviewer
+would contaminate exactly that.
 
 ## The instructions give material and purpose, never form
 
-**The agent models. We do not.** Handing it labels, relation types, or what
-becomes a node would mean measuring our schema and calling it the system's — and
-the skill is explicit that the modelling is the agent's and the user never has to
-think in nodes.
+Handing over labels or relation types would measure our schema and call it the
+system's. So, per document, by id:
 
-| given | withheld |
+> This abstract joins a knowledge base that will later be put to scientific
+> claims: it must say whether the literature it holds **supports** them,
+> **refutes** them, or does not address them — **and name the sentences that
+> settle it**.
+>
+> The base is shared and already holds what earlier documents left in it.
+>
+> Here is document `<id>`. Decide what it should leave behind, **if anything**,
+> and do it.
+
+Three things that clause carries. *If anything* leaves **capture alone** as a
+legitimate outcome, which is what [a body is a
+remainder](../../../kg/skills/kg/SKILL.md) predicts. *The base is shared* is what
+makes look-before-lift possible; without it, 5 183 private taxonomies. *Name the
+sentences* is what keeps the measure reachable — an agent that loses sentence
+boundaries scores zero however well it reasoned.
+
+**And the count of ingestion conversations is an outcome, not a parameter.**
+Five thousand means the agent decomposed ahead of any question. Twelve means it
+imported raw and extracted on demand. Nobody tells it which.
+
+## Ingestion is a sparring between the two
+
+Each side holds what the other cannot: the conversation holds **the document**,
+the mechanics holds **the graph** and the modelling expertise. So the mechanics
+contests — *we already have a node for that*, *that is a second spelling of X*,
+*nothing here connects to anything, leave it as text* — and the conversation
+writes, since [the mechanics does not](../../../kg/agents/mechanics.md).
+
+**Every exchange is saved, named by `doc_id`.** Not for the archive: for
+**attribution**. When a claim fails, its abstract's ingestion conversation says
+how it was modelled, which is the only link between a retrieval failure and a
+modelling decision.
+
+## The corpus is held by reference, not copied
+
+It is a versioned public release — durable by the rule in the skill, so **a
+reference**, and copying 5 183 abstracts into the graph would break it. A node
+carrying `doc_id` resolves to `corpus.jsonl` and to `abstract[4]`: **the evidence
+stays addressable at sentence grain with nothing duplicated.**
+
+The consequence to expect: the body sweep then runs against the source file
+rather than against node bodies, which is `grep` outside the tool — no
+vocabulary, no relations. The benchmark will put a finger on that.
+
+## The sweep, because distraction is a variable
+
+283 documents cover all 300 claims; the remaining 4 900 are distractors.
+
+| corpus | distractors | ingestion | whole-graph load |
+|---|---|---|---|
+| 283 | none | 0.6 min | 0.2 s |
+| ~500 | 0.8:1 | 1 min | 0.4 s |
+| ~1 000 | 2.5:1 | 2 min | 0.9 s |
+| ~2 000 | 6:1 | 4 min | 1.7 s |
+| 5 183 | 17:1 | 11 min | 4.5–33 s |
+
+A flat recall curve says distraction does not bite. A falling one says it does —
+**and the rung distribution says why**, a drift toward the sweep meaning the
+structure stopped carrying.
+
+**~1 000 is where the design works as designed**: the whole-graph load returns
+under a second, so rung 3 is usable again, which it is not at 5 183.
+
+Two constraints. **The distractor sample is fixed by a seed**, or the curve is
+noise. And the subset must keep the train claims citing the **181 documents that
+train and dev both cite**, or configuration B loses its structure for sampling
+reasons rather than design ones.
+
+## Two configurations
+
+| | ingested |
 |---|---|
-| the files and their format — mechanical fact | labels, relation types, what is a node and what is a property |
-| **what the graph is for**: claims will be put to it, and it must answer supported / refuted / unaddressed **with the evidence** | the strategy — ingest everything, sample, or import raw and extract on demand |
-| for B, `claims_train.jsonl` and what it contains | that any of it should become relations |
+| **A** | the corpus alone |
+| **B** | A, plus the 809 train claims and their 957 annotated relations |
 
-Stating the *purpose* is legitimate and necessary: a modeller who does not know
-the coming question models blind. Stating the *schema* is not.
+64% of the documents a dev claim needs are already attached to a train claim, so
+in B traversal is a strategy rather than a hope. **B is not comparable to
+anything published** — a train split exists to be used, but a score obtained by
+traversing 957 hand annotations does not go in a BM25 column.
 
-**Leaving the strategy open is what tests [a body is a
-remainder](../../../kg/skills/kg/SKILL.md).** Reading 5 183 abstracts costs 5 183
-model reads; importing raw and extracting on demand costs almost nothing. If the
-rule holds, the agent imports raw. Told what to do, we would never find out.
+## Repetition, decided by a pilot rather than in advance
 
-## What is reproducible is the procedure, not the artefact
+Three sources of variation, treated differently:
 
-Script it end to end — fetch, invoke the ingestion, **snapshot the graph**, run
-the 300 dev claims, score. Two runs will build different graphs, and that is a
-measurement rather than a defect: a system whose modelling swings and whose
-scores follow has said something.
+| | repeating it measures |
+|---|---|
+| **the ingestion** | how much the outcome depends on how the agent organised. Expensive — re-ingest |
+| **the chain** | the noise of retrieval at fixed graph. Cheap — replay the claims |
+| **the distractor draw** | nothing useful — **fix the seed** |
 
-So the record includes **what the agent built** — how many labels, how many
-relation types, how many nodes and relations. That is the real content of the
-delta.
+The first is a result, not noise. Two ingestions of one corpus giving very
+different restitution says the graph obtained is an accident; giving the same
+says the modelling converges, which would be more encouraging than any score.
 
-**One thing the importer must enforce: no dev claim enters the graph.** Their
-evidence must never be present, and it is the single way to void the measurement
-with nothing announcing it.
+**So: a pilot at one size — 1 000 documents, three ingestions, the same hundred
+claims against each.** Between-graph spread is modelling variance, within-graph
+spread is chain noise. Small between-graph spread means one ingestion per size
+and the sweep stays cheap; large means repeating at every size, known for three
+ingestions instead of fifteen. Recall should be the steadier of the two metrics
+and the rung the noisier, since the path varies more than the outcome.
 
-## The run, and the scoring
+## A run
 
-One line per claim, the shape imposed because the scorer needs it — how the
-agent recovers a document id and a sentence index from its own model is its
-problem:
-
-```json
-{"claim_id": 5, "verdict": "SUPPORT", "doc_ids": [13734012],
- "sentences": {"13734012": [4]}, "rung": 2, "contest": null}
+```
+1. git init + kg space init
+2. ingestion              ← configuration A or B, one conversation per document
+3. record what was built  ← labels list, types list, node and relation counts,
+                            the model used, the number of ingestion conversations
+4. digest of .kg/
+5. the claim sample        ← 100 for the sweep, 300 for a figure to publish
+6. digest of .kg/          ← if it moved, the run is void
+7. scoring                 ← set operations, no model anywhere
+8. compilation             ← recall and rung per size, the A→B delta, the cost
 ```
 
-**`NOINFO` has to be reachable.** 112 of the 300 depend on it, and an agent that
-is not told the verdict is three-valued will always produce one of the other two
-and lose a third of the set to a wording.
+**No snapshot.** Each run has its own directory, so the run *is* the record. What
+replaces it is an invariant — **the graph does not move during the claims
+phase** — and that matters concretely: the loop has a failed lookup propose a
+lift, and a lift accepted mid-run would drift the graph under the questions.
 
-| score | computed as | over |
-|---|---|---|
-| **retrieval** | precision and recall of `doc_ids` against `cited_doc_ids` | 300 |
-| **verdict** | `==` on the label | 300 |
-| **rationale** | overlap of sentence indices | **188** — `NOINFO` carries none |
-| **rung** | the distribution | 300 |
+## Contamination, measured rather than blocked
 
-No model anywhere in the scoring. That is what makes it the hard number, and why
-this runs before anything needing a judge.
+SciFact is from 2020, public and much used; the model may have memorised it. The
+control is an **ablation**: the same claims, **no graph at all**, answered from
+the claim alone. **Above 41%** — the score obtained by always answering
+`SUPPORT`, given 124/64/112 — it knew some of it in advance.
 
-**The rationale score is the one no other benchmark has.** A verdict can be right
-by luck, or from the title without opening the abstract. Checking the sentences
-separates a correct verdict from a **justified** one — which is the epistemic
-distinction itself: a true belief without the right evidence is not knowledge.
+Its purpose is not honesty but **interpretability**. If memorisation is high, A
+and B both score well and the delta between them collapses — and the delta is
+the thesis. Under the restitution framing it also answers a better question:
+*what did ingestion contribute at all.*
+
+Requiring the subgraph used is worth doing beside it, and its limit is worth
+knowing. Node ids are uuids minted minutes earlier, so an answer naming them had
+contact with **this** graph — but a model that knows the answer can work
+backwards, find the abstract and produce a valid traversal. **It forces an answer
+to be grounded, not to have been found.** That the ids happen to resist recall is
+an accident of uuidv7 filenames, not a defence; it would vanish the day ids are
+derived from `doc_id`.
 
 ## What it is blocked on
 
-Nothing but the work. The data is 3 MB, public, and downloads in one command.
+Nothing but the work. The data is 3 MB, public, one command.
 
 ## What it does not settle
 
-- **The run is not deterministic**, since the chain contains a model. Fix the
-  model and report it, or average over N — undecided which.
-- **300 runs are 300 delegations.** A rehearsal on 50 before paying for 300 is
-  obvious; whether the published figure is one pass or several is not.
-- **A whole-graph load costs seconds at 5 183 nodes**, against 148 ms at 171 —
-  [corpus-statistics](corpus-statistics.md) put its horizon at a few thousand
-  nodes with prose, and this sits on it. Rung 3 has to stay exceptional or a run
-  takes hours, which is a constraint on the agent nobody has told it about.
-- **Whether A is worth running at all.** It measures text retrieval and ranking,
-  both parked — so it would score an absence. It is a floor, and a floor is only
-  useful if the delta above it is measured too.
+- **The confound in the sweep.** Each size is ingested afresh, so the curve mixes
+  *more distractors* with *a differently modelled graph*. Readable as the whole
+  system's degradation rather than retrieval's — but not as one variable.
+- **Whether A is worth running.** It measures text retrieval and ranking, both
+  parked, so it would score an absence. A floor is only useful if the delta above
+  it is measured too.
+- **How many claims a published figure needs**, against the 100 that give a curve.
 
 ---
 
