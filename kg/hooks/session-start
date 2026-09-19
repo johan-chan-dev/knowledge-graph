@@ -70,7 +70,7 @@ if command -v jq >/dev/null 2>&1; then
   auto=$(jq -r '.autoMemoryEnabled // empty' \
     "${repo}/.claude/settings.json" "${HOME}/.claude/settings.json" 2>/dev/null | head -1)
   if [ "${auto:-unset}" != "false" ]; then
-    lines="${lines:+${lines}$'\n'}Claude Code's own auto-memory is on and writes unasked — \`\"autoMemoryEnabled\": false\` in this repository's .claude/settings.json leaves this graph the only memory"
+    lines="${lines:+${lines}$'\n'}Claude Code's own auto-memory is ON here, and writes without being asked. To leave this graph as the only memory, set \`\"autoMemoryEnabled\": false\` in this repository's .claude/settings.json"
   fi
 fi
 
