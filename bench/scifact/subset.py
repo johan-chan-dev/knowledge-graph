@@ -18,6 +18,9 @@ def main() -> int:
     a.add_argument("--data", type=pathlib.Path, required=True)
     a.add_argument("--out", type=pathlib.Path, required=True)
     a.add_argument("--size", type=int, required=True, help="documents in the corpus")
+    a.add_argument("--claims", type=int, default=0,
+                   help="dev claims to ask; 0 is all of them. Fewer claims need "
+                        "fewer documents, which is what makes a pilot payable")
     a.add_argument("--seed", type=int, default=16)
     a.add_argument("--config", choices=["A", "B"], required=True)
     args = a.parse_args()
@@ -26,15 +29,23 @@ def main() -> int:
     dev = load(args.data / "claims_dev.jsonl")
     train = load(args.data / "claims_train.jsonl")
 
+    # Claims first, documents after. Choosing documents and keeping whichever
+    # claims survive leaves a claim whose evidence was not ingested, and a
+    # question with no reachable answer measures the sampling rather than the
+    # system.
+    rng = random.Random(args.seed)
+    if args.claims and args.claims < len(dev):
+        dev = sorted(rng.sample(dev, args.claims), key=lambda c: c["id"])
     cited = {d for c in dev for d in c["cited_doc_ids"]}
     if args.size < len(cited):
-        print(f"--size must be at least {len(cited)}: every dev claim needs its "
-              f"documents, or the questions have no answers", file=sys.stderr)
+        print(f"--size must be at least {len(cited)}: the {len(dev)} claims asked "
+              f"need that many documents, or some question has no answer",
+              file=sys.stderr)
         return 2
 
     by_id = {d["doc_id"]: d for d in corpus}
     rest = sorted(set(by_id) - cited)
-    random.Random(args.seed).shuffle(rest)
+    rng.shuffle(rest)
     chosen = sorted(cited) + rest[: args.size - len(cited)]
     kept = set(chosen)
 
@@ -57,6 +68,7 @@ def main() -> int:
         "distractors": len(chosen) - len(cited),
         "train_claims_ingested": len(claims), "annotated_relations": relations,
         "dev_claims_asked": len(dev),
+        "estimated_ingest_usd": round(len(chosen) * 1.97, 2),
     }
     (args.out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest, indent=2))
