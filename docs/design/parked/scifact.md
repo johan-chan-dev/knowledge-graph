@@ -45,6 +45,49 @@ from a corpus built without us. It settles the merge question left open there �
 one exhibit, two relations. Merging would destroy a verdict; duplicating would
 fabricate a witness.
 
+## The index is the address, not the sentence
+
+**Measured, and it would have corrupted every run silently.** Element `[4]` of
+document `33370` holds two sentences the dataset's splitter merged — and it is
+an annotated rationale. 319 of the corpus's 45 952 elements are like it.
+
+An ingestion that tidies one of them shifts every later index in that document
+by one, and the annotations then point at the wrong text. So the identity of a
+piece of evidence is **`(doc_id, array index)`**, never *a sentence*, and the
+array is frozen as it shipped, defects included.
+
+That is the concrete failure behind *an agent that loses sentence boundaries
+scores zero however well it reasoned* — except worse, because it scores wrongly
+rather than zero, and nothing announces it.
+
+## Recognition, and what it costs
+
+**The model knows this dataset.** Asked directly, it named SciFact, its splits
+(809 / 300 / 300, test held for a leaderboard), its relationship to BEIR, and
+then looked up which claims cite a given document.
+
+So the contamination is not only in the answers. **An eagerly decomposed graph
+may be shaped by knowing the task**, and the ontology a first pass produced —
+`Source`, `Passage` with a `sentence_index`, `Claim`, `SUPPORTS` / `REFUTES` —
+cannot be read as invention: the verdict vocabulary was in the prompt almost
+verbatim, and the rest is a dataset the model can recite.
+
+The ablation measures the answers. Nothing yet measures whether the *graph* was
+built for the benchmark, and that is the sharper form of the same problem.
+
+## The B delta may be measuring annotation reuse
+
+Dev claim `1137` — *TNFAIP3 is a tumor suppressor in glioblastoma* — is a near
+restatement of train claim `1135`, against the same document, with the same
+polarity. In configuration B the dev answer is then **one traversal hop from a
+hand annotation**.
+
+B is already declared non-comparable, so this is not a fault. But it means B's
+headline is carried by pairs like that one, and on those the A→B delta measures
+**annotation reuse rather than modelling**. Reporting the delta without
+separating near-restatements would credit the graph for a coincidence of
+phrasing.
+
 ## The measure
 
 The finest unit that goes in is a **sentence**. So the finest question about
@@ -52,7 +95,7 @@ restitution is whether that sentence comes back:
 
 | | |
 |---|---|
-| **primary** | **recall of the annotated rationale sentences** — of what the annotator marked, how much did the agent surface |
+| **primary** | **recall of the annotated rationale sentences**, in two readings that must be named — a pair often carries several *alternative* gold sets, and one complete set is a whole justification. 41% of dev pairs carry more than one, so against their union a perfect answer scores about 0.64 |
 | **beside it** | **at which rung** — rung 2 means the structure carried it, rung 5 means the sweep did |
 | secondary | the verdict. That measures reasoning, which is a different question |
 | ignored | precision on sentences. Surfacing extras is imprecision, not a failure to restitute |

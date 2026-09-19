@@ -9,6 +9,13 @@ not whether a ranking wins but whether what went in comes back:
   **rationale recall** — of the sentences an annotator marked, how many did the
   system surface.
 
+**And there are two readings, which must be named.** A (claim, abstract) pair
+often carries several gold sets, and they are *alternatives* — one complete set
+is a whole justification. Measured on the release: 41% of dev pairs and 48% of
+train pairs carry more than one. Against their union, an answer giving exactly
+one correct set scores about 0.6, so `union` answers *did the marked sentences
+come back* while `best_set` answers *was a justification restituted*.
+
 **And it is never read alone.** Measured while validating this file: offering
 every sentence of the right abstract scores a rationale recall of 1.0, having
 restituted nothing — it declined to choose. Their sentence precision catches it
@@ -43,6 +50,8 @@ def main() -> int:
     verdict_hit = 0
     rungs: collections.Counter = collections.Counter()
     surfaced = wanted = 0
+    best_of = 0.0
+    pairs = 0
 
     for cid, g in gold.items():
         p = preds.get(cid, {"evidence": {}})
@@ -77,11 +86,18 @@ def main() -> int:
                     sn_hit += 1
         sn_gold += sum(len(s["sentences"]) for sets in ge.values() for s in sets)
 
-        # Ours: did the marked sentences come back at all, whatever the verdict.
+        # Ours, two readings, because the annotators supply **alternative**
+        # justifications: a pair can carry several sets and one whole set is
+        # enough. Unioning them asks for every alternative at once, which no
+        # correct answer gives — measured, a perfect one caps near 0.6.
         for doc, sets in ge.items():
-            want = {x for s in sets for x in s["sentences"]}
-            wanted += len(want)
-            surfaced += len(want & set((pe.get(str(doc)) or {}).get("sentences", [])))
+            got = set((pe.get(str(doc)) or {}).get("sentences", []))
+            union = {x for s in sets for x in s["sentences"]}
+            wanted += len(union)
+            surfaced += len(union & got)
+            best_of += max(len(set(s["sentences"]) & got) / len(s["sentences"])
+                           for s in sets)
+            pairs += 1
 
         # The verdict, including NOINFO — which is an empty evidence on both
         # sides, so it is scored by absence exactly as it is expressed.
@@ -94,7 +110,11 @@ def main() -> int:
         "claims": n,
         "answered": len(preds),
         "verdict_accuracy": round(verdict_hit / n, 4) if n else 0.0,
-        "rationale_recall": round(surfaced / wanted, 4) if wanted else 0.0,
+        # Say which reading, always. Against the union a perfect answer scores
+        # about 0.6, so a figure reported without its reading invites being
+        # compared to 1.0 and read as a 40% failure.
+        "rationale_recall_union": round(surfaced / wanted, 4) if wanted else 0.0,
+        "rationale_recall_best_set": round(best_of / pairs, 4) if pairs else 0.0,
         "abstract": {
             "precision": round(ab_hit / ab_pred, 4) if ab_pred else 0.0,
             "recall": round(ab_hit / ab_gold, 4) if ab_gold else 0.0,
