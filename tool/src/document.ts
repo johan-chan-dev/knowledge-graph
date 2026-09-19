@@ -46,23 +46,110 @@ export type Document = {
   properties: Properties;
   content: string;
   flush(): Promise<Written>;
+  /** Done with the handle, and not writing. A no-op unless the file is held —
+   * and necessary because a caller that refuses after reading would otherwise
+   * keep the hold until the process ends. */
+  abandon(): Promise<void>;
 };
+
+/** An exclusive hold on the file a document was read from, released by its
+ * flush. `flock` lives on the descriptor, so a process that dies still releases
+ * it — there is no orphan to reap and no reaper to write. */
+type Hold = { readonly file: Deno.FsFile };
 
 export type Opened = { readonly kind: "opened"; readonly document: Document } | Failure;
 
-function handle(path: string, properties: Properties, content: string): Document {
+function handle(
+  path: string,
+  properties: Properties,
+  content: string,
+  hold?: Hold,
+): Document {
   const document: Document = {
     properties,
     content,
     // Reads its own fields at flush time, so every change made in between is
     // carried, and neither half can be written without the other.
-    flush: () =>
-      atomically(
-        path,
-        frontmatter.join(frontmatter.write(document.properties), document.content),
-      ),
+    flush: async () => {
+      try {
+        return await atomically(
+          path,
+          frontmatter.join(frontmatter.write(document.properties), document.content),
+        );
+      } finally {
+        await release(hold);
+      }
+    },
+    abandon: () => release(hold),
   };
   return document;
+}
+
+/** Released whatever happened: a flush that failed still must not leave the
+ * file held for the rest of the process. */
+async function release(hold: Hold | undefined): Promise<void> {
+  if (hold === undefined) return;
+  try {
+    await hold.file.unlock();
+  } catch { /* the descriptor is about to go anyway */ }
+  try {
+    hold.file.close();
+  } catch { /* already closed */ }
+}
+
+/**
+ * The same read, with the file held against other writers for the whole cycle.
+ *
+ * **Why a check and not just a lock.** A write is a rename over the target, so
+ * a descriptor locked before someone else's rename holds a lock on a file that
+ * is no longer at that path. Comparing the descriptor's inode with the path's
+ * says whether the hold covers what is there now; when it does not, someone
+ * completed a write in the two syscalls between opening and locking, and the
+ * answer is to let go and take it again.
+ *
+ * **Why the retry terminates.** Each turn costs another writer a *completed*
+ * write, so the loop is a queue behind real work rather than a spin. The bound
+ * exists for the pathological case only, and says so rather than failing
+ * silently.
+ */
+export type Contended = { readonly kind: "contended"; readonly reason: string };
+
+/** Its own kind rather than a fifth `Failure`: only an acquisition can be
+ * contended, and widening the shared union would make every read path answer
+ * for a case it cannot produce. */
+export type Acquired = Opened | Contended;
+
+export async function acquire(path: string, create = false): Promise<Acquired> {
+  for (let turn = 0; turn < 128; turn++) {
+    let file: Deno.FsFile;
+    try {
+      file = await Deno.open(path, { read: true, write: true, create });
+    } catch {
+      return { kind: "absent" };
+    }
+    await file.lock(true);
+    let settled = false;
+    try {
+      const held = await file.stat();
+      const there = await Deno.stat(path);
+      settled = held.ino === there.ino;
+    } catch { /* the path went; taking it again is the same answer */ }
+    if (settled) {
+      const opened = await open(path);
+      if (opened.kind !== "opened") {
+        await release({ file });
+        return opened;
+      }
+      return {
+        kind: "opened",
+        document: handle(path, opened.document.properties, opened.document.content, {
+          file,
+        }),
+      };
+    }
+    await release({ file });
+  }
+  return { kind: "contended", reason: `${path} was rewritten under every attempt` };
 }
 
 /** Properties alone — a link record. No fences, no body, so there is no second

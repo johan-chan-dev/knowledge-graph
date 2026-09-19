@@ -42,7 +42,8 @@ export type Created =
 export type Replaced =
   | { readonly kind: "replaced"; readonly replaced: number }
   | Unwritable
-  | Failure;
+  | Failure
+  | document.Contended;
 
 /** Mints an id and hands it back. It cannot fail the way `replace` can: there
  * is no file to load, so `absent` and the parse failures are not among its
@@ -73,7 +74,7 @@ export async function replace(
   id: Uuid,
   content: string,
 ): Promise<Replaced> {
-  const opened = await document.open(fileOf(space, id));
+  const opened = await document.acquire(fileOf(space, id));
   if (opened.kind !== "opened") return opened;
 
   const displaced = bytes(opened.document.content);
@@ -87,7 +88,8 @@ export type Amended =
   | { readonly kind: "amended"; readonly properties: Properties }
   | { readonly kind: "refused"; readonly message: string }
   | Unwritable
-  | Failure;
+  | Failure
+  | document.Contended;
 
 /**
  * Read, hand the properties to `change`, write back. Every other property
@@ -101,11 +103,14 @@ export async function amend(
   id: Uuid,
   change: (properties: Properties) => string | void,
 ): Promise<Amended> {
-  const opened = await document.open(fileOf(space, id));
+  const opened = await document.acquire(fileOf(space, id));
   if (opened.kind !== "opened") return opened;
 
   const refusal = change(opened.document.properties);
-  if (typeof refusal === "string") return { kind: "refused", message: refusal };
+  if (typeof refusal === "string") {
+    await opened.document.abandon();
+    return { kind: "refused", message: refusal };
+  }
 
   const wrote = await opened.document.flush();
   if (wrote.kind === "unwritable") return wrote;

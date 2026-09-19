@@ -58,9 +58,12 @@ holding the lock        fd.ino == stat(path).ino   →  true
 after a rival's rename  fd.ino == stat(path).ino   →  false
 ```
 
-**Several nodes are locked in sorted id order.** `link` touches both endpoints,
-so two links crossing in opposite directions would deadlock. Ids are uuids, so
-sorting is total and deterministic and the deadlock cannot form.
+**No ordering rule was needed.** This page first decided that several nodes
+would be locked in sorted id order, against two links crossing in opposite
+directions. Reading the code removed the problem rather than solving it:
+`nodeLink` amends one endpoint, releases, then amends the other, so a hold is
+never kept while another is awaited. A deadlock needs nesting, and there is
+none.
 
 **Minting exempts; deriving does not.** `node new` and a link record take a
 fresh uuid, so no one else can be writing that path and no lock is needed. A
@@ -74,10 +77,39 @@ the opposite, since [naming](../design/naming.md) exists so that confusable word
 *must* collide. What protects the vocabulary from homonyms is what exposes it to
 concurrency.
 
+**Its own kind, not a fifth failure.** `acquire` returns `Contended` beside
+`Opened`, rather than widening the `Failure` union that `open` and `read` share.
+Widening it made six read paths answer for a case they cannot produce — the
+compiler said so, and the narrower type turned six edits into two, both at sites
+that do acquire.
+
+**A refusal must let go.** `amend` can decline after reading — `add` refusing a
+scalar — and returning there without flushing would hold the file for the rest
+of the process. `abandon` releases without writing, and a test walks that path:
+refuse, then write again, which hangs if the hold survived.
+
 **Writers wait; they are not refused.** So no exit code is spent. An earlier
 sketch of this batch reached for a third meaning of *refused* — the write is
 neither malformed, nor absent, nor stale-by-the-caller's-fault — and a lock
 removes the need for it entirely.
+
+## Shipped
+
+`document.acquire` holds the file for the whole cycle; `node.replace`,
+`node.amend` and `vocabulary.write` take it, and `vocabulary.ensure` takes it on
+the branch where the file already exists. Creation stays unlocked, since a
+minted uuid cannot collide — and a word file created twice writes the same
+twenty-one bytes, so that race is benign.
+
+Measured, ten processes adding ten values to one list:
+
+```
+before   ["v2","v7","v9"]                    3 of 10, every process exited 0
+after    ["v1","v10","v2","v3",…,"v9"]      10 of 10
+```
+
+`tests/batches/16_test.ts` holds it, and both of its cases fail when `acquire`
+is put back to `open` — which is the only reason to believe them.
 
 ## What it does not settle
 

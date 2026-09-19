@@ -259,6 +259,8 @@ export async function nodeWrite(
       // Replacing the content preserves the properties, so a block that will
       // not read is a block this cannot safely write back.
       return unreadable(id, result);
+    case "contended":
+      return refused(`cannot take ${id} exclusively: ${result.reason}`);
     case "unwritable":
       return refused(`cannot write ${id}: ${result.reason}`);
     case "replaced":
@@ -554,6 +556,8 @@ async function change(
     case "malformed":
     case "unparseable":
       return unreadable(id, result);
+    case "contended":
+      return refused(`cannot take ${id} exclusively: ${result.reason}`);
     case "refused":
       return refused(result.message);
     case "unwritable":

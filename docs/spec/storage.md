@@ -116,6 +116,13 @@ read-modify-write. Each endpoint holds an entry under the reserved `links`
 property; that is the one nested shape in the format, validated against exactly
 `{type, link, direction}`, and nothing authored may nest.
 
+**A read-modify-write holds the file while it runs.** Two processes changing one
+node do not lose each other's work: the second waits for the first, reads what
+it wrote, and adds to it. The hold is a `flock` on the file, so a process that
+dies releases it, and creation is exempt because a minted uuid cannot collide.
+[Batch 16](../batches/16-two-writers.md) argues it and measures what it cost to
+be without.
+
 **A word is a file, and the file is named by a slug of it.** `.kg/labels/<slug>.md`
 for a label and `.kg/types/<slug>.md` for a relation type — the same mechanism
 twice, the same format a node has, the description as the body. Created the

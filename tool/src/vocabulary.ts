@@ -56,13 +56,17 @@ export async function ensure(dir: string, word: Label): Promise<Written> {
     return { kind: "unwritable", reason: document.reason(error) };
   }
   const path = fileOf(dir, word);
-  const opened = await document.open(path);
+  const opened = await document.acquire(path);
   if (opened.kind === "opened") {
     const held = wordIn(opened.document.properties);
     // Anything already there stays: the word exists, and refusing to create it
     // again is the whole of `ensure`.
-    if (held === word) return { kind: "written" };
+    if (held === word) {
+      await opened.document.abandon();
+      return { kind: "written" };
+    }
     if (held !== undefined) {
+      await opened.document.abandon();
       return { kind: "taken", by: held, slug: frontmatter.slug(word) };
     }
     // A file naming no word contradicts no word, so this adopts rather than
@@ -128,7 +132,7 @@ export async function write(
   const made = await ensure(dir, word);
   if (made.kind !== "written") return made;
   const path = fileOf(dir, word);
-  const opened = await document.open(path);
+  const opened = await document.acquire(path);
   if (opened.kind !== "opened") {
     return { kind: "unwritable", reason: "the word is not here" };
   }
