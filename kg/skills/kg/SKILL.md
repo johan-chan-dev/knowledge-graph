@@ -102,6 +102,12 @@ watched are worth more than one bulk write they have to audit afterwards, and
 the verbs are atomic precisely so that costs nothing. Pieces stay small because
 they were named as they appeared — not because a heap was cut up afterwards.
 
+**Where nobody reviews, the pen moves.** An autonomous run has no one to read
+each piece, so writing goes through the expert instead: propose, and let it
+contest what the graph already holds or what no source warrants. Its refusals
+are then the only check there is, which is worth saying out loud rather than
+letting an unreviewed run pass for a reviewed one.
+
 ## When it comes from outside
 
 The loop above starts in conversation. Material also arrives already written — a

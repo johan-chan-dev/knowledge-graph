@@ -25,7 +25,11 @@ PROMPT_HEAD='This abstract joins a knowledge base that will later be put to scie
 
 The base is shared and already holds whatever earlier documents left in it.
 
-Here is the document, verbatim from the corpus. Decide what it should leave behind, if anything, and do it.
+Nobody reviews this run, so you do not hold the pen: whatever this document should leave behind, **propose it to the kg mechanics agent, which contests and writes**. You decide what matters; it decides what the graph can bear.
+
+Two properties of the material, not of the shape you should give it. The abstract is an array and **the index is the address** — it ships as it is, including where one element holds two sentences, and renumbering it makes every later annotation point at the wrong text. And a claim is warranted by the element that says it, not by what you already know.
+
+Here is the document, verbatim from the corpus. Decide what it should leave behind, if anything.
 
 '
 
@@ -48,6 +52,10 @@ src=$(mktemp)
 if [ "$LIMIT" -gt 0 ]; then jq -r .doc_id "$CORPUS" | head -"$LIMIT" > "$src"
 else jq -r .doc_id "$CORPUS" > "$src"; fi
 
+# The elapsed time is computed after the work, not inside the pipeline that
+# does it: an arithmetic expansion there is evaluated when the line is built,
+# and reports zero however long the run takes.
 start=$(date +%s)
-cd "$SPACE" && < "$src" xargs -P "$JOBS" -I{} bash -c 'one "$@"' _ {} | wc -l | tr -d ' ' \
-  | xargs -I{} echo "{} documents ingested in $(( $(date +%s) - start ))s"
+cd "$SPACE" || exit 1
+done_count=$(< "$src" xargs -P "$JOBS" -I{} bash -c 'one "$@"' _ {} | wc -l | tr -d ' ')
+echo "$done_count documents ingested in $(( $(date +%s) - start ))s"
