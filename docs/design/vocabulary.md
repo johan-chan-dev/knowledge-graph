@@ -73,28 +73,21 @@ The shape is Neo4j's, and borrowing it deliberately is cheaper than inventing:
 a label is a bare word with no value attached; and what a label *means* is not
 the store's business.
 
-A **kind** is that idea one layer up — a label a practice has singled out and
-attached rules to. *Decision* is a kind when some practice says a decision must
-state what would unmake it. The word is a practice's, and so is the rule.
+A **kind** is a label, not a second mechanism beside one. It is a word a
+knowledge-management practice has **specialised**, by attaching rules to it:
+*Decision* is a kind when some practice says a decision must state what would
+unmake it. The word is a practice's, and so is the rule — and the place the rule
+is written is the word's own description, `kg label <word> write`.
 
-**None of this is in the tool.** The substrate does not know `labels`, does not
-know `kind`, and has no concept of classification at all. What it has is
-properties, some of which hold several values, and that is enough to carry the
-whole arrangement:
+So nothing in the store tells a kind from any other label. The whole difference
+is what somebody wrote behind the word, which is also why nothing can be
+enforced from it: the tool carries that description and never reads it.
 
-```
-labels:                       classification, the borrowed shape —
-  - auth                      a value in a list is a label
-  - decision
-stage: decision               also legal, and a different modelling choice —
-                              a dimension with one value
-```
-
-Both work, because the tool has no opinion about either. They are not the same
-model, though: the first says a node carries several classifiers on one axis,
-the second says it has one value on an axis called `kind`. Which to use is a
-practice's decision, and the difference shows up in the query — `decision in
-labels` against `kind = decision`.
+**The substrate knows the slot, never the word.** `labels` is reserved — `set`
+and `add` refuse it, `label` and `unlabel` write it — so that the vocabulary can
+be listed at all ([api](../spec/api.md)). What the tool knows is which dimension
+classification is. Which words fill it, and what any of them oblige, it has no
+access to.
 
 **The confusion worth avoiding** is reading `kind` as something the tool might
 own. It is a word somebody chose, and it appears in these documents only as an

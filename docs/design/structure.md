@@ -8,16 +8,19 @@ knows because it built them.
 
 The substrate provides slots and knows nothing of their contents. That rule is
 what keeps a graph of decisions and a graph of recipes running on the same
-machinery: `kind`, `validated-by` and `labels` are words somebody chose, and a
-tool that knew any of them would be a knowledge tool wearing a general name.
+machinery: `Decision`, `validated-by` and `Recipe` are words somebody chose, and
+a tool that knew any of them would be a knowledge tool wearing a general name.
 
-`kind` is the sharpest of those, because it is *useful* enough that reserving it
-keeps suggesting itself — every practice will classify something, and a
-guaranteed shape would make the classification reliably queryable. It is still a
-practice's word, borrowed from Neo4j's labels by way of
-[vocabulary](vocabulary.md), and the guarantee it offers is available without
-the breach: a practice declares the constraint and the tool enforces what it is
-told, which is a different thing from the tool knowing the name.
+**Classification is where the line is easiest to misplace**, because it is
+*useful* enough that reserving it keeps suggesting itself — every practice
+classifies something, and a guaranteed shape would make the classification
+reliably queryable. The guarantee turns out to be available without the breach,
+and the split is the whole answer: **the slot is reserved, the words in it are
+not.** `labels` is a dimension the tool knows it holds ([api](../spec/api.md)),
+which is what lets the vocabulary be listed; *which* words fill it, and what any
+of them oblige, it has no access to — see [vocabulary](vocabulary.md), where a
+**kind** is just such a word, a label some practice specialised by writing rules
+behind it.
 
 But a node's prose is not a word anybody chose. Neither is the moment it was
 made, nor the name it goes by. Those are facts about the **shape** of a node,
@@ -26,7 +29,7 @@ being told anything.
 
 The test is the one that keeps practice vocabulary out: *does a rule about this
 survive changing the subject?* A graph of recipes has bodies, creation times and
-identities. It has no `kind`.
+identities. It has no `Decision`.
 
 So there are two kinds of name, and the prohibition covers one of them:
 
