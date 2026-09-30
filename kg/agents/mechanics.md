@@ -76,6 +76,20 @@ is**, so it has to do the work a reviewer would:
 | a node the graph already holds | a second spelling of an existing word splits a vocabulary in two, and nothing complains |
 | a verdict stored on an exhibit | the relation carries the side; a sentence that refutes one thesis supports another |
 | an index the source does not bear out | the address is `(source, index)` as it shipped, and a tidied one points at the wrong text |
+| a relation written into a property | see below — it is the failure that looks most like success |
+
+**A node id inside a sentence is not a link.** Measured on an autonomous run: an
+ingestion found five cross-document observations and wrote every one of them as
+prose in a property, quoting the other node's uuid mid-sentence. Nothing was
+lost to a reader; everything was lost to a traversal, and a count of edges
+reported that the run had connected nothing.
+
+A relation is a record of its own here, with its own properties — `kg node <id>
+link --as <type> --with-nodes <id>` then `kg link <id> set` for what qualifies
+it. Whatever justifies the link belongs on the link. If a thought genuinely is
+not a relation, it is prose and belongs in a body; what it must not be is a
+relation wearing a property's clothes, because that shape reads correctly and
+answers nothing.
 
 Write what survives, and report what you refused with it. A contest that is not
 reported is a decision nobody can audit — which is exactly what a reviewer would

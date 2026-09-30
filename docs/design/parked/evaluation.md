@@ -55,6 +55,32 @@ completely and recall not at all.
 
 So (a) and (b) are one measurement, not two. *Found, at which rung* is the unit.
 
+## A metric that presupposes the slot measures the slot
+
+The first cross-document measurement counted edges whose endpoints belonged to
+different documents, and reported **zero** on a graph holding **five**
+cross-document observations. They were there — three convergences, one
+divergence and one explicit refusal to connect — written as prose inside
+properties, each naming the other node's uuid in the middle of a sentence.
+
+The count was not wrong about edges. It was wrong about the question, and the
+failure is general: **a measurement that assumes the form an answer will take
+reports conformance to that form**, and reads exactly like the phenomenon being
+absent. The conclusion drawn from it — *nothing asks the agent to connect* — was
+false, and it survived two rounds of interpretation before the graph was read by
+hand.
+
+Two habits come out of it, and both are cheap:
+
+- **count over every slot the thing could have been written in.** `verify.py`
+  counts edges between documents, nodes standing between two, and uuids found
+  inside property values, because the finding is that the third exists.
+- **watch a metric move before trusting a zero.** A count that has never been
+  anything but zero does not distinguish *absent* from *invisible to this
+  count*. Its fixture now carries each shape deliberately, and each number was
+  confirmed both before and after the shape was introduced — which is how two
+  defects in the script itself were found.
+
 ## What it is blocked on
 
 **Both of the other two pieces**, which is why this page also answers what to

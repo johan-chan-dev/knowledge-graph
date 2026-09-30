@@ -253,6 +253,58 @@ to be grounded, not to have been found.** That the ids happen to resist recall i
 an accident of uuidv7 filenames, not a defence; it would vanish the day ids are
 derived from `doc_id`.
 
+## What three runs actually left behind
+
+Measured by hand before `verify.py` existed, and the reason it does. Three
+ingestions — two pilots and a pair of papers cited by one dev claim — produced
+**four distinct vocabularies**: `Paper`/`Element`/`Subject`, then
+`Finding`/`Method`/`Discrepancy`, with `HAS_ELEMENT`, `QUALIFIES` and `WARRANTS`
+arriving late. Nothing carried over between runs, because nothing shared a
+space.
+
+**Zero edges between documents, and five cross-document observations.** Both are
+true, which is the finding. In the pair run the second paper's nodes carried:
+
+```yaml
+cross_paper_convergence: 'same mechanism direction as paper 4414547's element
+  01a0ba89-b431-… ("enhanced suppression of p53 in response to ionizing
+  radiation"): both papers report PPM1D mutations increasing PPM1D's
+  suppression of p53 activity, in different tissue contexts.'
+cross_paper_derivation: 'this base's cross-paper observation … not a claim
+  either paper's own text makes'
+```
+
+and, unprompted, a refusal to connect:
+
+```yaml
+cross_paper_non_claim: 'NOT asserted: that this exon 6 is the same locus as
+  paper 4414547's "final exon". No element in either paper states PPM1D's final
+  exon is exon 6 — that identity holds only via an outside fact. Recorded so a
+  later pass does not silently promote it to a claim.'
+```
+
+So the agent connects, qualifies, and even declines — and deposits all of it
+where no traversal passes. [`evaluation`](evaluation.md) carries what that did
+to the measurement.
+
+**Where the raw went.** Zero non-empty bodies across 33 nodes. The abstract sat
+on the `Paper` node as a YAML array, and **12 of 12** lifted element texts were
+duplicated verbatim inside it — so the array held the remainder *and* a copy of
+what was not the remainder. [`material`](../material.md) argues the shape this
+was reaching for.
+
+A `Discrepancy` node was invented too: the agent noticed that element [3]'s
+subgroup counts do not sum to its own stated totals (18 + 12 against 25;
+6 912 + 1 121 against 7 781) and marked it `derivation: "arithmetic on the
+numbers [3] states — not a claim the paper itself makes"`, with a caveat that it
+holds the arithmetic and no account of its cause. Nobody asked for the qualified
+hypothesis; it arrived.
+
+**The graphs are gone.** A `/tmp` sweep took all three run directories, leaving
+an empty `.git` shell. The figures above stand in the record and the artefacts
+do not, so re-running is the only way to re-verify them — which the changed
+prompt and `verify.py` now make worth doing anyway.
+
 ## What it is blocked on
 
 Nothing but the work. The data is 3 MB, public, one command.

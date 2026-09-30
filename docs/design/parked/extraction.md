@@ -102,6 +102,39 @@ Annotation model pairs a quote selector carrying prefix and suffix with a
 position selector, which is this table with the ambiguity closed; it is the
 shape to take rather than to re-derive.
 
+## The chain is learned upward, and two relations run along it
+
+Everything above reads the chain as known when the lift happens: here is the
+source, here is what was taken from it. **The upstream is learned afterwards, or
+not at all.** What the base was handed may turn out to be a cut from something
+fuller, or a rewrite of something older that is already here — and
+[`raw`](raw.md) argues why that is the permanent condition rather than a gap to
+be closed.
+
+The two discoveries are not the same claim, and welding them into one relation
+destroys the distinction the anchor exists to serve:
+
+| | claims | how it is settled |
+|---|---|---|
+| `EXTRACTED_FROM` | a **position** — these bytes are in that | the anchor above: quote, offsets, digest. Found or doubtful, and the tool says which |
+| `DERIVED_FROM` | a **fidelity** — this says that, otherwise | argued and never located. No search finds a rewrite, so the edge carries who asserted it and on what ground, or it carries nothing |
+
+Conflating them leaves a later reader unable to tell *these are the same words*
+from *somebody judged that these say the same thing*, which is precisely the
+line the digest and the quote can hold for one and can never hold for the other.
+
+**And it is what the intact bytes are for.** The two cases want them for
+different reasons: for a cut, the received text is what **locates** the link in
+the fuller source, so any normalisation at capture — a trimmed space, a fixed
+typo, a rewrapped line — breaks the search that would have found it. For a
+rewrite, nothing locates anything, and the bytes are what makes the claim
+**contestable**: a reader can weigh *is this really a restatement of that* only
+against what the other actually said.
+
+Which gives the sharper form of the rule: **an unrevisable provenance is worse
+than an absent one.** It still looks like provenance, and nothing about it
+announces that no one can check it any more.
+
 ## Version is the graph's, history is git's
 
 A digest is an **identity**: it says *that* the body changed. It does not say

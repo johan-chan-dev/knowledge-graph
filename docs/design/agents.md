@@ -137,6 +137,10 @@ Written in [`kg/agents/mechanics.md`](../../kg/agents/mechanics.md):
   the same rule pointing the other way.
 - **The rung is recorded**, because it cannot be reconstructed from an answer
   afterwards and is what tells a retrieval failure from an under-extracted graph.
+- **A node id inside a sentence is not a link** — measured, and the failure that
+  looks most like success: an autonomous ingestion wrote all five of its
+  cross-document observations as prose in properties, losing nothing to a reader
+  and everything to a traversal.
 
 And since the loop above starts at sparring, the skill carries its **second
 inlet** too — material that arrives already written:
