@@ -133,13 +133,27 @@ seeds.
 
 ## Reference or copy
 
-The source itself is kept only if asked, and the form turns on one question:
-**will it still be there, unchanged, when someone follows it?**
+The source itself is kept only if asked, and the form turns on two questions,
+not one.
+
+**Will it still be there, unchanged, when someone follows it?**
 
 | | |
 |---|---|
 | **durable** — a file under version control, a stable URL, anything with a commitment behind it | a **reference**. Always current, nothing to keep in sync |
 | **volatile** — a web page, a thread, a scratch note, anything that can be edited or disappear | a **copy**, held as a snapshot |
+
+**And: will anything here be able to read it?** Durability answers whether the
+source survives. It says nothing about whether *this base* can see it — and
+every way of looking works inside the space, the body sweep included. A
+reference is followed by a person, never by a pattern.
+
+So material held only by reference is safe and invisible, and invisible material
+makes no connections: what a later piece would have had in common with it is
+never found, because there was nothing here to meet. Keep a copy whenever the
+text is what something later will be compared against, whatever the source
+promises — and a reference beside it, which costs nothing and says where it came
+from.
 
 **A copy says that it is one**, by carrying a label of its own. That is not
 bookkeeping: it is what makes divergence answerable. *Which copies has the
