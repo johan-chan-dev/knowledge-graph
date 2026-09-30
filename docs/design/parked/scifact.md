@@ -228,10 +228,36 @@ and the rung the noisier, since the path varies more than the outcome.
 8. compilation             ← recall and rung per size, the A→B delta, the cost
 ```
 
-**No snapshot.** Each run has its own directory, so the run *is* the record. What
-replaces it is an invariant — **the graph does not move during the claims
+**No snapshot — and the run directory is not the record either.** It was written
+here that it is, on the argument that each run has its own. A `/tmp` sweep then
+took all three, leaving empty `.git` shells: the measurements survived in the
+commit log, the artefacts did not.
+
+So the record is the **manifest**, which now names every claim and document id
+instead of only counting them, and `subset.py --from-manifest` rebuilds the
+inputs from it — verified byte for byte, document order included, which is itself
+a variable since ingestion runs one document at a time. A manifest naming a
+document the corpus no longer holds refuses rather than producing a run one
+document short.
+
+What the directory holds is the graph, and that part is genuinely
+unrecoverable. The consequence is the opposite of reassuring: **a run's
+conclusion has to be written down while the run still exists**, because nothing
+will rebuild the graph to re-derive it from.
+
+The invariant is unaffected — **the graph does not move during the claims
 phase** — and that matters concretely: the loop has a failed lookup propose a
 lift, and a lift accepted mid-run would drift the graph under the questions.
+
+### Named runs
+
+A deliberate selection needs no seed: when the size equals the number of cited
+documents the draw is `sorted(cited)` and nothing is shuffled, so the command
+line alone is the whole specification.
+
+| | |
+|---|---|
+| **pair-ppm1d** | `subset.py --select 70 --size 2 --config A` — dev claim 70, *Activation of PPM1D suppresses p53 function*, citing 5956380 and 4414547. Two papers on one protein reached by one claim: the smallest case in which convergence is possible at all, and the one the first probe found none in |
 
 ## Contamination, measured rather than blocked
 
