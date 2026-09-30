@@ -95,6 +95,142 @@ example of that — see [structure](structure.md), where the line between a word
 somebody chose and a fact the format holds is what decides whether the tool may
 know a name at all.
 
+## What the borrowing does and does not come with
+
+Checked 2026-09-30, because a borrowed shape invites borrowing the advice that
+travels with it. **Neo4j's own manual is typographic and nothing else** — labels
+in PascalCase, relationship types in SCREAMING_SNAKE_CASE, properties in
+camelCase, names case-sensitive. On *which* word to choose it is silent, and the
+Getting Started modelling page names use cases without ever connecting them to
+label design.
+
+The substantive doctrine is on their developer blog, at blog weight rather than
+specification weight:
+
+| | |
+|---|---|
+| "Always have a query use case for a label" | the rule that survives translation best |
+| "Multiple labels should be semantically orthogonal" | their word for a thing argued below |
+| "Past 4 labels per node, expect overall performance to get worse" | **does not port — see the next section** |
+| anti-pattern: class hierarchies, `:Bat:Mammal:Animal` | "someone creating a semantic model as opposed to focusing on how to answer questions" |
+| anti-pattern: "noun verber" labels, `:CarOwner` | a HAS-A smuggled into a classifier |
+
+The first anti-pattern comes with the argument that makes it stick, and it is
+mechanical rather than aesthetic: **the same set is available by intersection
+anyway.** `(:Person:Director)` needs no `:PersonDirector`, and here that holds
+literally — several labels on one pattern are conjunctive, per
+[api](../spec/api.md).
+
+## What a word costs, and why their budget does not port
+
+Their number is a claim about a storage engine: a label costs an index entry, so
+the cost lands **per node**. Nothing of that shape exists here. A node's words
+are a list in its own frontmatter, read whole whenever the node is read, so
+carrying eight costs nothing a pattern can notice.
+
+**The cost here is per distinct word, and it is paid by every session.** The
+session hook puts `labels list` and `types list` into context before the first
+question is asked, which is the whole of its value — so the vocabulary is a
+standing tax proportional to how many words exist, not to how they are spread.
+
+It has two halves, and the second is the one that bites:
+
+| | grows with | |
+|---|---|---|
+| tokens | the number of words | linear, and directly measurable |
+| **selection** | **confusability** | thirty crisp words are easier to choose between than eight that overlap |
+
+So *semantically orthogonal* is a modelling nicety in Neo4j and a **performance
+rule** here: orthogonality is exactly what makes a choice unambiguous. And a
+word that partitions nothing is not merely inelegant — it is a word the reader
+must consider and discard at every question, pure cost against no return.
+
+**And invention is close to irreversible.** [api](../spec/api.md) is explicit
+that a word outlives its last use: when the final node drops it, it stays at a
+count of `0`, because the vocabulary records what has been said here. Only
+`forget` removes it. Reusing an existing word, meanwhile, is free on both halves.
+
+The pressure is therefore asymmetric and sharp: **reuse beats invent**, and not
+as a matter of tidiness — it is the only one of the two whose cost does not
+repeat.
+
+## Choosing one
+
+The page above says what a word *is*. This is how one is picked, and the reframe
+that makes the rest derivable:
+
+> **A label is not a name for what a thing is. It is a prediction about what
+> somebody will ask for.**
+
+The essentialist question — *what is this node* — is the wrong one, and it is
+the one that produces vocabulary nobody uses. The right one is *what future
+question will need exactly this set*.
+
+An order, not a checklist, because the costs above are asymmetric:
+
+**0. Often, not yet.** Groupings arrive late; that is this page's opening
+argument and it applies to the act of labelling itself. Material can be written
+without being classified. Labelling *is* the qualifying act
+([raw](parked/raw.md)), so demanding it at writing time demands the guess this
+page exists to avoid.
+
+**1. Write the question, literally.** One sentence. If it will not come, there
+is no label here — there is a description, and a description is a property.
+
+**2. Try the existing vocabulary against it.** It is already in context. If a
+word that exists returns that set, it is done, and it was free.
+
+**3. Ask whether the set is already reachable.** By a traversal, a property, an
+intersection of labels, a `jq`. **A word earns itself only when the set is not
+otherwise joinable** — which is Neo4j's class-hierarchy argument arriving from
+the other direction.
+
+**4. Only then the word, tested by confusability.** Not *is it apt* but: could
+somebody holding the question pick a different one from the list? That cost is
+paid at every question, not once.
+
+**5. Write its description in the same act.** `kg label <word> write`. The word
+carries the extension; the meaning lives behind it. A word without a description
+is one the next session has to guess at.
+
+**An analogy may carry an argument; it must not carry a name.** A label travels
+to people who have not read the page where the analogy is explained — so the
+argument may be forensic, archaeological, whatever illuminates, while the word
+stays plain. The test, with no appeal to taste: *a label you need to know a
+trade to know the exclusions of is a bad label.* This describes a discipline the
+repository already kept without stating it —
+[extraction](parked/extraction.md)'s prose is a courtroom throughout while its
+words are `Extract`, `Source`, `Concept`.
+
+## Nobody sweeps it
+
+`forget` exists and nothing calls it. A vocabulary only grows: every word
+outlives its last use, selection degrades, and no pass ever comes.
+
+This is the third appearance of one gap — [raw](parked/raw.md)'s uncounted
+inbox, the anchors nothing re-checks in [extraction](parked/extraction.md), and
+now this. Same cause each time, and both pages name it: **nothing here runs
+unprompted.**
+
+What is different is that the trigger can be computed rather than felt. Two
+signals, neither needing anything built:
+
+| | |
+|---|---|
+| **extension**, at either end | a word carried by one node out of three hundred grouped nothing; one carried by two hundred and ninety-nine refused nothing. Both are dead weight |
+| **rung inflation** | a question that should answer at rung 1 or 2 answering at 4 after an empty pattern is a missed anchor — the signature of two words that can be confused |
+
+`labels list` does not carry the count, deliberately: [api](../spec/api.md)
+records that the count it once had forced a parse of every node. So extension is
+a whole-graph read — 148 ms at 171 nodes, cheap enough to inspect on demand and
+too dear to pay every session, which is exactly the right place for it.
+
+**And the tool already closes half of the confusion trap.** A word that does not
+exist refuses and names its near neighbour, so a misspelling cannot return as
+*nothing matched*. A word that exists and is the wrong one gets no such help,
+and nothing can give it — which is why rung inflation is the only signal left
+for the case that matters.
+
 ## What a word is not
 
 It carries no meaning the tool can act on. Nothing about a word decides what a
