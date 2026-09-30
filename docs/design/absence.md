@@ -183,6 +183,38 @@ way inherits the host language's answer — and in JavaScript `undefined > 0` an
 reason. Presence is checked because it is a fact, not because a coercion happens
 to agree.
 
+## One question the substrate can ask unaided
+
+The schema claims above all need a practice's word — `valid-until`, `decision` —
+so the substrate answers each half and originates neither. **There is a family
+that needs no word at all**, and it is the one [structure](structure.md)'s test
+admits: *does a rule about this survive changing the subject?* A graph of
+recipes has bodies, creation times and identities. It also has **unreachable
+nodes**.
+
+A node is reachable if it carries a label, or links to something reachable.
+Patterns anchor on labels, so a node with neither is findable only by sweeping
+the whole space — it is in the store without being in the graph. Nothing about
+that claim mentions what anything means:
+
+```console
+$ kg nodes match '(n)' \
+    | jq 'map(select((.labels//[]|length)==0 and (.links//[]|length)==0) | .id)'
+```
+
+The whole graph resolves in 148 ms at 171 nodes, so the sweep is an inspection
+to run on demand rather than a cost to design around. `// []` is not optional —
+a node carrying no labels reads `null`, per [api](../spec/api.md).
+
+**What this does not give is [raw](parked/raw.md)'s inbox**, and the two are
+worth keeping apart. That page wants *what has nobody judged yet* and reaches
+for a practice's property to ask it, which is precisely the word the substrate
+must not learn. Reachability asks a neighbouring question — *what can nobody
+find* — and the sets are not the same: a labelled node is reachable and may be
+entirely unjudged. So the open question stays open. What is settled is that a
+structural predicate can exist at all, and that it needs nobody's vocabulary to
+be computed.
+
 ## Sources
 
 - Reiter, *On Closed World Data Bases* (1978) — the assumption, and its package

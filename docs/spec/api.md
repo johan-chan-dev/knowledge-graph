@@ -105,6 +105,29 @@ kg nodes --properties <id>...            the properties of each, as an array
 kg nodes --stdin --properties            …with the ids read from stdin
 ```
 
+**Several labels on one node pattern are conjunctive.** `(:Person:Director)`
+matches a node carrying both, and the order is indifferent — `NodeLabels` is a
+repetition, not a choice. There is no disjunction: `(:Person|Director)` is not
+a wider match but a parse error, `unclosed node`, because `|` belongs to
+relationship types (`[r:A|B]`) and to nothing else. The asymmetry is worth
+stating because the failure does not look like a missing feature.
+
+**An unknown label refuses, and names its near neighbour** — `no such label:
+person — did you mean Person?`. That is what keeps an empty answer meaningful:
+a misspelt word cannot come back as *nothing matched*. A word that exists but
+is the wrong one gets no such help, and nothing can give it.
+
+**`labels` is absent, not empty, on a node carrying none** — it reads `null` in
+the resolved output rather than `[]`, so a filter downstream needs `// []` or it
+breaks on the first bare node.
+
+**Negation and disjunction over labels are `jq`'s**, as comparison and
+aggregation are: `(:Person)` then `select(.labels | index("Director") | not)`.
+Anchoring first is worth doing for what comes back rather than for what is read
+— [corpus-statistics](../design/parked/corpus-statistics.md) measured that every
+`match` builds the whole snapshot regardless, so a pattern narrows the answer,
+never the work.
+
 **It parses nothing.** The id is the filename, so enumerating is a directory
 read — a damaged node lists like any other, and only a command naming it can
 tell.
