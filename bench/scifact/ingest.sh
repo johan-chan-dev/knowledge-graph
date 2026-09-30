@@ -23,7 +23,9 @@ mkdir -p "$LOG"
 
 PROMPT_HEAD='This abstract joins a knowledge base that will later be put to scientific claims: it must be able to say whether the literature it holds supports them, refutes them, or does not address them — and to name the sentences that settle it.
 
-The base is shared and already holds whatever earlier documents left in it.
+A claim is often settled by more than one paper. So the base has to answer **across** the documents it holds and not only within each one — what this document has in common with what is already there is precisely the part no single document can supply, and it is lost if nothing joins them.
+
+The vocabulary is shared in the same way, and it is a commons: a word that already exists costs nothing, a new one is carried by every session that follows, for as long as the base lives.
 
 Nobody reviews this run, so you do not hold the pen: whatever this document should leave behind, **propose it to the kg mechanics agent, which contests and writes**. You decide what matters; it decides what the graph can bear.
 
