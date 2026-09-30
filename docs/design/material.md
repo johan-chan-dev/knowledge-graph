@@ -33,14 +33,26 @@ Each extraction is a node in its own right, free to be labelled, linked and
 extracted from again. Nothing about the first node privileges it: it was where
 the material entered, not what the material *is*.
 
-**And the last step is the point.** Once the extractions carry the meaning and
-the source is reachable another way — a URL, a citation, anything outside — the
-original is duplicated data. Keeping it is keeping a copy of something that has
-been superseded by its own decomposition.
+**And the last step is a choice, not an arrival.** It reads like one: once the
+extractions carry the meaning and the source is reachable somewhere outside, the
+original looks like duplicated data. It is not, and
+[`extraction`](parked/extraction.md) supplies the refutation in its own words —
+**a body is the remainder nobody has extracted yet.** A reading is lossy by
+construction, so what no extraction carries exists in exactly one place, and
+dropping the body drops precisely that.
+
+Three costs, none of them visible at the moment of dropping:
+
+| | |
+|---|---|
+| **it is what the next document meets** | convergence is found by comparing texts. A document arriving later can only join what earlier ones left readable; against bare structure there is nothing to meet, and the base stacks instead of growing |
+| **reachable is not visible** | a URL survives and the graph still cannot read it. Every rung of retrieval works inside the space, the body sweep included, so material held only by reference yields no connections. Durability answers *will it still be there* and never *can the graph see it* |
+| **the chain is discovered upward** | what arrived may later prove to be a cut from something fuller, or a rewrite of something older — see [`raw`](parked/raw.md). Intact bytes are what locates the first and what makes the second contestable |
 
 That is why a node is a stage. Most note tools treat a note as permanent and
 make deletion a taboo or an afterthought; here **withdrawal is the last step of
-a normal lifecycle**, not an accident to be guarded against.
+a normal lifecycle** — a step somebody takes knowing its price, rather than
+housekeeping that follows automatically from having read the thing once.
 
 ## What that commits the tool to
 
@@ -59,9 +71,10 @@ still points at it can be found, which is why
 merely waiting for them: *whether withdrawing a node is deletion or a tombstone*
 is the question this lifecycle asks last and cannot avoid.
 
-**And a reference outside the space is a URL**, never a path — which is what
-makes *"the source is reachable another way"* a thing the tool can rely on. See
-[`location`](location.md).
+**And a reference outside the space is a URL**, never a path — see
+[`location`](location.md). What that buys is that a source can be *found* again.
+It does not put the source anywhere a pattern, a traversal or a body sweep can
+reach, and the table above turns entirely on that difference.
 
 ## What it does not commit to
 
